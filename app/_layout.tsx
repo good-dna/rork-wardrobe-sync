@@ -4,10 +4,15 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { colors } from "@/constants/colors";
+import { trpc, trpcClient } from "@/lib/trpc";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
+
+// Create a client
+const queryClient = new QueryClient();
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -39,68 +44,72 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.background,
-        },
-        headerTintColor: colors.text,
-        headerTitleStyle: {
-          fontWeight: '600',
-        },
-        headerShadowVisible: false,
-      }}
-    >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="item/[id]" 
-        options={{ 
-          title: "Item Details",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="category/[id]" 
-        options={{ 
-          title: "Category",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="outfit/[id]" 
-        options={{ 
-          title: "Outfit Details",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="wishlist/[id]" 
-        options={{ 
-          title: "Wishlist Item",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="add-item" 
-        options={{ 
-          title: "Add New Item",
-          presentation: "modal",
-        }} 
-      />
-      <Stack.Screen 
-        name="add-outfit" 
-        options={{ 
-          title: "Create Outfit",
-          presentation: "modal",
-        }} 
-      />
-      <Stack.Screen 
-        name="add-wishlist" 
-        options={{ 
-          title: "Add to Wishlist",
-          presentation: "modal",
-        }} 
-      />
-    </Stack>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.text,
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
+            headerShadowVisible: false,
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen 
+            name="item/[id]" 
+            options={{ 
+              title: "Item Details",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="category/[id]" 
+            options={{ 
+              title: "Category",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="outfit/[id]" 
+            options={{ 
+              title: "Outfit Details",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="wishlist/[id]" 
+            options={{ 
+              title: "Wishlist Item",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="add-item" 
+            options={{ 
+              title: "Add New Item",
+              presentation: "modal",
+            }} 
+          />
+          <Stack.Screen 
+            name="add-outfit" 
+            options={{ 
+              title: "Create Outfit",
+              presentation: "modal",
+            }} 
+          />
+          <Stack.Screen 
+            name="add-wishlist" 
+            options={{ 
+              title: "Add to Wishlist",
+              presentation: "modal",
+            }} 
+          />
+        </Stack>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
