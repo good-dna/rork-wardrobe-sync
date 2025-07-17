@@ -1,16 +1,20 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, Pressable, Alert, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, Image, Pressable, Alert, Linking, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { DollarSign, Trash2, Edit, ExternalLink, ShoppingBag } from 'lucide-react-native';
+import { DollarSign, Trash2, Edit, ExternalLink, ShoppingBag, Check, Wand2, Sparkles } from 'lucide-react-native';
 import { colors, categoryColors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
+import { AIProductAnalysisService } from '@/services/aiProductAnalysisService';
 
 export default function WishlistItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   
   const wishlist = useWardrobeStore((state) => state.wishlist);
   const deleteWishlistItem = useWardrobeStore((state) => state.deleteWishlistItem);
+  const updateWishlistItem = useWardrobeStore((state) => state.updateWishlistItem);
+  const addItem = useWardrobeStore((state) => state.addItem);
   
   const item = wishlist.find((item) => item.id === id);
   
@@ -46,6 +50,70 @@ export default function WishlistItemDetailScreen() {
   const handleEdit = () => {
     // In a real app, navigate to edit screen
     Alert.alert("Edit Wishlist Item", "Edit functionality would be implemented here.");
+  };
+
+  const handleMarkAsPurchased = () => {
+    Alert.alert(
+      "Mark as Purchased",
+      "This will add the item to your wardrobe and remove it from your wishlist.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        { 
+          text: "Add to Wardrobe", 
+          onPress: () => {
+            // Convert wishlist item to wardrobe item
+            const newWardrobeItem = {
+              id: Date.now().toString(),
+              name: item.name,
+              brand: item.brand,
+              category: item.category,
+              color: item.color,
+              material: 'Unknown',
+              season: ['all' as const],
+              purchaseDate: new Date().toISOString().split('T')[0],
+              purchasePrice: item.estimatedPrice,
+              wearCount: 0,
+              lastWorn: '',
+              imageUrl: item.imageUrl || '',
+              notes: item.notes || '',
+              tags: [],
+              cleaningStatus: 'clean' as const,
+              wearHistory: [],
+              washHistory: []
+            };
+            
+            addItem(newWardrobeItem);
+            deleteWishlistItem(item.id);
+            
+            Alert.alert('Success', 'Item added to your wardrobe!', [
+              { text: 'OK', onPress: () => router.back() }
+            ]);
+          }
+        }
+      ]
+    );
+  };
+
+  const generateAIImage = async () => {
+    setIsGeneratingImage(true);
+    try {
+      const description = `${item.brand} ${item.name} ${item.category} ${item.color ? `in ${item.color}` : ''}`;
+      const result = await AIProductAnalysisService.generateProductImage(description);
+      
+      if (result.success && result.imageUrl) {
+        updateWishlistItem(item.id, { imageUrl: result.imageUrl });
+        Alert.alert('Success', 'AI-generated product image has been created!');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to generate image');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate image. Please try again.');
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
   
   const handleOpenUrl = () => {
@@ -135,12 +203,36 @@ export default function WishlistItemDetailScreen() {
             </View>
           </View>
           
+          <View style={styles.actionButtons}>
           {item.url && (
             <Pressable style={styles.urlButton} onPress={handleOpenUrl}>
-              <ExternalLink size={18} color="white" style={{ marginRight: 8 }} />
+              <ExternalLink size={16} color="white" />
               <Text style={styles.urlButtonText}>View Online</Text>
             </Pressable>
           )}
+          
+          <Pressable style={styles.purchaseButton} onPress={handleMarkAsPurchased}>
+            <Check size={16} color="white" />
+            <Text style={styles.purchaseButtonText}>Mark as Purchased</Text>
+          </Pressable>
+        </View>
+        
+        {!item.imageUrl && (
+          <Pressable 
+            style={[styles.generateImageButton, isGeneratingImage && styles.generateImageButtonDisabled]} 
+            onPress={generateAIImage}
+            disabled={isGeneratingImage}
+          >
+            {isGeneratingImage ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Wand2 size={16} color={colors.primary} />
+            )}
+            <Text style={styles.generateImageText}>
+              {isGeneratingImage ? 'Generating...' : 'Generate AI Image'}
+            </Text>
+          </Pressable>
+        )}
         </View>
         
         {item.notes && (
@@ -253,19 +345,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
   urlButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 8,
+    gap: 6,
   },
   urlButtonText: {
     fontSize: 14,
     color: 'white',
     fontWeight: '500',
+  },
+  purchaseButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.success || '#10B981',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  purchaseButtonText: {
+    fontSize: 14,
+    color: 'white',
+    fontWeight: '500',
+  },
+  generateImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  generateImageButtonDisabled: {
+    opacity: 0.5,
+  },
+  generateImageText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
   },
   notesContainer: {
     marginBottom: 24,

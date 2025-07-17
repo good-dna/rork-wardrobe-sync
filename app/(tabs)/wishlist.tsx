@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Sparkles, Camera, Link } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import WishlistCard from '@/components/WishlistCard';
@@ -16,20 +16,43 @@ export default function WishlistScreen() {
   };
   
   const renderEmptyState = () => (
-    <EmptyState
-      title="Your wishlist is empty"
-      message="Add items you want to buy to keep track of your shopping list."
-      actionLabel="Add to Wishlist"
-      onAction={handleAddWishlistItem}
-    />
+    <View style={styles.emptyContainer}>
+      <EmptyState
+        title="Your wishlist is empty"
+        message="Add items you want to buy using AI-powered scanning or manual entry."
+        actionLabel="Smart Add Item"
+        onAction={handleAddWishlistItem}
+      />
+      <View style={styles.quickActions}>
+        <Text style={styles.quickActionsTitle}>Quick Add Options:</Text>
+        <View style={styles.quickActionButtons}>
+          <Pressable style={styles.quickActionButton} onPress={handleAddWishlistItem}>
+            <Camera size={20} color={colors.primary} />
+            <Text style={styles.quickActionText}>Scan Item</Text>
+          </Pressable>
+          <Pressable style={styles.quickActionButton} onPress={handleAddWishlistItem}>
+            <Link size={20} color={colors.primary} />
+            <Text style={styles.quickActionText}>From URL</Text>
+          </Pressable>
+          <Pressable style={styles.quickActionButton} onPress={handleAddWishlistItem}>
+            <Plus size={20} color={colors.primary} />
+            <Text style={styles.quickActionText}>Manual</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
   
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>My Wishlist</Text>
-        <Pressable style={styles.addButton} onPress={handleAddWishlistItem}>
-          <Plus size={20} color="white" />
+        <View>
+          <Text style={styles.title}>My Wishlist</Text>
+          <Text style={styles.subtitle}>{wishlist.length} items</Text>
+        </View>
+        <Pressable style={styles.smartAddButton} onPress={handleAddWishlistItem}>
+          <Sparkles size={18} color="white" />
+          <Text style={styles.smartAddText}>Smart Add</Text>
         </Pressable>
       </View>
       
@@ -65,15 +88,61 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   listContent: {
     paddingBottom: 16,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginTop: 2,
+  },
+  smartAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  smartAddText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  emptyContainer: {
+    flex: 1,
+  },
+  quickActions: {
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  quickActionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  quickActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  quickActionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+    textAlign: 'center',
   },
 });

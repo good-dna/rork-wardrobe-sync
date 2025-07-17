@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { DollarSign, ExternalLink } from 'lucide-react-native';
+import { DollarSign, ExternalLink, Tag, Calendar } from 'lucide-react-native';
 import { WishlistItem } from '@/types/wardrobe';
 import { colors, categoryColors } from '@/constants/colors';
 import * as Linking from 'expo-linking';
@@ -57,13 +57,18 @@ export default function WishlistCard({ item }: WishlistCardProps) {
         
         <View style={styles.details}>
           <View style={styles.detailRow}>
-            <DollarSign size={14} color={colors.subtext} />
+            <Tag size={12} color={colors.subtext} />
+            <Text style={styles.detailText}>{item.category}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <DollarSign size={12} color={colors.subtext} />
             <Text style={styles.detailText}>${item.estimatedPrice.toFixed(2)}</Text>
           </View>
           
           {item.url && (
             <Pressable style={styles.linkButton} onPress={handleUrlPress}>
-              <ExternalLink size={14} color={colors.primary} />
+              <ExternalLink size={12} color={colors.primary} />
               <Text style={styles.linkText}>View Online</Text>
             </Pressable>
           )}
@@ -80,28 +85,28 @@ export default function WishlistCard({ item }: WishlistCardProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: colors.background,
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 16,
     marginBottom: 12,
-    padding: 12,
+    padding: 16,
     borderLeftWidth: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   image: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    marginRight: 16,
   },
   imagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    marginRight: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -154,7 +159,8 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 12,
     color: colors.subtext,
-    marginLeft: 6,
+    marginLeft: 4,
+    textTransform: 'capitalize',
   },
   linkButton: {
     flexDirection: 'row',
@@ -164,7 +170,8 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 12,
     color: colors.primary,
-    marginLeft: 6,
+    marginLeft: 4,
+    fontWeight: '500',
   },
   notes: {
     fontSize: 12,
