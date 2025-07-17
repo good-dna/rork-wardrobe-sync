@@ -203,10 +203,10 @@ export default function OutfitGenerator({ onSave }: OutfitGeneratorProps) {
         {loading ? (
           <ActivityIndicator size="small" color="white" />
         ) : (
-          <>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Sparkles size={18} color="white" style={{ marginRight: 8 }} />
             <Text style={styles.generateButtonText}>Generate Outfit</Text>
-          </>
+          </View>
         )}
       </Pressable>
       
