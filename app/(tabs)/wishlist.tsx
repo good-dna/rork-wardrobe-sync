@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-
   listContent: {
     paddingBottom: 16,
   },
