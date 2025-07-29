@@ -203,8 +203,8 @@ export default function OutfitGenerator({ onSave }: OutfitGeneratorProps) {
         {loading ? (
           <ActivityIndicator size="small" color="white" />
         ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Sparkles size={18} color="white" style={{ marginRight: 8 }} />
+          <View style={styles.generateButtonContent}>
+            <Sparkles size={18} color="white" style={styles.generateButtonIcon} />
             <Text style={styles.generateButtonText}>Generate Outfit</Text>
           </View>
         )}
@@ -334,5 +334,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  generateButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  generateButtonIcon: {
+    marginRight: 8,
   },
 });
