@@ -37,8 +37,7 @@ export default function OutfitCard({ outfit }: OutfitCardProps) {
         <View style={styles.detailRow}>
           <Calendar size={14} color={colors.subtext} />
           <Text style={styles.detailText}>
-            {outfit.occasion.charAt(0).toUpperCase() + outfit.occasion.slice(1)} • 
-            {outfit.season.charAt(0).toUpperCase() + outfit.season.slice(1)}
+            {outfit.occasion.charAt(0).toUpperCase() + outfit.occasion.slice(1)} • {outfit.season.charAt(0).toUpperCase() + outfit.season.slice(1)}
           </Text>
         </View>
         
