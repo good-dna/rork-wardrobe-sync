@@ -82,16 +82,17 @@ export default function OutfitCard({
             </View>
             
             <View style={styles.rightColumn}>
-              {imageUrl && (
+              {imageUrl ? (
                 <Image 
                   source={{ uri: imageUrl }} 
                   style={styles.outfitImage}
                   resizeMode='cover'
                 />
+              ) : (
+                <View style={styles.placeholder}>
+                  <Text style={styles.placeholderText}>Outfit Preview</Text>
+                </View>
               )}
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>Outfit Preview</Text>
-              </View>
             </View>
           </View>
           
@@ -163,11 +164,8 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   placeholder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: '100%',
+    height: '100%',
     backgroundColor: colors.cardElevated,
     alignItems: 'center',
     justifyContent: 'center',
