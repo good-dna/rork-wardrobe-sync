@@ -60,10 +60,10 @@ export default function HomeScreen() {
             {/* Header */}
             <View style={styles.header}>
               <View>
-                <Typography variant=\"h1\" style={styles.greeting}>
+                <Typography variant="h1" style={styles.greeting}>
                   Welcome, {profile?.displayName?.split(' ')[0] || 'there'}
                 </Typography>
-                <Typography variant=\"body\" color={colors.textSecondary}>
+                <Typography variant="body" color={colors.textSecondary}>
                   {new Date().toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     month: 'long', 
@@ -84,7 +84,7 @@ export default function HomeScreen() {
 
             {/* AI-Powered Section */}
             <View style={styles.sectionHeader}>
-              <Typography variant=\"h2\" style={styles.sectionTitle}>
+              <Typography variant="h2" style={styles.sectionTitle}>
                 AI-powered wardrobe suggestion
               </Typography>
             </View>
@@ -105,11 +105,11 @@ export default function HomeScreen() {
 
             {/* Collections Section */}
             <View style={styles.sectionHeader}>
-              <Typography variant=\"h3\" style={styles.sectionTitle}>
+              <Typography variant="h3" style={styles.sectionTitle}>
                 Your Collections
               </Typography>
               <Pressable onPress={() => router.push('/wardrobe')}>
-                <Typography variant=\"caption\" color={colors.primary}>
+                <Typography variant="caption" color={colors.primary}>
                   View All
                 </Typography>
               </Pressable>
@@ -117,19 +117,19 @@ export default function HomeScreen() {
 
             <View style={styles.collectionsGrid}>
               <Card style={styles.collectionCard}>
-                <Typography variant=\"h3\" color={colors.text}>
+                <Typography variant="h3" color={colors.text}>
                   42
                 </Typography>
-                <Typography variant=\"caption\" color={colors.textSecondary}>
+                <Typography variant="caption" color={colors.textSecondary}>
                   Total Items
                 </Typography>
               </Card>
               
               <Card style={styles.collectionCard}>
-                <Typography variant=\"h3\" color={colors.success}>
+                <Typography variant="h3" color={colors.success}>
                   $2,340
                 </Typography>
-                <Typography variant=\"caption\" color={colors.textSecondary}>
+                <Typography variant="caption" color={colors.textSecondary}>
                   Total Value
                 </Typography>
               </Card>
@@ -142,7 +142,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/outfits')}
               >
                 <Sparkles size={20} color={colors.primary} />
-                <Typography variant=\"caption\" color={colors.text} style={styles.actionText}>
+                <Typography variant="caption" color={colors.text} style={styles.actionText}>
                   Generate Outfit
                 </Typography>
               </Pressable>
@@ -152,7 +152,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/calendar')}
               >
                 <Scan size={20} color={colors.secondary} />
-                <Typography variant=\"caption\" color={colors.text} style={styles.actionText}>
+                <Typography variant="caption" color={colors.text} style={styles.actionText}>
                   Plan Outfits
                 </Typography>
               </Pressable>
