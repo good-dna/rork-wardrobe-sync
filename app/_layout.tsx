@@ -8,7 +8,7 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "splash",
 };
 
 // Create a client
@@ -58,6 +58,7 @@ function RootLayoutNav() {
             headerShadowVisible: false,
           }}
         >
+          <Stack.Screen name="splash" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen 
             name="item/[id]" 

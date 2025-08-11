@@ -57,7 +57,6 @@ export default function HomeScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            {/* Header */}
             <View style={styles.header}>
               <View>
                 <Typography variant="h1" style={styles.greeting}>
@@ -76,20 +75,17 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            {/* Weather Badge */}
             <TemperatureBadge 
               temperature={24}
               onPress={handleWeatherPress}
             />
 
-            {/* AI-Powered Section */}
             <View style={styles.sectionHeader}>
               <Typography variant="h2" style={styles.sectionTitle}>
                 AI-powered wardrobe suggestion
               </Typography>
             </View>
 
-            {/* Outfit Carousel */}
             <Carousel onSnapToItem={handleOutfitPress}>
               {mockOutfits.map((outfit, index) => (
                 <OutfitCard
@@ -103,7 +99,6 @@ export default function HomeScreen() {
               ))}
             </Carousel>
 
-            {/* Collections Section */}
             <View style={styles.sectionHeader}>
               <Typography variant="h3" style={styles.sectionTitle}>
                 Your Collections
@@ -135,7 +130,6 @@ export default function HomeScreen() {
               </Card>
             </View>
 
-            {/* Quick Actions */}
             <View style={styles.quickActions}>
               <Pressable 
                 style={styles.actionButton}
