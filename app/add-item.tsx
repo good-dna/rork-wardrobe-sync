@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { X, Check, Image as ImageIcon } from 'lucide-react-native';
-import { colors, categoryColors } from '@/constants/colors';
+import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import { Category, Season, CleaningStatus, Item } from '@/types/wardrobe';
 import AIScanner from '@/components/AIScanner';
+import Dropdown from '@/components/ui/Dropdown';
 
 export default function AddItemScreen() {
   const router = useRouter();
@@ -39,6 +40,14 @@ export default function AddItemScreen() {
   
   const categories: Category[] = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
   const seasons: Season[] = ['spring', 'summer', 'fall', 'winter', 'all'];
+  
+  const categoryOptions = categories.map(cat => ({
+    label: cat.charAt(0).toUpperCase() + cat.slice(1),
+    value: cat,
+    color: categoryColors[cat],
+  }));
+  
+
   
   const handleClose = () => {
     router.back();
@@ -67,6 +76,8 @@ export default function AddItemScreen() {
       notes,
       tags,
       cleaningStatus: 'clean' as CleaningStatus,
+      wearHistory: [],
+      washHistory: [],
     };
     
     addItem(newItem);
@@ -189,34 +200,13 @@ export default function AddItemScreen() {
           />
         </View>
         
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Category *</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {categories.map((cat) => (
-              <Pressable
-                key={cat}
-                style={[
-                  styles.categoryChip,
-                  category === cat && { backgroundColor: categoryColors[cat] || colors.lightGray }
-                ]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text 
-                  style={[
-                    styles.categoryChipText,
-                    category === cat && styles.selectedCategoryChipText
-                  ]}
-                >
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+        <Dropdown
+          label="Category *"
+          options={categoryOptions}
+          value={category}
+          onSelect={(value) => setCategory(value as Category)}
+          placeholder="Select a category"
+        />
         
         <View style={styles.formRow}>
           <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
@@ -244,6 +234,7 @@ export default function AddItemScreen() {
         
         <View style={styles.formGroup}>
           <Text style={styles.label}>Season</Text>
+          <Text style={styles.helperText}>Select which seasons this item is suitable for</Text>
           <View style={styles.seasonsContainer}>
             {seasons.map((season) => (
               <View key={season} style={styles.seasonRow}>
@@ -253,8 +244,8 @@ export default function AddItemScreen() {
                 <Switch
                   value={selectedSeasons.includes(season)}
                   onValueChange={() => toggleSeason(season)}
-                  trackColor={{ false: colors.lightGray, true: colors.primary + '80' }}
-                  thumbColor={selectedSeasons.includes(season) ? colors.primary : colors.mediumGray}
+                  trackColor={{ false: colors.border, true: colors.primary + '40' }}
+                  thumbColor={selectedSeasons.includes(season) ? colors.primary : colors.textTertiary}
                 />
               </View>
             ))}
@@ -410,57 +401,49 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: tokens.spacing.md,
   },
   formRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: tokens.spacing.md,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: tokens.spacing.xs,
   },
   input: {
     backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     fontSize: 16,
     color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   textArea: {
     minHeight: 100,
-    paddingTop: 12,
+    paddingTop: tokens.spacing.md,
+    textAlignVertical: 'top',
   },
-  categoriesContainer: {
-    paddingVertical: 4,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.lightGray,
-    marginRight: 8,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  selectedCategoryChipText: {
-    fontWeight: '600',
-  },
+
   seasonsContainer: {
     backgroundColor: colors.card,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: tokens.radius.md,
+    padding: tokens.spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: tokens.spacing.xs,
   },
   seasonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: tokens.spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   seasonText: {
     fontSize: 16,
@@ -517,8 +500,8 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 12,
-    color: colors.subtext,
-    marginTop: 4,
-    marginLeft: 2,
+    color: colors.textSecondary,
+    marginTop: tokens.spacing.xs,
+    marginBottom: tokens.spacing.xs,
   },
 });

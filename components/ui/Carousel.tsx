@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, Dimensions, Animated } from 'react-native';
+import { View, ScrollView, StyleSheet, Dimensions, Animated, Platform } from 'react-native';
 import { colors, tokens } from '@/constants/colors';
 
 interface CarouselProps {
@@ -20,6 +20,7 @@ export default function Carousel({
   onSnapToItem
 }: CarouselProps) {
   const scrollX = React.useRef(new Animated.Value(0)).current;
+  const scrollViewRef = React.useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
 
   const handleScroll = Animated.event(
@@ -29,13 +30,22 @@ export default function Carousel({
       listener: (event: any) => {
         const contentOffset = event.nativeEvent.contentOffset.x;
         const index = Math.round(contentOffset / (itemWidth + spacing));
-        if (index !== activeIndex) {
+        if (index !== activeIndex && index >= 0 && index < children.length) {
           setActiveIndex(index);
           onSnapToItem?.(index);
         }
       }
     }
   );
+
+  const handleMomentumScrollEnd = (event: any) => {
+    const contentOffset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffset / (itemWidth + spacing));
+    if (index !== activeIndex && index >= 0 && index < children.length) {
+      setActiveIndex(index);
+      onSnapToItem?.(index);
+    }
+  };
 
   const renderIndicators = () => {
     if (!showsIndicators || children.length <= 1) return null;
@@ -81,22 +91,26 @@ export default function Carousel({
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         pagingEnabled={false}
         showsHorizontalScrollIndicator={false}
         decelerationRate='fast'
         snapToInterval={itemWidth + spacing}
         snapToAlignment='start'
-        contentInset={{ left: spacing, right: spacing }}
+        contentInset={Platform.OS === 'ios' ? { left: spacing, right: spacing } : undefined}
         contentContainerStyle={[
           styles.scrollContainer,
-          { paddingHorizontal: spacing }
+          { paddingHorizontal: Platform.OS === 'android' ? spacing : 0 }
         ]}
         onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
         scrollEventThrottle={16}
+        bounces={true}
+        bouncesZoom={false}
       >
         {children.map((child, index) => (
-          <View key={index} style={[styles.item, { width: itemWidth }]}>
+          <View key={index} style={[styles.item, { width: itemWidth, marginRight: index === children.length - 1 ? 0 : spacing }]}>
             {child}
           </View>
         ))}
@@ -114,7 +128,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   item: {
-    marginRight: tokens.spacing.md,
+    // marginRight handled dynamically in render
   },
   indicatorContainer: {
     flexDirection: 'row',
