@@ -8,24 +8,36 @@ import { useUserStore } from '@/store/userStore';
 import Typography from '@/components/ui/Typography';
 import Card from '@/components/ui/Card';
 import TemperatureBadge from '@/components/ui/TemperatureBadge';
-import OutfitCard from '@/components/ui/OutfitCard';
-import Carousel from '@/components/ui/Carousel';
 
-const mockOutfits = [
+
+const aiSuggestionOptions = [
   {
-    title: 'Office Chic',
-    subtitle: 'Business Meetings',
-    imageUrl: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
+    id: 'casual',
+    title: 'Casual Day',
+    subtitle: 'Relaxed and comfortable',
+    icon: '👕',
+    color: colors.primary,
   },
   {
-    title: 'Casual Friday',
-    subtitle: 'Relaxed Professional',
-    imageUrl: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=400&fit=crop',
+    id: 'work',
+    title: 'Work Professional',
+    subtitle: 'Business meetings',
+    icon: '👔',
+    color: colors.secondary,
   },
   {
-    title: 'Weekend Vibes',
-    subtitle: 'Casual Outings',
-    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop',
+    id: 'formal',
+    title: 'Formal Event',
+    subtitle: 'Special occasions',
+    icon: '🤵',
+    color: colors.success,
+  },
+  {
+    id: 'weather',
+    title: 'Weather-Based',
+    subtitle: 'Perfect for today',
+    icon: '🌤️',
+    color: '#34C759',
   },
 ];
 
@@ -41,8 +53,12 @@ export default function HomeScreen() {
     router.push('/weather-outfit');
   };
 
-  const handleOutfitPress = (index: number) => {
-    router.push('/outfits');
+  const handleAIRecommendationPress = () => {
+    router.push('/ai-recommendations');
+  };
+
+  const handleQuickAIPress = (occasionId: string) => {
+    router.push(`/ai-recommendations?occasion=${occasionId}`);
   };
 
   return (
@@ -86,18 +102,34 @@ export default function HomeScreen() {
               </Typography>
             </View>
 
-            <Carousel onSnapToItem={handleOutfitPress}>
-              {mockOutfits.map((outfit, index) => (
-                <OutfitCard
-                  key={index}
-                  title={outfit.title}
-                  subtitle={outfit.subtitle}
-                  imageUrl={outfit.imageUrl}
-                  onPress={() => handleOutfitPress(index)}
-                  onFavorite={() => console.log('Favorited:', outfit.title)}
-                />
+            <View style={styles.aiOptionsGrid}>
+              {aiSuggestionOptions.map((option) => (
+                <Pressable
+                  key={option.id}
+                  style={styles.aiOptionCard}
+                  onPress={() => handleQuickAIPress(option.id)}
+                >
+                  <View style={[styles.aiOptionIcon, { backgroundColor: option.color + '20' }]}>
+                    <Typography variant="h3" style={styles.aiOptionEmoji}>
+                      {option.icon}
+                    </Typography>
+                  </View>
+                  <Typography variant="body" style={styles.aiOptionTitle}>
+                    {option.title}
+                  </Typography>
+                  <Typography variant="caption" color={colors.textSecondary} style={styles.aiOptionSubtitle}>
+                    {option.subtitle}
+                  </Typography>
+                </Pressable>
               ))}
-            </Carousel>
+            </View>
+
+            <Pressable style={styles.viewAllAIButton} onPress={handleAIRecommendationPress}>
+              <Sparkles size={18} color={colors.primary} />
+              <Typography variant="body" color={colors.primary} style={styles.viewAllAIText}>
+                View All AI Options
+              </Typography>
+            </Pressable>
 
             <View style={styles.sectionHeader}>
               <Typography variant="h3" style={styles.sectionTitle}>
@@ -230,5 +262,56 @@ const styles = StyleSheet.create({
   },
   actionText: {
     marginLeft: tokens.spacing.xs,
+  },
+  aiOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.md,
+    marginBottom: tokens.spacing.lg,
+  },
+  aiOptionCard: {
+    width: '47%',
+    backgroundColor: colors.card,
+    borderRadius: tokens.radius.lg,
+    padding: tokens.spacing.md,
+    alignItems: 'center',
+    ...tokens.shadow.sm,
+  },
+  aiOptionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.spacing.sm,
+  },
+  aiOptionEmoji: {
+    fontSize: 20,
+  },
+  aiOptionTitle: {
+    textAlign: 'center',
+    marginBottom: tokens.spacing.xs,
+    fontWeight: '600',
+  },
+  aiOptionSubtitle: {
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  viewAllAIButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderRadius: tokens.radius.lg,
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    marginBottom: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    ...tokens.shadow.sm,
+  },
+  viewAllAIText: {
+    marginLeft: tokens.spacing.sm,
+    fontWeight: '600',
   },
 });
