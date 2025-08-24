@@ -1,1 +1,189 @@
-import { useState, useEffect, useCallback } from 'react';\nimport createContextHook from '@nkzw/create-context-hook';\nimport { UserProfile, UserPreferences, UseEntityResult } from '@/types/data';\nimport { cacheService } from '@/services/cacheService';\nimport { syncService } from '@/services/syncService';\nimport { trpcClient } from '@/lib/trpc';\n\nconst DEMO_USER_ID = 'demo-user-1';\n\nexport const [DataProvider, useData] = createContextHook(() => {\n  const [profile, setProfile] = useState<UserProfile | null>(null);\n  const [profileError, setProfileError] = useState<string | null>(null);\n  const [profileIsSyncing, setProfileIsSyncing] = useState(false);\n  const [profileIsDirty, setProfileIsDirty] = useState(false);\n  \n  const [preferences, setPreferences] = useState<UserPreferences | null>(null);\n  const [preferencesError, setPreferencesError] = useState<string | null>(null);\n  const [preferencesIsSyncing, setPreferencesIsSyncing] = useState(false);\n  const [preferencesIsDirty, setPreferencesIsDirty] = useState(false);\n\n  useEffect(() => {\n    const initializeData = async () => {\n      try {\n        const cachedProfile = await cacheService.get<UserProfile>(`profile:${DEMO_USER_ID}`);\n        if (cachedProfile) {\n          setProfile(cachedProfile);\n        }\n        \n        const cachedPreferences = await cacheService.get<UserPreferences>(`preferences:${DEMO_USER_ID}`);\n        if (cachedPreferences) {\n          setPreferences(cachedPreferences);\n        }\n      } catch (error) {\n        console.error('Failed to initialize data:', error);\n      }\n    };\n    \n    initializeData();\n  }, []);\n\n  const saveProfile = useCallback(async (updates: Partial<UserProfile>) => {\n    if (!profile) return;\n    \n    setProfileIsSyncing(true);\n    setProfileError(null);\n    \n    try {\n      const updatedProfile: UserProfile = {\n        ...profile,\n        ...updates,\n        updatedAt: Date.now(),\n        version: profile.version + 1,\n        isDirty: true,\n      };\n      \n      setProfile(updatedProfile);\n      setProfileIsDirty(true);\n      \n      await cacheService.set(`profile:${DEMO_USER_ID}`, updatedProfile);\n      \n      await syncService.queueOperation({\n        type: profile.lastSyncedAt ? 'update' : 'create',\n        entity: 'profile',\n        entityId: profile.id,\n        data: updatedProfile,\n      });\n      \n      setProfileIsDirty(false);\n    } catch (error) {\n      const errorMessage = error instanceof Error ? error.message : 'Failed to save profile';\n      setProfileError(errorMessage);\n      throw error;\n    } finally {\n      setProfileIsSyncing(false);\n    }\n  }, [profile]);\n  \n  const refetchProfile = useCallback(async () => {\n    try {\n      const serverProfile = await trpcClient.profile.get.query({ id: DEMO_USER_ID });\n      if (serverProfile) {\n        setProfile(serverProfile);\n        await cacheService.set(`profile:${DEMO_USER_ID}`, serverProfile);\n      }\n    } catch (error) {\n      console.error('Failed to refetch profile:', error);\n    }\n  }, []);\n\n  const savePreferences = useCallback(async (updates: Partial<UserPreferences>) => {\n    if (!preferences) return;\n    \n    setPreferencesIsSyncing(true);\n    setPreferencesError(null);\n    \n    try {\n      const updatedPreferences: UserPreferences = {\n        ...preferences,\n        ...updates,\n        updatedAt: Date.now(),\n        version: preferences.version + 1,\n        isDirty: true,\n      };\n      \n      setPreferences(updatedPreferences);\n      setPreferencesIsDirty(true);\n      \n      await cacheService.set(`preferences:${DEMO_USER_ID}`, updatedPreferences);\n      \n      await syncService.queueOperation({\n        type: preferences.lastSyncedAt ? 'update' : 'create',\n        entity: 'preferences',\n        entityId: preferences.id,\n        data: updatedPreferences,\n      });\n      \n      setPreferencesIsDirty(false);\n    } catch (error) {\n      const errorMessage = error instanceof Error ? error.message : 'Failed to save preferences';\n      setPreferencesError(errorMessage);\n      throw error;\n    } finally {\n      setPreferencesIsSyncing(false);\n    }\n  }, [preferences]);\n  \n  const refetchPreferences = useCallback(async () => {\n    try {\n      const serverPreferences = await trpcClient.preferences.get.query({ id: DEMO_USER_ID });\n      if (serverPreferences) {\n        setPreferences(serverPreferences);\n        await cacheService.set(`preferences:${DEMO_USER_ID}`, serverPreferences);\n      }\n    } catch (error) {\n      console.error('Failed to refetch preferences:', error);\n    }\n  }, []);\n\n  return {\n    profile,\n    profileError,\n    profileIsSyncing,\n    profileIsDirty,\n    saveProfile,\n    refetchProfile,\n    \n    preferences,\n    preferencesError,\n    preferencesIsSyncing,\n    preferencesIsDirty,\n    savePreferences,\n    refetchPreferences,\n  };\n});\n\nexport const useProfile = (): UseEntityResult<UserProfile> => {\n  const { \n    profile, \n    profileError, \n    profileIsSyncing, \n    profileIsDirty, \n    saveProfile, \n    refetchProfile \n  } = useData();\n  \n  return {\n    data: profile,\n    save: saveProfile,\n    isDirty: profileIsDirty,\n    isSyncing: profileIsSyncing,\n    error: profileError,\n    refetch: refetchProfile,\n  };\n};\n\nexport const usePreferences = (): UseEntityResult<UserPreferences> => {\n  const { \n    preferences, \n    preferencesError, \n    preferencesIsSyncing, \n    preferencesIsDirty, \n    savePreferences, \n    refetchPreferences \n  } = useData();\n  \n  return {\n    data: preferences,\n    save: savePreferences,\n    isDirty: preferencesIsDirty,\n    isSyncing: preferencesIsSyncing,\n    error: preferencesError,\n    refetch: refetchPreferences,\n  };\n};
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import createContextHook from '@nkzw/create-context-hook';
+import { UserProfile, UserPreferences, UseEntityResult } from '@/types/data';
+import { cacheService } from '@/services/cacheService';
+import { syncService } from '@/services/syncService';
+import { trpcClient } from '@/lib/trpc';
+
+const DEMO_USER_ID = 'demo-user-1';
+
+export const [DataProvider, useData] = createContextHook(() => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileIsSyncing, setProfileIsSyncing] = useState(false);
+  const [profileIsDirty, setProfileIsDirty] = useState(false);
+  
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  const [preferencesIsSyncing, setPreferencesIsSyncing] = useState(false);
+  const [preferencesIsDirty, setPreferencesIsDirty] = useState(false);
+
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        const cachedProfile = await cacheService.get<UserProfile>(`profile:${DEMO_USER_ID}`);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+        }
+        
+        const cachedPreferences = await cacheService.get<UserPreferences>(`preferences:${DEMO_USER_ID}`);
+        if (cachedPreferences) {
+          setPreferences(cachedPreferences);
+        }
+      } catch (error) {
+        console.error('Failed to initialize data:', error);
+      }
+    };
+    
+    initializeData();
+  }, []);
+
+  const saveProfile = useCallback(async (updates: Partial<UserProfile>) => {
+    if (!profile) return;
+    
+    setProfileIsSyncing(true);
+    setProfileError(null);
+    
+    try {
+      const updatedProfile: UserProfile = {
+        ...profile,
+        ...updates,
+        updatedAt: Date.now(),
+        version: profile.version + 1,
+      };
+      
+      setProfile(updatedProfile);
+      setProfileIsDirty(false);
+      
+      await cacheService.set(`profile:${DEMO_USER_ID}`, updatedProfile);
+      
+      try {
+        await trpcClient.profile.update.mutate(updatedProfile);
+        
+        console.log('Profile synced successfully');
+      } catch (syncError) {
+        console.error('Profile sync failed:', syncError);
+        setProfileError('Failed to sync profile. Changes saved locally.');
+        
+        await syncService.queueOperation({
+          type: 'update',
+          entity: 'profile',
+          entityId: DEMO_USER_ID,
+          data: updatedProfile,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      setProfileError('Failed to save profile');
+      
+      if (profile) {
+        setProfile(profile);
+      }
+    } finally {
+      setProfileIsSyncing(false);
+    }
+  }, [profile]);
+
+  const savePreferences = useCallback(async (updates: Partial<UserPreferences>) => {
+    if (!preferences) return;
+    
+    setPreferencesIsSyncing(true);
+    setPreferencesError(null);
+    
+    try {
+      const updatedPreferences: UserPreferences = {
+        ...preferences,
+        ...updates,
+        updatedAt: Date.now(),
+        version: preferences.version + 1,
+      };
+      
+      setPreferences(updatedPreferences);
+      setPreferencesIsDirty(false);
+      
+      await cacheService.set(`preferences:${DEMO_USER_ID}`, updatedPreferences);
+      
+      try {
+        await trpcClient.preferences.update.mutate(updatedPreferences);
+        
+        console.log('Preferences synced successfully');
+      } catch (syncError) {
+        console.error('Preferences sync failed:', syncError);
+        setPreferencesError('Failed to sync preferences. Changes saved locally.');
+        
+        await syncService.queueOperation({
+          type: 'update',
+          entity: 'preferences',
+          entityId: DEMO_USER_ID,
+          data: updatedPreferences,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+      setPreferencesError('Failed to save preferences');
+      
+      if (preferences) {
+        setPreferences(preferences);
+      }
+    } finally {
+      setPreferencesIsSyncing(false);
+    }
+  }, [preferences]);
+
+  const refetchProfile = useCallback(async () => {
+    try {
+      const serverProfile = await trpcClient.profile.get.query({ id: DEMO_USER_ID });
+      if (serverProfile) {
+        setProfile(serverProfile);
+        await cacheService.set(`profile:${DEMO_USER_ID}`, serverProfile);
+      }
+    } catch (error) {
+      console.error('Failed to refetch profile:', error);
+    }
+  }, []);
+
+  const refetchPreferences = useCallback(async () => {
+    try {
+      const serverPreferences = await trpcClient.preferences.get.query({ id: DEMO_USER_ID });
+      if (serverPreferences) {
+        setPreferences(serverPreferences);
+        await cacheService.set(`preferences:${DEMO_USER_ID}`, serverPreferences);
+      }
+    } catch (error) {
+      console.error('Failed to refetch preferences:', error);
+    }
+  }, []);
+
+  const profileResult: UseEntityResult<UserProfile> = useMemo(() => ({
+    data: profile,
+    save: saveProfile,
+    isDirty: profileIsDirty,
+    isSyncing: profileIsSyncing,
+    error: profileError,
+    refetch: refetchProfile,
+  }), [profile, saveProfile, profileIsDirty, profileIsSyncing, profileError, refetchProfile]);
+
+  const preferencesResult: UseEntityResult<UserPreferences> = useMemo(() => ({
+    data: preferences,
+    save: savePreferences,
+    isDirty: preferencesIsDirty,
+    isSyncing: preferencesIsSyncing,
+    error: preferencesError,
+    refetch: refetchPreferences,
+  }), [preferences, savePreferences, preferencesIsDirty, preferencesIsSyncing, preferencesError, refetchPreferences]);
+
+  return useMemo(() => ({
+    profile: profileResult,
+    preferences: preferencesResult,
+  }), [profileResult, preferencesResult]);
+});
+
+export const useProfile = () => {
+  const { profile } = useData();
+  return profile;
+};
+
+export const usePreferences = () => {
+  const { preferences } = useData();
+  return preferences;
+};
