@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, LogOut, Edit, Camera } from 'lucide-react-native';
+import { User, LogOut, Edit, Camera, MapPin, ChevronRight } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
@@ -227,6 +227,30 @@ export default function ProfileScreen() {
         </View>
       </View>
       
+      {/* Settings Section */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsTitle}>Settings</Text>
+        
+        <Pressable 
+          style={styles.settingsItem}
+          onPress={() => router.push('/location-settings')}
+        >
+          <View style={styles.settingsItemContent}>
+            <MapPin size={20} color={colors.primary} />
+            <View style={styles.settingsItemText}>
+              <Text style={styles.settingsItemTitle}>Location & Weather</Text>
+              <Text style={styles.settingsItemSubtitle}>
+                {profile.locationPreferences?.location 
+                  ? `${profile.locationPreferences.location.city}, ${profile.locationPreferences.location.region}`
+                  : 'Set your location for weather-based recommendations'
+                }
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={20} color={colors.subtext} />
+        </Pressable>
+      </View>
+      
       <Pressable style={styles.logoutButton} onPress={handleLogout}>
         <LogOut size={18} color={colors.error} style={{ marginRight: 8 }} />
         <Text style={styles.logoutButtonText}>Logout</Text>
@@ -365,5 +389,41 @@ const styles = StyleSheet.create({
     color: colors.error,
     textAlign: 'center',
     marginTop: 24,
+  },
+  settingsSection: {
+    marginBottom: 24,
+  },
+  settingsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  settingsItem: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingsItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingsItemText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  settingsItemTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  settingsItemSubtitle: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginTop: 2,
   },
 });

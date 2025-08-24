@@ -16,6 +16,7 @@ export const colors = {
   
   // Accent colors
   primary: '#F5C85B', // Sun/accent gold
+  primaryLight: 'rgba(245, 200, 91, 0.1)', // Light primary background
   secondary: '#8A8AFF', // Action purple
   success: '#52D1A6', // Success green
   error: '#FF6B6B', // Error red

@@ -1,13 +1,22 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Pressable, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Scan, Sparkles } from 'lucide-react-native';
+import { Scan, Sparkles, MapPin, Thermometer } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
 import Typography from '@/components/ui/Typography';
 import Card from '@/components/ui/Card';
 import TemperatureBadge from '@/components/ui/TemperatureBadge';
+import { 
+  getCurrentWeatherRecommendations, 
+  WeatherRecommendation 
+} from '@/services/weatherRecommendationService';
+import { 
+  convertTemperature, 
+  getTemperatureUnit, 
+  getMockWeatherData 
+} from '@/services/weatherService';
 
 
 const aiSuggestionOptions = [
@@ -43,7 +52,32 @@ const aiSuggestionOptions = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const profile = useUserStore((state) => state.profile);
+  const { profile, weatherCache } = useUserStore();
+  const [weatherRecommendations, setWeatherRecommendations] = useState<WeatherRecommendation[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+  
+  // Get current weather data
+  const currentWeather = getMockWeatherData('sunny'); // In real app, use actual weather
+  const units = profile?.locationPreferences?.units || 'metric';
+  const location = profile?.locationPreferences?.location;
+  
+  useEffect(() => {
+    loadWeatherRecommendations();
+  }, [profile?.locationPreferences]);
+  
+  const loadWeatherRecommendations = async () => {
+    setIsLoadingRecommendations(true);
+    try {
+      const recommendations = await getCurrentWeatherRecommendations(
+        profile?.locationPreferences
+      );
+      setWeatherRecommendations(recommendations.slice(0, 2)); // Show top 2 recommendations
+    } catch (error) {
+      console.error('Failed to load weather recommendations:', error);
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  };
   
   const handleScanPress = () => {
     router.push('/add-item');
@@ -91,10 +125,102 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <TemperatureBadge 
-              temperature={24}
-              onPress={handleWeatherPress}
-            />
+            {/* Weather & Location Section */}
+            <Card style={styles.weatherCard}>
+              <View style={styles.weatherHeader}>
+                <View style={styles.weatherInfo}>
+                  <View style={styles.locationRow}>
+                    <MapPin size={16} color={colors.textSecondary} />
+                    <Typography variant="caption" color={colors.textSecondary} style={styles.locationText}>
+                      {location ? `${location.city}, ${location.region}` : 'Location not set'}
+                    </Typography>
+                  </View>
+                  <View style={styles.temperatureRow}>
+                    <Thermometer size={20} color={colors.primary} />
+                    <Typography variant="h2" style={styles.temperature}>
+                      {convertTemperature(currentWeather.temperature, units)}{getTemperatureUnit(units)}
+                    </Typography>
+                  </View>
+                  <Typography variant="caption" color={colors.textSecondary}>
+                    {currentWeather.description}
+                  </Typography>
+                </View>
+                <Pressable style={styles.weatherButton} onPress={handleWeatherPress}>
+                  <Typography variant="caption" color={colors.primary} style={styles.weatherButtonText}>
+                    View Details
+                  </Typography>
+                </Pressable>
+              </View>
+            </Card>
+
+            {/* Weather-Based Recommendations */}
+            <View style={styles.sectionHeader}>
+              <Typography variant="h2" style={styles.sectionTitle}>
+                Weather Recommendations
+              </Typography>
+              {!location && (
+                <Pressable onPress={() => router.push('/location-settings')}>
+                  <Typography variant="caption" color={colors.primary}>
+                    Set Location
+                  </Typography>
+                </Pressable>
+              )}
+            </View>
+
+            {isLoadingRecommendations ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Typography variant="caption" color={colors.textSecondary} style={styles.loadingText}>
+                  Loading recommendations...
+                </Typography>
+              </View>
+            ) : weatherRecommendations.length > 0 ? (
+              <View style={styles.recommendationsContainer}>
+                {weatherRecommendations.map((recommendation) => (
+                  <Card key={recommendation.id} style={styles.recommendationCard}>
+                    <View style={styles.recommendationHeader}>
+                      <Typography variant="body" style={styles.recommendationTitle}>
+                        {recommendation.title}
+                      </Typography>
+                      <View style={styles.confidenceBadge}>
+                        <Typography variant="small" color={colors.primary}>
+                          {recommendation.confidence}%
+                        </Typography>
+                      </View>
+                    </View>
+                    <Typography variant="caption" color={colors.textSecondary} style={styles.recommendationDescription}>
+                      {recommendation.description}
+                    </Typography>
+                    <View style={styles.recommendationItems}>
+                      {recommendation.items.slice(0, 3).map((item) => (
+                        <View key={item.id} style={styles.recommendationItem}>
+                          <View style={styles.itemImagePlaceholder}>
+                            <Typography variant="small">{item.category.charAt(0).toUpperCase()}</Typography>
+                          </View>
+                          <Typography variant="small" color={colors.textSecondary} style={styles.itemName}>
+                            {item.name.length > 12 ? item.name.substring(0, 12) + '...' : item.name}
+                          </Typography>
+                        </View>
+                      ))}
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            ) : (
+              <Card style={styles.noRecommendationsCard}>
+                <Typography variant="body" color={colors.textSecondary} style={styles.noRecommendationsText}>
+                  {location ? 'No weather-based recommendations available' : 'Set your location to get personalized weather recommendations'}
+                </Typography>
+                <Pressable 
+                  style={styles.setupLocationButton} 
+                  onPress={() => router.push(location ? '/ai-recommendations' : '/location-settings')}
+                >
+                  <Typography variant="caption" color={colors.primary}>
+                    {location ? 'View AI Recommendations' : 'Set Location'}
+                  </Typography>
+                </Pressable>
+              </Card>
+            )}
 
             <View style={styles.sectionHeader}>
               <Typography variant="h2" style={styles.sectionTitle}>
@@ -313,5 +439,113 @@ const styles = StyleSheet.create({
   viewAllAIText: {
     marginLeft: tokens.spacing.sm,
     fontWeight: '600',
+  },
+  weatherCard: {
+    marginBottom: tokens.spacing.lg,
+    padding: tokens.spacing.lg,
+  },
+  weatherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  weatherInfo: {
+    flex: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
+  },
+  locationText: {
+    marginLeft: tokens.spacing.xs,
+  },
+  temperatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
+  },
+  temperature: {
+    marginLeft: tokens.spacing.xs,
+    fontWeight: '700',
+  },
+  weatherButton: {
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: tokens.radius.md,
+  },
+  weatherButtonText: {
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: tokens.spacing.xl,
+  },
+  loadingText: {
+    marginLeft: tokens.spacing.sm,
+  },
+  recommendationsContainer: {
+    gap: tokens.spacing.md,
+    marginBottom: tokens.spacing.lg,
+  },
+  recommendationCard: {
+    padding: tokens.spacing.lg,
+  },
+  recommendationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
+  },
+  recommendationTitle: {
+    fontWeight: '600',
+    flex: 1,
+  },
+  confidenceBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: tokens.radius.sm,
+  },
+  recommendationDescription: {
+    marginBottom: tokens.spacing.md,
+  },
+  recommendationItems: {
+    flexDirection: 'row',
+    gap: tokens.spacing.sm,
+  },
+  recommendationItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  itemImagePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: tokens.radius.md,
+    backgroundColor: colors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.spacing.xs,
+  },
+  itemName: {
+    textAlign: 'center',
+  },
+  noRecommendationsCard: {
+    padding: tokens.spacing.xl,
+    alignItems: 'center',
+    marginBottom: tokens.spacing.lg,
+  },
+  noRecommendationsText: {
+    textAlign: 'center',
+    marginBottom: tokens.spacing.md,
+  },
+  setupLocationButton: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: tokens.radius.md,
   },
 });
