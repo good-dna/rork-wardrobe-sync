@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Wardrobe Sync",
+    "name": "Clotho",
     "slug": "wardrobe-sync",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.wardrobe-sync",
+      "bundleIdentifier": "app.rork.clotho",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
@@ -33,7 +33,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.wardrobe-sync",
+      "package": "app.rork.clotho",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
