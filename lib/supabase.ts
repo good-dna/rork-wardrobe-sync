@@ -1,19 +1,10 @@
 import 'react-native-url-polyfill/auto'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = 'https://mpqgxxxagueuqehiazyl.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wcWd4eHhhZ3VldXFlaGlhenlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NTAzMjYsImV4cCI6MjA3MjIyNjMyNn0.8AbuWjGXYTBg9-hMirXUSrfk5iksEO36e2DSjszITOk'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase environment variables not configured properly')
-  console.log('SUPABASE_URL:', supabaseUrl ? 'Set' : 'Missing')
-  console.log('SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Set' : 'Missing')
-}
-
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
-)
+export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Test connection function
 export const testSupabaseConnection = async () => {
