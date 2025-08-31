@@ -8,7 +8,7 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export const unstable_settings = {
-  initialRouteName: "onboarding",
+  initialRouteName: "splash",
 };
 
 // Create a client
