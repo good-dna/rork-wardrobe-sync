@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Home, Search, Zap, Heart, TrendingUp, User, Plus } from "lucide-react-native";
+import { Home, Search, Shirt, Heart, BarChart3, User, Calendar } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 
 export default function TabLayout() {
@@ -30,24 +30,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="collection"
+        name="wardrobe"
         options={{
-          title: "Collection",
-          tabBarIcon: ({ color }) => <Zap size={24} color={color} />,
+          title: "Wardrobe",
+          tabBarIcon: ({ color }) => <Shirt size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="discover"
+        name="outfits"
         options={{
-          title: "Discover",
+          title: "Outfits",
           tabBarIcon: ({ color }) => <Search size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="add"
+        name="calendar"
         options={{
-          title: "Add",
-          tabBarIcon: ({ color }) => <Plus size={24} color={color} />,
+          title: "Calendar",
+          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -58,10 +58,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="trends"
+        name="analytics"
         options={{
-          title: "Trends",
-          tabBarIcon: ({ color }) => <TrendingUp size={24} color={color} />,
+          title: "Analytics",
+          tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
         }}
       />
       <Tabs.Screen
