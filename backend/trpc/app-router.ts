@@ -2,6 +2,19 @@ import { createTRPCRouter } from "./create-context";
 import hiRoute from "./routes/example/hi/route";
 import { getProfile, updateProfile, deleteProfile } from "./routes/profile/route";
 import { getPreferences, updatePreferences, deletePreferences } from "./routes/preferences/route";
+import {
+  signUpProcedure,
+  signInProcedure,
+  signOutProcedure,
+  getCurrentUserProcedure,
+  resetPasswordProcedure,
+  updatePasswordProcedure,
+  updateUserProfileProcedure,
+  verifyEmailProcedure,
+  resendVerificationProcedure,
+  deleteAccountProcedure,
+  getUserSessionsProcedure
+} from "./routes/auth/route";
 import { 
   getSneakersProcedure,
   getSneakerProcedure,
@@ -50,6 +63,19 @@ import {
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
     hi: hiRoute,
+  }),
+  auth: createTRPCRouter({
+    signUp: signUpProcedure,
+    signIn: signInProcedure,
+    signOut: signOutProcedure,
+    getCurrentUser: getCurrentUserProcedure,
+    resetPassword: resetPasswordProcedure,
+    updatePassword: updatePasswordProcedure,
+    updateProfile: updateUserProfileProcedure,
+    verifyEmail: verifyEmailProcedure,
+    resendVerification: resendVerificationProcedure,
+    deleteAccount: deleteAccountProcedure,
+    getSessions: getUserSessionsProcedure,
   }),
   profile: createTRPCRouter({
     get: getProfile,
