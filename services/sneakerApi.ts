@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+// Using mock data for now - Supabase integration can be added later
+import { mockSneakers, searchMockSneakers } from '@/constants/mockSneakers';
 import { 
   Sneaker, 
   SneakerCollection, 
@@ -10,138 +11,141 @@ import {
   SneakerCondition
 } from '@/types/sneaker';
 
+// Mock data storage (in real app, this would be in a database)
+let sneakersData = [...mockSneakers];
+
 // Sneaker CRUD Operations
 export async function addSneaker(sneaker: Omit<Sneaker, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<Sneaker> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneakers')
-    .insert({
-      ...sneaker,
-      userId: user.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  const newSneaker: Sneaker = {
+    ...sneaker,
+    id: Date.now().toString(),
+    userId: 'mock-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  sneakersData.push(newSneaker);
+  return newSneaker;
 }
 
 export async function getSneakers(query?: SneakerQuery): Promise<Sneaker[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  let supabaseQuery = supabase
-    .from('sneakers')
-    .select('*')
-    .eq('userId', user.id);
+  let filteredSneakers = [...sneakersData];
 
   // Apply filters
   if (query?.filters) {
     const { filters } = query;
     
     if (filters.brand && filters.brand.length > 0) {
-      supabaseQuery = supabaseQuery.in('brand', filters.brand);
+      filteredSneakers = filteredSneakers.filter(sneaker => filters.brand!.includes(sneaker.brand));
     }
     
     if (filters.category && filters.category.length > 0) {
-      supabaseQuery = supabaseQuery.in('category', filters.category);
+      filteredSneakers = filteredSneakers.filter(sneaker => filters.category!.includes(sneaker.category));
     }
     
     if (filters.condition && filters.condition.length > 0) {
-      supabaseQuery = supabaseQuery.in('condition', filters.condition);
+      filteredSneakers = filteredSneakers.filter(sneaker => filters.condition!.includes(sneaker.condition));
     }
     
     if (filters.favorite !== undefined) {
-      supabaseQuery = supabaseQuery.eq('favorite', filters.favorite);
+      filteredSneakers = filteredSneakers.filter(sneaker => sneaker.favorite === filters.favorite);
     }
     
     if (filters.searchQuery) {
-      supabaseQuery = supabaseQuery.or(`name.ilike.%${filters.searchQuery}%,model.ilike.%${filters.searchQuery}%,brand.ilike.%${filters.searchQuery}%`);
+      filteredSneakers = searchMockSneakers(filters.searchQuery);
     }
     
     if (filters.sizeRange) {
-      supabaseQuery = supabaseQuery
-        .gte('size->us', filters.sizeRange.min)
-        .lte('size->us', filters.sizeRange.max);
+      filteredSneakers = filteredSneakers.filter(sneaker => 
+        sneaker.size.us >= filters.sizeRange!.min && 
+        sneaker.size.us <= filters.sizeRange!.max
+      );
     }
   }
 
   // Apply sorting
   if (query?.sortBy) {
     const ascending = query.sortOrder === 'asc';
-    supabaseQuery = supabaseQuery.order(query.sortBy, { ascending });
+    filteredSneakers.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      switch (query.sortBy) {
+        case 'name':
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 'brand':
+          aValue = a.brand;
+          bValue = b.brand;
+          break;
+        case 'purchaseDate':
+          aValue = new Date(a.purchaseDate || 0);
+          bValue = new Date(b.purchaseDate || 0);
+          break;
+        case 'purchasePrice':
+          aValue = a.purchasePrice || 0;
+          bValue = b.purchasePrice || 0;
+          break;
+        case 'wearCount':
+          aValue = a.wearCount;
+          bValue = b.wearCount;
+          break;
+        case 'lastWorn':
+          aValue = new Date(a.lastWorn || 0);
+          bValue = new Date(b.lastWorn || 0);
+          break;
+        case 'condition':
+          aValue = a.condition;
+          bValue = b.condition;
+          break;
+        default:
+          aValue = a.createdAt;
+          bValue = b.createdAt;
+      }
+      
+      if (aValue < bValue) return ascending ? -1 : 1;
+      if (aValue > bValue) return ascending ? 1 : -1;
+      return 0;
+    });
   } else {
-    supabaseQuery = supabaseQuery.order('createdAt', { ascending: false });
+    // Default sort by creation date, newest first
+    filteredSneakers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   // Apply pagination
-  if (query?.limit) {
-    supabaseQuery = supabaseQuery.limit(query.limit);
-  }
-  
-  if (query?.offset) {
-    supabaseQuery = supabaseQuery.range(query.offset, query.offset + (query.limit || 50) - 1);
+  if (query?.offset !== undefined || query?.limit !== undefined) {
+    const offset = query.offset || 0;
+    const limit = query.limit || 50;
+    filteredSneakers = filteredSneakers.slice(offset, offset + limit);
   }
 
-  const { data, error } = await supabaseQuery;
-
-  if (error) throw error;
-  return data || [];
+  return filteredSneakers;
 }
 
 export async function getSneaker(id: string): Promise<Sneaker | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneakers')
-    .select('*')
-    .eq('id', id)
-    .eq('userId', user.id)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') return null;
-    throw error;
-  }
-
-  return data;
+  const sneaker = sneakersData.find(s => s.id === id);
+  return sneaker || null;
 }
 
 export async function updateSneaker(id: string, updates: Partial<Sneaker>): Promise<Sneaker> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneakers')
-    .update({
-      ...updates,
-      updatedAt: new Date().toISOString()
-    })
-    .eq('id', id)
-    .eq('userId', user.id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  const index = sneakersData.findIndex(s => s.id === id);
+  if (index === -1) throw new Error('Sneaker not found');
+  
+  sneakersData[index] = {
+    ...sneakersData[index],
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+  
+  return sneakersData[index];
 }
 
 export async function deleteSneaker(id: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { error } = await supabase
-    .from('sneakers')
-    .delete()
-    .eq('id', id)
-    .eq('userId', user.id);
-
-  if (error) throw error;
+  const index = sneakersData.findIndex(s => s.id === id);
+  if (index === -1) throw new Error('Sneaker not found');
+  
+  sneakersData.splice(index, 1);
 }
 
 export async function recordSneakerWear(id: string): Promise<Sneaker> {
@@ -163,119 +167,58 @@ export async function toggleSneakerFavorite(id: string): Promise<Sneaker> {
   });
 }
 
-// Collection Operations
+// Collection Operations (mock implementations)
 export async function createSneakerCollection(collection: Omit<SneakerCollection, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<SneakerCollection> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneaker_collections')
-    .insert({
-      ...collection,
-      userId: user.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  const newCollection: SneakerCollection = {
+    ...collection,
+    id: Date.now().toString(),
+    userId: 'mock-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  return newCollection;
 }
 
 export async function getSneakerCollections(): Promise<SneakerCollection[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneaker_collections')
-    .select('*')
-    .eq('userId', user.id)
-    .order('createdAt', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  // Mock implementation - return empty array for now
+  return [];
 }
 
 export async function addSneakerToCollection(collectionId: string, sneakerId: string): Promise<SneakerCollection> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  // Get current collection
-  const { data: collection, error: fetchError } = await supabase
-    .from('sneaker_collections')
-    .select('*')
-    .eq('id', collectionId)
-    .eq('userId', user.id)
-    .single();
-
-  if (fetchError) throw fetchError;
-
-  // Add sneaker to collection if not already present
-  const updatedSneakerIds = collection.sneakerIds.includes(sneakerId) 
-    ? collection.sneakerIds 
-    : [...collection.sneakerIds, sneakerId];
-
-  const { data, error } = await supabase
-    .from('sneaker_collections')
-    .update({
-      sneakerIds: updatedSneakerIds,
-      updatedAt: new Date().toISOString()
-    })
-    .eq('id', collectionId)
-    .eq('userId', user.id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  // Mock implementation
+  return {
+    id: collectionId,
+    name: 'Mock Collection',
+    description: 'Mock collection description',
+    sneakerIds: [sneakerId],
+    isPublic: false,
+    userId: 'mock-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
 }
 
-// Wishlist Operations
+// Wishlist Operations (mock implementations)
 export async function addSneakerToWishlist(item: Omit<SneakerWishlistItem, 'id' | 'userId' | 'createdAt'>): Promise<SneakerWishlistItem> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneaker_wishlist')
-    .insert({
-      ...item,
-      userId: user.id,
-      createdAt: new Date().toISOString()
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  const newItem: SneakerWishlistItem = {
+    ...item,
+    id: Date.now().toString(),
+    userId: 'mock-user',
+    createdAt: new Date().toISOString()
+  };
+  
+  return newItem;
 }
 
 export async function getSneakerWishlist(): Promise<SneakerWishlistItem[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { data, error } = await supabase
-    .from('sneaker_wishlist')
-    .select('*')
-    .eq('userId', user.id)
-    .order('priority', { ascending: false })
-    .order('createdAt', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  // Mock implementation - return empty array for now
+  return [];
 }
 
 export async function removeSneakerFromWishlist(id: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
-
-  const { error } = await supabase
-    .from('sneaker_wishlist')
-    .delete()
-    .eq('id', id)
-    .eq('userId', user.id);
-
-  if (error) throw error;
+  // Mock implementation - do nothing for now
+  console.log('Removing wishlist item:', id);
 }
 
 // Analytics and Stats
@@ -351,10 +294,7 @@ export async function getSneakerStats(): Promise<SneakerStats> {
 
 // Search and Discovery
 export async function searchSneakers(query: string): Promise<Sneaker[]> {
-  return getSneakers({
-    filters: { searchQuery: query },
-    limit: 20
-  });
+  return searchMockSneakers(query);
 }
 
 export async function getSneakersByBrand(brand: SneakerBrand): Promise<Sneaker[]> {

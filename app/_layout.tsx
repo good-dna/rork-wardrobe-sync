@@ -110,6 +110,20 @@ function RootLayoutNav() {
               presentation: "modal",
             }} 
           />
+          <Stack.Screen 
+            name="sneakers" 
+            options={{ 
+              title: "Sneakers",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="debug-supabase" 
+            options={{ 
+              title: "Debug Supabase",
+              presentation: "card",
+            }} 
+          />
         </Stack>
       </QueryClientProvider>
     </trpc.Provider>
