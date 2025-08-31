@@ -16,6 +16,14 @@ import { getCurrentWeatherProcedure } from "./routes/weather/current/route";
 import { getForecastProcedure } from "./routes/weather/forecast/route";
 import { searchLocationsProcedure, reverseGeocodeProcedure } from "./routes/weather/geocoding/route";
 import { getWeatherRecommendationsProcedure } from "./routes/weather/recommendations/route";
+import {
+  addItemProcedure,
+  listMyItemsProcedure,
+  getItemProcedure,
+  updateItemProcedure,
+  deleteItemProcedure,
+  getItemStatsProcedure
+} from "./routes/wardrobe/items/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -47,6 +55,16 @@ export const appRouter = createTRPCRouter({
     searchLocations: searchLocationsProcedure,
     reverseGeocode: reverseGeocodeProcedure,
     recommendations: getWeatherRecommendationsProcedure,
+  }),
+  wardrobe: createTRPCRouter({
+    items: createTRPCRouter({
+      add: addItemProcedure,
+      list: listMyItemsProcedure,
+      get: getItemProcedure,
+      update: updateItemProcedure,
+      delete: deleteItemProcedure,
+      stats: getItemStatsProcedure,
+    }),
   }),
 });
 
