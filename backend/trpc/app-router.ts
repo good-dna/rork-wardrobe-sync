@@ -24,6 +24,17 @@ import {
   deleteItemProcedure,
   getItemStatsProcedure
 } from "./routes/wardrobe/items/route";
+import {
+  addOutfitProcedure,
+  listMyOutfitsProcedure,
+  getOutfitProcedure,
+  updateOutfitProcedure,
+  deleteOutfitProcedure,
+  toggleOutfitFavoriteProcedure,
+  recordOutfitWearProcedure,
+  getOutfitStatsProcedure,
+  getOutfitRecommendationsProcedure
+} from "./routes/wardrobe/outfits/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -64,6 +75,17 @@ export const appRouter = createTRPCRouter({
       update: updateItemProcedure,
       delete: deleteItemProcedure,
       stats: getItemStatsProcedure,
+    }),
+    outfits: createTRPCRouter({
+      add: addOutfitProcedure,
+      list: listMyOutfitsProcedure,
+      get: getOutfitProcedure,
+      update: updateOutfitProcedure,
+      delete: deleteOutfitProcedure,
+      toggleFavorite: toggleOutfitFavoriteProcedure,
+      recordWear: recordOutfitWearProcedure,
+      stats: getOutfitStatsProcedure,
+      recommendations: getOutfitRecommendationsProcedure,
     }),
   }),
 });
