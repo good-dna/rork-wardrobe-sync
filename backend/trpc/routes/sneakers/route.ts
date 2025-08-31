@@ -16,7 +16,7 @@ import {
   getUpcomingReleases,
   addPriceHistory,
   getPriceHistory
-} from '../../../services/supabaseApi';
+} from '@/services/supabaseApi';
 
 // Sneaker input schema
 const sneakerInputSchema = z.object({
@@ -77,19 +77,19 @@ const priceHistoryInputSchema = z.object({
 
 export const addSneakerProcedure = protectedProcedure
   .input(sneakerInputSchema)
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: z.infer<typeof sneakerInputSchema> }) => {
     return await addSneaker(input);
   });
 
 export const getMySneakersProcedure = protectedProcedure
   .input(filterSchema.optional())
-  .query(async ({ input }) => {
+  .query(async ({ input }: { input?: z.infer<typeof filterSchema> }) => {
     return await getMySneakers(input);
   });
 
 export const getSneakerProcedure = protectedProcedure
   .input(z.object({ id: z.string() }))
-  .query(async ({ input }) => {
+  .query(async ({ input }: { input: { id: string } }) => {
     return await getSneaker(input.id);
   });
 
@@ -98,13 +98,13 @@ export const updateSneakerProcedure = protectedProcedure
     id: z.string(),
     updates: sneakerInputSchema.partial()
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: { id: string; updates: Partial<z.infer<typeof sneakerInputSchema>> } }) => {
     return await updateSneaker(input.id, input.updates);
   });
 
 export const deleteSneakerProcedure = protectedProcedure
   .input(z.object({ id: z.string() }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: { id: string } }) => {
     return await deleteSneaker(input.id);
   });
 
@@ -112,7 +112,7 @@ export const deleteSneakerProcedure = protectedProcedure
 
 export const addToWishlistProcedure = protectedProcedure
   .input(wishlistInputSchema)
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: z.infer<typeof wishlistInputSchema> }) => {
     return await addToWishlist(input);
   });
 
@@ -123,7 +123,7 @@ export const getMyWishlistProcedure = protectedProcedure
 
 export const removeFromWishlistProcedure = protectedProcedure
   .input(z.object({ id: z.string() }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: { id: string } }) => {
     return await removeFromWishlist(input.id);
   });
 
@@ -132,7 +132,7 @@ export const updateWishlistItemProcedure = protectedProcedure
     id: z.string(),
     updates: wishlistInputSchema.partial()
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: { id: string; updates: Partial<z.infer<typeof wishlistInputSchema>> } }) => {
     return await updateWishlistItem(input.id, input.updates);
   });
 
@@ -150,7 +150,7 @@ export const searchSneakersProcedure = publicProcedure
     query: z.string(),
     limit: z.number().default(20)
   }))
-  .query(async ({ input }) => {
+  .query(async ({ input }: { input: { query: string; limit: number } }) => {
     return await searchSneakers(input.query, input.limit);
   });
 
@@ -158,7 +158,7 @@ export const getTrendingSneakersProcedure = publicProcedure
   .input(z.object({
     limit: z.number().default(10)
   }))
-  .query(async ({ input }) => {
+  .query(async ({ input }: { input: { limit: number } }) => {
     return await getTrendingSneakers(input.limit);
   });
 
@@ -166,7 +166,7 @@ export const getUpcomingReleasesProcedure = publicProcedure
   .input(z.object({
     limit: z.number().default(20)
   }))
-  .query(async ({ input }) => {
+  .query(async ({ input }: { input: { limit: number } }) => {
     return await getUpcomingReleases(input.limit);
   });
 
@@ -174,7 +174,7 @@ export const getUpcomingReleasesProcedure = publicProcedure
 
 export const addPriceHistoryProcedure = protectedProcedure
   .input(priceHistoryInputSchema)
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input }: { input: z.infer<typeof priceHistoryInputSchema> }) => {
     return await addPriceHistory(input);
   });
 
@@ -183,6 +183,6 @@ export const getPriceHistoryProcedure = protectedProcedure
     sneakerId: z.string(),
     size: z.number().optional()
   }))
-  .query(async ({ input }) => {
+  .query(async ({ input }: { input: { sneakerId: string; size?: number } }) => {
     return await getPriceHistory(input.sneakerId, input.size);
   });
