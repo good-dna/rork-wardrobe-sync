@@ -1,149 +1,158 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Heart, TrendingUp, Calendar } from 'lucide-react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { Heart, Eye, Calendar, DollarSign } from 'lucide-react-native';
 import { Sneaker } from '@/types/sneaker';
-import { colors } from '@/constants/colors';
-import { router } from 'expo-router';
 
 interface SneakerCardProps {
   sneaker: Sneaker;
-  onToggleWishlist?: (id: string) => void;
-  showPrice?: boolean;
+  onPress?: () => void;
+  onFavoritePress?: () => void;
+  onWearPress?: () => void;
+  showStats?: boolean;
   compact?: boolean;
 }
 
 export function SneakerCard({ 
   sneaker, 
-  onToggleWishlist, 
-  showPrice = true, 
+  onPress, 
+  onFavoritePress, 
+  onWearPress,
+  showStats = true,
   compact = false 
 }: SneakerCardProps) {
-  const handlePress = () => {
-    router.push(`/(tabs)/collection`);
-  };
-
-  const handleWishlistPress = () => {
-    onToggleWishlist?.(sneaker.id);
-  };
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(price);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   const getConditionColor = (condition: string) => {
     switch (condition) {
-      case 'deadstock': return '#00C851';
-      case 'vnds': return '#ffbb33';
-      case 'used': return '#ff4444';
-      case 'beater': return '#666';
-      default: return colors.mediumGray;
+      case 'Deadstock': return '#00C851';
+      case 'New': return '#2BBBAD';
+      case 'Very Good': return '#4285F4';
+      case 'Good': return '#FF8800';
+      case 'Fair': return '#FF4444';
+      case 'Poor': return '#AA2E25';
+      default: return '#757575';
     }
   };
 
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'grail': return '#FFD700';
-      case 'rare': return '#FF6B6B';
-      case 'uncommon': return '#4ECDC4';
-      case 'common': return colors.mediumGray;
-      default: return colors.mediumGray;
-    }
-  };
-
-  return (
-    <TouchableOpacity 
-      style={[styles.card, compact && styles.compactCard]} 
-      onPress={handlePress}
-      testID={`sneaker-card-${sneaker.id}`}
-    >
-      <View style={styles.imageContainer}>
+  if (compact) {
+    return (
+      <TouchableOpacity style={styles.compactCard} onPress={onPress}>
         <Image 
-          source={{ uri: sneaker.images[0] }} 
-          style={[styles.image, compact && styles.compactImage]}
+          source={{ uri: sneaker.imageUrls[0] || 'https://via.placeholder.com/80x80' }} 
+          style={styles.compactImage}
           resizeMode="cover"
         />
-        
-        <View style={[styles.rarityBadge, { backgroundColor: getRarityColor(sneaker.rarity) }]}>
-          <Text style={styles.rarityText}>{sneaker.rarity.toUpperCase()}</Text>
+        <View style={styles.compactContent}>
+          <Text style={styles.compactName} numberOfLines={1}>{sneaker.name}</Text>
+          <Text style={styles.compactBrand}>{sneaker.brand}</Text>
+          <Text style={styles.compactSize}>US {sneaker.size.us}</Text>
         </View>
+        <TouchableOpacity 
+          style={styles.compactFavorite}
+          onPress={onFavoritePress}
+        >
+          <Heart 
+            size={16} 
+            color={sneaker.favorite ? '#FF4444' : '#999'} 
+            fill={sneaker.favorite ? '#FF4444' : 'transparent'}
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  }
 
-        {onToggleWishlist && (
-          <TouchableOpacity 
-            style={styles.wishlistButton}
-            onPress={handleWishlistPress}
-            testID={`wishlist-${sneaker.id}`}
-          >
-            <Heart 
-              size={20} 
-              color={sneaker.isWishlisted ? '#FF6B6B' : colors.text}
-              fill={sneaker.isWishlisted ? '#FF6B6B' : 'transparent'}
-            />
-          </TouchableOpacity>
-        )}
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress}>
+      <View style={styles.imageContainer}>
+        <Image 
+          source={{ uri: sneaker.imageUrls[0] || 'https://via.placeholder.com/300x200' }} 
+          style={styles.image}
+          resizeMode="cover"
+        />
+        <TouchableOpacity 
+          style={styles.favoriteButton}
+          onPress={onFavoritePress}
+        >
+          <Heart 
+            size={20} 
+            color={sneaker.favorite ? '#FF4444' : '#FFF'} 
+            fill={sneaker.favorite ? '#FF4444' : 'transparent'}
+          />
+        </TouchableOpacity>
+        <View style={[styles.conditionBadge, { backgroundColor: getConditionColor(sneaker.condition) }]}>
+          <Text style={styles.conditionText}>{sneaker.condition}</Text>
+        </View>
       </View>
 
-      <View style={[styles.content, compact && styles.compactContent]}>
+      <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.brand, compact && styles.compactBrand]} numberOfLines={1}>
-            {sneaker.brand}
-          </Text>
-          <View style={[styles.conditionBadge, { backgroundColor: getConditionColor(sneaker.condition) }]}>
-            <Text style={styles.conditionText}>{sneaker.condition.toUpperCase()}</Text>
-          </View>
+          <Text style={styles.brand}>{sneaker.brand}</Text>
+          <Text style={styles.category}>{sneaker.category}</Text>
         </View>
         
-        <Text style={[styles.name, compact && styles.compactName]} numberOfLines={2}>
-          {sneaker.name}
-        </Text>
-        
-        <Text style={[styles.colorway, compact && styles.compactColorway]} numberOfLines={1}>
-          {sneaker.colorway}
-        </Text>
+        <Text style={styles.name} numberOfLines={2}>{sneaker.name}</Text>
+        <Text style={styles.model}>{sneaker.model}</Text>
 
-        <View style={styles.details}>
-          <View style={styles.sizeContainer}>
-            <Text style={styles.sizeLabel}>Size</Text>
-            <Text style={styles.sizeValue}>{sneaker.size}</Text>
-          </View>
-          
-          {showPrice && sneaker.currentPrice && (
-            <View style={styles.priceContainer}>
-              <View style={styles.priceRow}>
-                <TrendingUp size={14} color={colors.primary} />
-                <Text style={styles.currentPrice}>
-                  {formatPrice(sneaker.currentPrice)}
-                </Text>
-              </View>
-              {sneaker.purchasePrice && (
-                <Text style={styles.retailPrice}>
-                  Paid: {formatPrice(sneaker.purchasePrice)}
-                </Text>
-              )}
-            </View>
+        <View style={styles.colorwayContainer}>
+          <View style={[styles.colorDot, { backgroundColor: sneaker.details.colorway.primary }]} />
+          {sneaker.details.colorway.secondary && (
+            <View style={[styles.colorDot, { backgroundColor: sneaker.details.colorway.secondary }]} />
+          )}
+          {sneaker.details.colorway.accent && (
+            <View style={[styles.colorDot, { backgroundColor: sneaker.details.colorway.accent }]} />
+          )}
+          {sneaker.details.colorway.nickname && (
+            <Text style={styles.nickname}>{sneaker.details.colorway.nickname}</Text>
           )}
         </View>
 
-        {!compact && (
-          <View style={styles.footer}>
-            <View style={styles.dateContainer}>
-              <Calendar size={12} color={colors.mediumGray} />
-              <Text style={styles.releaseDate}>
-                {new Date(sneaker.releaseDate).getFullYear()}
-              </Text>
+        <View style={styles.sizePrice}>
+          <Text style={styles.size}>US {sneaker.size.us}</Text>
+          {sneaker.purchasePrice && (
+            <Text style={styles.price}>{formatPrice(sneaker.purchasePrice)}</Text>
+          )}
+        </View>
+
+        {showStats && (
+          <View style={styles.stats}>
+            <View style={styles.statItem}>
+              <Eye size={14} color="#666" />
+              <Text style={styles.statText}>{sneaker.wearCount}</Text>
             </View>
-            
-            <View style={styles.tags}>
-              {sneaker.tags.slice(0, 2).map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
-                </View>
-              ))}
-            </View>
+            {sneaker.lastWorn && (
+              <View style={styles.statItem}>
+                <Calendar size={14} color="#666" />
+                <Text style={styles.statText}>{formatDate(sneaker.lastWorn)}</Text>
+              </View>
+            )}
+            {sneaker.details.currentMarketPrice && (
+              <View style={styles.statItem}>
+                <DollarSign size={14} color="#666" />
+                <Text style={styles.statText}>{formatPrice(sneaker.details.currentMarketPrice)}</Text>
+              </View>
+            )}
           </View>
+        )}
+
+        {onWearPress && (
+          <TouchableOpacity style={styles.wearButton} onPress={onWearPress}>
+            <Text style={styles.wearButtonText}>Mark as Worn</Text>
+          </TouchableOpacity>
         )}
       </View>
     </TouchableOpacity>
@@ -152,7 +161,7 @@ export function SneakerCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: '#FFF',
     borderRadius: 16,
     marginBottom: 16,
     shadowColor: '#000',
@@ -160,53 +169,64 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    overflow: 'hidden',
   },
   compactCard: {
-    marginBottom: 12,
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
     borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   imageContainer: {
     position: 'relative',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    overflow: 'hidden',
+    height: 200,
   },
   image: {
     width: '100%',
-    height: 200,
+    height: '100%',
   },
   compactImage: {
-    height: 150,
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
   },
-  rarityBadge: {
+  favoriteButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  compactFavorite: {
+    padding: 8,
+  },
+  conditionBadge: {
     position: 'absolute',
     top: 12,
     left: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 12,
   },
-  rarityText: {
-    color: colors.text,
+  conditionText: {
+    color: '#FFF',
     fontSize: 10,
-    fontWeight: '700',
-  },
-  wishlistButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontWeight: '600',
   },
   content: {
     padding: 16,
   },
   compactContent: {
-    padding: 12,
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -216,105 +236,102 @@ const styles = StyleSheet.create({
   },
   brand: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-    flex: 1,
+    fontWeight: '700',
+    color: '#000',
+    textTransform: 'uppercase',
   },
-  compactBrand: {
+  category: {
     fontSize: 12,
-  },
-  conditionBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  conditionText: {
-    color: colors.text,
-    fontSize: 9,
-    fontWeight: '600',
+    color: '#666',
+    textTransform: 'capitalize',
   },
   name: {
     fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    fontWeight: '600',
+    color: '#000',
     marginBottom: 4,
+    lineHeight: 20,
   },
   compactName: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 2,
   },
-  colorway: {
+  model: {
     fontSize: 14,
-    color: colors.mediumGray,
-    marginBottom: 12,
-  },
-  compactColorway: {
-    fontSize: 12,
+    color: '#666',
     marginBottom: 8,
   },
-  details: {
+  compactBrand: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  colorwayContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  colorDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  nickname: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginLeft: 4,
+  },
+  sizePrice: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  sizeContainer: {
-    alignItems: 'flex-start',
+  size: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
   },
-  sizeLabel: {
-    fontSize: 11,
-    color: colors.mediumGray,
-    marginBottom: 2,
+  compactSize: {
+    fontSize: 12,
+    color: '#666',
   },
-  sizeValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+  price: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2E7D32',
   },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  currentPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginLeft: 4,
-  },
-  retailPrice: {
-    fontSize: 11,
-    color: colors.mediumGray,
-  },
-  footer: {
+  stats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 12,
   },
-  dateContainer: {
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  releaseDate: {
-    fontSize: 11,
-    color: colors.mediumGray,
+  statText: {
+    fontSize: 12,
+    color: '#666',
     marginLeft: 4,
   },
-  tags: {
-    flexDirection: 'row',
-    gap: 6,
+  wearButton: {
+    backgroundColor: '#000',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
   },
-  tag: {
-    backgroundColor: colors.lightGray,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 10,
-    color: colors.mediumGray,
-    fontWeight: '500',
+  wearButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -1,188 +1,268 @@
 import { z } from 'zod';
-import { protectedProcedure, publicProcedure } from '../../create-context';
-import {
-  addSneaker,
-  getMySneakers,
-  getSneaker,
-  updateSneaker,
-  deleteSneaker,
-  addToWishlist,
-  getMyWishlist,
-  removeFromWishlist,
-  updateWishlistItem,
-  getCollectionStats,
-  searchSneakers,
-  getTrendingSneakers,
-  getUpcomingReleases,
-  addPriceHistory,
-  getPriceHistory
-} from '@/services/supabaseApi';
+import { publicProcedure } from '../../create-context';
+import { mockSneakers, searchMockSneakers } from '@/constants/mockSneakers';
 
-// Sneaker input schema
-const sneakerInputSchema = z.object({
-  name: z.string(),
-  brand: z.string(),
-  model: z.string(),
-  colorway: z.string(),
-  releaseDate: z.string().optional(),
-  retailPrice: z.number().optional(),
-  currentPrice: z.number().optional(),
-  size: z.number(),
-  condition: z.enum(['deadstock', 'vnds', 'used', 'beater']),
-  images: z.array(z.string()).optional(),
-  sku: z.string().optional(),
-  description: z.string().optional(),
-  purchaseDate: z.string().optional(),
-  purchasePrice: z.number().optional(),
-  location: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  category: z.enum(['basketball', 'running', 'lifestyle', 'skateboarding', 'football', 'other']),
-  rarity: z.enum(['common', 'uncommon', 'rare', 'grail'])
+// Input validation schemas
+const SneakerFiltersSchema = z.object({
+  brand: z.array(z.string()).optional(),
+  category: z.array(z.string()).optional(),
+  condition: z.array(z.string()).optional(),
+  favorite: z.boolean().optional(),
+  searchQuery: z.string().optional(),
+  sizeRange: z.object({
+    min: z.number(),
+    max: z.number()
+  }).optional(),
+  priceRange: z.object({
+    min: z.number(),
+    max: z.number()
+  }).optional()
 });
 
-// Filter schema
-const filterSchema = z.object({
-  brands: z.array(z.string()).optional(),
-  categories: z.array(z.string()).optional(),
-  conditions: z.array(z.string()).optional(),
-  priceRange: z.tuple([z.number(), z.number()]).optional(),
-  sizeRange: z.tuple([z.number(), z.number()]).optional(),
-  rarity: z.array(z.string()).optional(),
-  sortBy: z.enum(['name', 'brand', 'price', 'releaseDate', 'purchaseDate']).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional()
+const SneakerQuerySchema = z.object({
+  filters: SneakerFiltersSchema.optional(),
+  sortBy: z.enum(['name', 'brand', 'purchaseDate', 'purchasePrice', 'wearCount', 'lastWorn', 'condition']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  limit: z.number().optional(),
+  offset: z.number().optional()
 });
 
-// Wishlist input schema
-const wishlistInputSchema = z.object({
-  sneakerId: z.string().optional(),
-  name: z.string(),
-  brand: z.string(),
-  model: z.string(),
-  colorway: z.string(),
-  size: z.number(),
-  maxPrice: z.number().optional(),
-  priority: z.enum(['low', 'medium', 'high']),
-  notes: z.string().optional()
-});
+// Get all sneakers with filtering and sorting
+export const getSneakersProcedure = publicProcedure
+  .input(SneakerQuerySchema.optional())
+  .query(async ({ input }) => {
+    let sneakers = [...mockSneakers];
 
-// Price history input schema
-const priceHistoryInputSchema = z.object({
-  sneakerId: z.string(),
-  price: z.number(),
-  size: z.number(),
-  platform: z.string()
-});
+    // Apply filters
+    if (input?.filters) {
+      const { filters } = input;
+      
+      if (filters.brand && filters.brand.length > 0) {
+        sneakers = sneakers.filter(sneaker => filters.brand!.includes(sneaker.brand));
+      }
+      
+      if (filters.category && filters.category.length > 0) {
+        sneakers = sneakers.filter(sneaker => filters.category!.includes(sneaker.category));
+      }
+      
+      if (filters.condition && filters.condition.length > 0) {
+        sneakers = sneakers.filter(sneaker => filters.condition!.includes(sneaker.condition));
+      }
+      
+      if (filters.favorite !== undefined) {
+        sneakers = sneakers.filter(sneaker => sneaker.favorite === filters.favorite);
+      }
+      
+      if (filters.searchQuery) {
+        sneakers = searchMockSneakers(filters.searchQuery);
+      }
+      
+      if (filters.sizeRange) {
+        sneakers = sneakers.filter(sneaker => 
+          sneaker.size.us >= filters.sizeRange!.min && 
+          sneaker.size.us <= filters.sizeRange!.max
+        );
+      }
+      
+      if (filters.priceRange) {
+        sneakers = sneakers.filter(sneaker => 
+          sneaker.purchasePrice && 
+          sneaker.purchasePrice >= filters.priceRange!.min && 
+          sneaker.purchasePrice <= filters.priceRange!.max
+        );
+      }
+    }
 
-// ==================== COLLECTION PROCEDURES ====================
+    // Apply sorting
+    if (input?.sortBy) {
+      const ascending = input.sortOrder === 'asc';
+      sneakers.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+        
+        switch (input.sortBy) {
+          case 'name':
+            aValue = a.name;
+            bValue = b.name;
+            break;
+          case 'brand':
+            aValue = a.brand;
+            bValue = b.brand;
+            break;
+          case 'purchaseDate':
+            aValue = new Date(a.purchaseDate || 0);
+            bValue = new Date(b.purchaseDate || 0);
+            break;
+          case 'purchasePrice':
+            aValue = a.purchasePrice || 0;
+            bValue = b.purchasePrice || 0;
+            break;
+          case 'wearCount':
+            aValue = a.wearCount;
+            bValue = b.wearCount;
+            break;
+          case 'lastWorn':
+            aValue = new Date(a.lastWorn || 0);
+            bValue = new Date(b.lastWorn || 0);
+            break;
+          case 'condition':
+            aValue = a.condition;
+            bValue = b.condition;
+            break;
+          default:
+            aValue = a.createdAt;
+            bValue = b.createdAt;
+        }
+        
+        if (aValue < bValue) return ascending ? -1 : 1;
+        if (aValue > bValue) return ascending ? 1 : -1;
+        return 0;
+      });
+    } else {
+      // Default sort by creation date, newest first
+      sneakers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
 
-export const addSneakerProcedure = protectedProcedure
-  .input(sneakerInputSchema)
-  .mutation(async ({ input }: { input: z.infer<typeof sneakerInputSchema> }) => {
-    return await addSneaker(input);
+    // Apply pagination
+    if (input?.offset !== undefined || input?.limit !== undefined) {
+      const offset = input.offset || 0;
+      const limit = input.limit || 50;
+      sneakers = sneakers.slice(offset, offset + limit);
+    }
+
+    return sneakers;
   });
 
-export const getMySneakersProcedure = protectedProcedure
-  .input(filterSchema.optional())
-  .query(async ({ input }: { input?: z.infer<typeof filterSchema> }) => {
-    return await getMySneakers(input);
-  });
-
-export const getSneakerProcedure = protectedProcedure
+// Get single sneaker by ID
+export const getSneakerProcedure = publicProcedure
   .input(z.object({ id: z.string() }))
-  .query(async ({ input }: { input: { id: string } }) => {
-    return await getSneaker(input.id);
+  .query(async ({ input }) => {
+    const sneaker = mockSneakers.find(s => s.id === input.id);
+    if (!sneaker) {
+      throw new Error('Sneaker not found');
+    }
+    return sneaker;
   });
 
-export const updateSneakerProcedure = protectedProcedure
-  .input(z.object({
-    id: z.string(),
-    updates: sneakerInputSchema.partial()
-  }))
-  .mutation(async ({ input }: { input: { id: string; updates: Partial<z.infer<typeof sneakerInputSchema>> } }) => {
-    return await updateSneaker(input.id, input.updates);
-  });
-
-export const deleteSneakerProcedure = protectedProcedure
-  .input(z.object({ id: z.string() }))
-  .mutation(async ({ input }: { input: { id: string } }) => {
-    return await deleteSneaker(input.id);
-  });
-
-// ==================== WISHLIST PROCEDURES ====================
-
-export const addToWishlistProcedure = protectedProcedure
-  .input(wishlistInputSchema)
-  .mutation(async ({ input }: { input: z.infer<typeof wishlistInputSchema> }) => {
-    return await addToWishlist(input);
-  });
-
-export const getMyWishlistProcedure = protectedProcedure
-  .query(async () => {
-    return await getMyWishlist();
-  });
-
-export const removeFromWishlistProcedure = protectedProcedure
-  .input(z.object({ id: z.string() }))
-  .mutation(async ({ input }: { input: { id: string } }) => {
-    return await removeFromWishlist(input.id);
-  });
-
-export const updateWishlistItemProcedure = protectedProcedure
-  .input(z.object({
-    id: z.string(),
-    updates: wishlistInputSchema.partial()
-  }))
-  .mutation(async ({ input }: { input: { id: string; updates: Partial<z.infer<typeof wishlistInputSchema>> } }) => {
-    return await updateWishlistItem(input.id, input.updates);
-  });
-
-// ==================== STATS PROCEDURES ====================
-
-export const getCollectionStatsProcedure = protectedProcedure
-  .query(async () => {
-    return await getCollectionStats();
-  });
-
-// ==================== PUBLIC PROCEDURES ====================
-
+// Search sneakers
 export const searchSneakersProcedure = publicProcedure
-  .input(z.object({
-    query: z.string(),
-    limit: z.number().default(20)
-  }))
-  .query(async ({ input }: { input: { query: string; limit: number } }) => {
-    return await searchSneakers(input.query, input.limit);
+  .input(z.object({ query: z.string() }))
+  .query(async ({ input }) => {
+    return searchMockSneakers(input.query);
   });
 
-export const getTrendingSneakersProcedure = publicProcedure
-  .input(z.object({
-    limit: z.number().default(10)
-  }))
-  .query(async ({ input }: { input: { limit: number } }) => {
-    return await getTrendingSneakers(input.limit);
+// Get favorite sneakers
+export const getFavoriteSneakersProcedure = publicProcedure
+  .query(async () => {
+    return mockSneakers.filter(sneaker => sneaker.favorite);
   });
 
-export const getUpcomingReleasesProcedure = publicProcedure
-  .input(z.object({
-    limit: z.number().default(20)
-  }))
-  .query(async ({ input }: { input: { limit: number } }) => {
-    return await getUpcomingReleases(input.limit);
+// Get sneakers by brand
+export const getSneakersByBrandProcedure = publicProcedure
+  .input(z.object({ brand: z.string() }))
+  .query(async ({ input }) => {
+    return mockSneakers.filter(sneaker => sneaker.brand === input.brand);
   });
 
-// ==================== PRICE TRACKING PROCEDURES ====================
-
-export const addPriceHistoryProcedure = protectedProcedure
-  .input(priceHistoryInputSchema)
-  .mutation(async ({ input }: { input: z.infer<typeof priceHistoryInputSchema> }) => {
-    return await addPriceHistory(input);
+// Toggle favorite status
+export const toggleSneakerFavoriteProcedure = publicProcedure
+  .input(z.object({ id: z.string() }))
+  .mutation(async ({ input }) => {
+    const sneakerIndex = mockSneakers.findIndex(s => s.id === input.id);
+    if (sneakerIndex === -1) {
+      throw new Error('Sneaker not found');
+    }
+    
+    mockSneakers[sneakerIndex].favorite = !mockSneakers[sneakerIndex].favorite;
+    mockSneakers[sneakerIndex].updatedAt = new Date().toISOString();
+    
+    return mockSneakers[sneakerIndex];
   });
 
-export const getPriceHistoryProcedure = protectedProcedure
-  .input(z.object({
-    sneakerId: z.string(),
-    size: z.number().optional()
-  }))
-  .query(async ({ input }: { input: { sneakerId: string; size?: number } }) => {
-    return await getPriceHistory(input.sneakerId, input.size);
+// Record wear
+export const recordSneakerWearProcedure = publicProcedure
+  .input(z.object({ id: z.string() }))
+  .mutation(async ({ input }) => {
+    const sneakerIndex = mockSneakers.findIndex(s => s.id === input.id);
+    if (sneakerIndex === -1) {
+      throw new Error('Sneaker not found');
+    }
+    
+    mockSneakers[sneakerIndex].wearCount += 1;
+    mockSneakers[sneakerIndex].lastWorn = new Date().toISOString();
+    mockSneakers[sneakerIndex].updatedAt = new Date().toISOString();
+    
+    return mockSneakers[sneakerIndex];
+  });
+
+// Get sneaker statistics
+export const getSneakerStatsProcedure = publicProcedure
+  .query(async () => {
+    const sneakers = mockSneakers;
+    
+    if (sneakers.length === 0) {
+      return {
+        totalSneakers: 0,
+        totalValue: 0,
+        averagePrice: 0,
+        brandDistribution: {},
+        categoryDistribution: {},
+        conditionDistribution: {},
+        monthlySpending: {}
+      };
+    }
+
+    const totalValue = sneakers.reduce((sum, sneaker) => sum + (sneaker.purchasePrice || 0), 0);
+    const averagePrice = totalValue / sneakers.length;
+
+    // Find most worn sneaker
+    const mostWornSneaker = sneakers.reduce((prev, current) => 
+      (current.wearCount > prev.wearCount) ? current : prev
+    );
+
+    // Find newest and oldest sneakers
+    const sortedByDate = sneakers
+      .filter(s => s.purchaseDate)
+      .sort((a, b) => new Date(b.purchaseDate!).getTime() - new Date(a.purchaseDate!).getTime());
+    
+    const newestSneaker = sortedByDate[0];
+    const oldestSneaker = sortedByDate[sortedByDate.length - 1];
+
+    // Calculate distributions
+    const brandDistribution = sneakers.reduce((acc, sneaker) => {
+      acc[sneaker.brand] = (acc[sneaker.brand] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const categoryDistribution = sneakers.reduce((acc, sneaker) => {
+      acc[sneaker.category] = (acc[sneaker.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const conditionDistribution = sneakers.reduce((acc, sneaker) => {
+      acc[sneaker.condition] = (acc[sneaker.condition] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Calculate monthly spending
+    const monthlySpending = sneakers
+      .filter(s => s.purchaseDate && s.purchasePrice)
+      .reduce((acc, sneaker) => {
+        const month = new Date(sneaker.purchaseDate!).toISOString().slice(0, 7); // YYYY-MM
+        acc[month] = (acc[month] || 0) + sneaker.purchasePrice!;
+        return acc;
+      }, {} as Record<string, number>);
+
+    return {
+      totalSneakers: sneakers.length,
+      totalValue,
+      averagePrice,
+      mostWornSneaker,
+      newestSneaker,
+      oldestSneaker,
+      brandDistribution,
+      categoryDistribution,
+      conditionDistribution,
+      monthlySpending
+    };
   });
