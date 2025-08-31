@@ -59,6 +59,19 @@ import {
   getMaintenanceAnalyticsProcedure,
   getAnalyticsDashboardProcedure
 } from "./routes/analytics/route";
+import {
+  getBrandsProcedure,
+  getBrandProcedure,
+  searchBrandsProcedure,
+  getPopularBrandsProcedure,
+  getBrandsByCategoryProcedure,
+  getBrandsByPriceRangeProcedure,
+  addBrandProcedure,
+  updateBrandProcedure,
+  deleteBrandProcedure,
+  getBrandStatsProcedure,
+  getBrandSuggestionsProcedure
+} from "./routes/brands/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -135,6 +148,19 @@ export const appRouter = createTRPCRouter({
     seasonal: getSeasonalAnalyticsProcedure,
     maintenance: getMaintenanceAnalyticsProcedure,
     dashboard: getAnalyticsDashboardProcedure,
+  }),
+  brands: createTRPCRouter({
+    getAll: getBrandsProcedure,
+    getById: getBrandProcedure,
+    search: searchBrandsProcedure,
+    getPopular: getPopularBrandsProcedure,
+    getByCategory: getBrandsByCategoryProcedure,
+    getByPriceRange: getBrandsByPriceRangeProcedure,
+    add: addBrandProcedure,
+    update: updateBrandProcedure,
+    delete: deleteBrandProcedure,
+    stats: getBrandStatsProcedure,
+    suggestions: getBrandSuggestionsProcedure,
   }),
 });
 
