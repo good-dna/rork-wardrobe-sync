@@ -35,6 +35,17 @@ import {
   getOutfitStatsProcedure,
   getOutfitRecommendationsProcedure
 } from "./routes/wardrobe/outfits/route";
+import {
+  getWardrobeOverviewProcedure,
+  getCategoryBreakdownProcedure,
+  getColorBreakdownProcedure,
+  getBrandBreakdownProcedure,
+  getWearAnalyticsProcedure,
+  getPurchaseAnalyticsProcedure,
+  getSeasonalAnalyticsProcedure,
+  getMaintenanceAnalyticsProcedure,
+  getAnalyticsDashboardProcedure
+} from "./routes/analytics/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -87,6 +98,17 @@ export const appRouter = createTRPCRouter({
       stats: getOutfitStatsProcedure,
       recommendations: getOutfitRecommendationsProcedure,
     }),
+  }),
+  analytics: createTRPCRouter({
+    overview: getWardrobeOverviewProcedure,
+    categories: getCategoryBreakdownProcedure,
+    colors: getColorBreakdownProcedure,
+    brands: getBrandBreakdownProcedure,
+    wear: getWearAnalyticsProcedure,
+    purchases: getPurchaseAnalyticsProcedure,
+    seasonal: getSeasonalAnalyticsProcedure,
+    maintenance: getMaintenanceAnalyticsProcedure,
+    dashboard: getAnalyticsDashboardProcedure,
   }),
 });
 
