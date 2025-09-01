@@ -1,13 +1,50 @@
 import { z } from 'zod';
 import { protectedProcedure } from '../../../create-context';
-import { supabase } from '../../../../../lib/supabase';
+
+// Mock data store for demo purposes
+let mockOutfits: any[] = [
+  {
+    id: '1',
+    name: 'Casual Friday',
+    description: 'Comfortable outfit for casual Friday at work',
+    occasion: 'work',
+    season: ['spring', 'fall'],
+    item_ids: ['1', '2', '4'],
+    image_url: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?q=80&w=2070&auto=format&fit=crop',
+    tags: ['casual', 'work'],
+    notes: 'Perfect for relaxed work days',
+    is_favorite: false,
+    wear_count: 5,
+    last_worn: '2023-06-15',
+    user_id: 'demo-user',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: '2',
+    name: 'Night Out',
+    description: 'Stylish outfit for evening events',
+    occasion: 'evening',
+    season: ['fall', 'winter'],
+    item_ids: ['3', '2', '5', '6'],
+    image_url: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?q=80&w=1974&auto=format&fit=crop',
+    tags: ['evening', 'stylish'],
+    notes: 'Great for dinner dates',
+    is_favorite: true,
+    wear_count: 3,
+    last_worn: '2023-06-10',
+    user_id: 'demo-user',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
 
 const OutfitSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   occasion: z.string().optional(),
   season: z.array(z.string()).optional(),
-  item_ids: z.array(z.string().uuid()),
+  item_ids: z.array(z.string()),
   image_url: z.string().url().optional(),
   tags: z.array(z.string()).optional(),
   notes: z.string().optional(),
@@ -15,35 +52,26 @@ const OutfitSchema = z.object({
 });
 
 const UpdateOutfitSchema = OutfitSchema.partial().extend({
-  id: z.string().uuid(),
+  id: z.string(),
 });
 
 export const addOutfitProcedure = protectedProcedure
   .input(OutfitSchema)
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    // Verify all items belong to the user
-    const { data: items, error: itemsError } = await supabase
-      .from('items')
-      .select('id')
-      .eq('user_id', user.id)
-      .in('id', input.item_ids);
+    const newOutfit = {
+      id: `outfit-${Date.now()}`,
+      ...input,
+      user_id: userId,
+      wear_count: 0,
+      last_worn: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-    if (itemsError) throw new Error(`Failed to verify items: ${itemsError.message}`);
-    if (items.length !== input.item_ids.length) {
-      throw new Error('Some items do not exist or do not belong to you');
-    }
-
-    const { data, error } = await supabase
-      .from('outfits')
-      .insert({ ...input, user_id: user.id })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to add outfit: ${error.message}`);
-    return data;
+    mockOutfits.push(newOutfit);
+    return newOutfit;
   });
 
 export const listMyOutfitsProcedure = protectedProcedure
@@ -56,311 +84,167 @@ export const listMyOutfitsProcedure = protectedProcedure
     offset: z.number().min(0).default(0),
   }).optional())
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    let query = supabase
-      .from('outfits')
-      .select(`
-        *,
-        items:item_ids (
-          id,
-          name,
-          brand,
-          category,
-          color,
-          image_url
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .range(input.offset, input.offset + input.limit - 1);
+    let filteredOutfits = mockOutfits.filter(outfit => outfit.user_id === userId);
 
+    // Apply filters
     if (input.occasion) {
-      query = query.eq('occasion', input.occasion);
+      filteredOutfits = filteredOutfits.filter(outfit => outfit.occasion === input.occasion);
     }
     if (input.is_favorite !== undefined) {
-      query = query.eq('is_favorite', input.is_favorite);
+      filteredOutfits = filteredOutfits.filter(outfit => outfit.is_favorite === input.is_favorite);
     }
     if (input.season) {
-      query = query.contains('season', [input.season]);
+      filteredOutfits = filteredOutfits.filter(outfit => 
+        outfit.season?.includes(input.season)
+      );
     }
     if (input.search) {
-      query = query.or(`name.ilike.%${input.search}%,description.ilike.%${input.search}%,notes.ilike.%${input.search}%`);
+      const searchLower = input.search.toLowerCase();
+      filteredOutfits = filteredOutfits.filter(outfit => 
+        outfit.name?.toLowerCase().includes(searchLower) ||
+        outfit.description?.toLowerCase().includes(searchLower) ||
+        outfit.notes?.toLowerCase().includes(searchLower)
+      );
     }
 
-    const { data, error } = await query;
+    // Sort by created_at descending
+    filteredOutfits.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    if (error) throw new Error(`Failed to fetch outfits: ${error.message}`);
-    return data || [];
+    // Apply pagination
+    const start = input.offset || 0;
+    const end = start + (input.limit || 50);
+    
+    return filteredOutfits.slice(start, end);
   });
 
 export const getOutfitProcedure = protectedProcedure
-  .input(z.object({ id: z.string().uuid() }))
+  .input(z.object({ id: z.string() }))
   .query(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data, error } = await supabase
-      .from('outfits')
-      .select(`
-        *,
-        items:item_ids (
-          id,
-          name,
-          brand,
-          category,
-          color,
-          size,
-          image_url,
-          notes
-        )
-      `)
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Outfit not found');
-      }
-      throw new Error(`Failed to fetch outfit: ${error.message}`);
+    const outfit = mockOutfits.find(outfit => outfit.id === input.id && outfit.user_id === userId);
+    
+    if (!outfit) {
+      throw new Error('Outfit not found');
     }
-    return data;
+    
+    return outfit;
   });
 
 export const updateOutfitProcedure = protectedProcedure
   .input(UpdateOutfitSchema)
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
+    const userId = 'demo-user'; // For demo purposes
     const { id, ...updateData } = input;
 
-    // If updating item_ids, verify all items belong to the user
-    if (updateData.item_ids) {
-      const { data: items, error: itemsError } = await supabase
-        .from('items')
-        .select('id')
-        .eq('user_id', user.id)
-        .in('id', updateData.item_ids);
-
-      if (itemsError) throw new Error(`Failed to verify items: ${itemsError.message}`);
-      if (items.length !== updateData.item_ids.length) {
-        throw new Error('Some items do not exist or do not belong to you');
-      }
+    const outfitIndex = mockOutfits.findIndex(outfit => outfit.id === id && outfit.user_id === userId);
+    
+    if (outfitIndex === -1) {
+      throw new Error('Outfit not found');
     }
 
-    const { data, error } = await supabase
-      .from('outfits')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    mockOutfits[outfitIndex] = {
+      ...mockOutfits[outfitIndex],
+      ...updateData,
+      updated_at: new Date().toISOString()
+    };
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Outfit not found');
-      }
-      throw new Error(`Failed to update outfit: ${error.message}`);
-    }
-    return data;
+    return mockOutfits[outfitIndex];
   });
 
 export const deleteOutfitProcedure = protectedProcedure
-  .input(z.object({ id: z.string().uuid() }))
+  .input(z.object({ id: z.string() }))
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data, error } = await supabase
-      .from('outfits')
-      .delete()
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Outfit not found');
-      }
-      throw new Error(`Failed to delete outfit: ${error.message}`);
+    const outfitIndex = mockOutfits.findIndex(outfit => outfit.id === input.id && outfit.user_id === userId);
+    
+    if (outfitIndex === -1) {
+      throw new Error('Outfit not found');
     }
-    return { success: true, deletedOutfit: data };
+
+    const deletedOutfit = mockOutfits.splice(outfitIndex, 1)[0];
+    return { success: true, deletedOutfit };
   });
 
 export const toggleOutfitFavoriteProcedure = protectedProcedure
-  .input(z.object({ id: z.string().uuid() }))
+  .input(z.object({ id: z.string() }))
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    // First get current favorite status
-    const { data: currentOutfit, error: getError } = await supabase
-      .from('outfits')
-      .select('is_favorite')
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (getError) {
-      if (getError.code === 'PGRST116') {
-        throw new Error('Outfit not found');
-      }
-      throw new Error(`Failed to get outfit: ${getError.message}`);
+    const outfitIndex = mockOutfits.findIndex(outfit => outfit.id === input.id && outfit.user_id === userId);
+    
+    if (outfitIndex === -1) {
+      throw new Error('Outfit not found');
     }
 
-    // Toggle favorite status
-    const { data, error } = await supabase
-      .from('outfits')
-      .update({ is_favorite: !currentOutfit.is_favorite })
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    mockOutfits[outfitIndex].is_favorite = !mockOutfits[outfitIndex].is_favorite;
+    mockOutfits[outfitIndex].updated_at = new Date().toISOString();
 
-    if (error) throw new Error(`Failed to toggle favorite: ${error.message}`);
-    return data;
+    return mockOutfits[outfitIndex];
   });
 
 export const recordOutfitWearProcedure = protectedProcedure
   .input(z.object({
-    id: z.string().uuid(),
+    id: z.string(),
     date: z.string().optional(),
     notes: z.string().optional(),
   }))
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
+    const userId = 'demo-user'; // For demo purposes
     const wearDate = input.date || new Date().toISOString();
 
-    // First verify outfit exists and belongs to user
-    const { data: outfit, error: outfitError } = await supabase
-      .from('outfits')
-      .select('id, wear_count, last_worn, item_ids')
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (outfitError) {
-      if (outfitError.code === 'PGRST116') {
-        throw new Error('Outfit not found');
-      }
-      throw new Error(`Failed to get outfit: ${outfitError.message}`);
+    const outfitIndex = mockOutfits.findIndex(outfit => outfit.id === input.id && outfit.user_id === userId);
+    
+    if (outfitIndex === -1) {
+      throw new Error('Outfit not found');
     }
 
-    // Update outfit wear count and last worn date
-    const { data: updatedOutfit, error: updateError } = await supabase
-      .from('outfits')
-      .update({
-        wear_count: (outfit.wear_count || 0) + 1,
-        last_worn: wearDate,
-      })
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    mockOutfits[outfitIndex].wear_count = (mockOutfits[outfitIndex].wear_count || 0) + 1;
+    mockOutfits[outfitIndex].last_worn = wearDate;
+    mockOutfits[outfitIndex].updated_at = new Date().toISOString();
 
-    if (updateError) throw new Error(`Failed to update outfit: ${updateError.message}`);
-
-    // Also update wear count for all items in the outfit
-    if (outfit.item_ids && outfit.item_ids.length > 0) {
-      // Get current wear counts for all items
-      const { data: currentItems, error: getCurrentError } = await supabase
-        .from('items')
-        .select('id, wear_count')
-        .in('id', outfit.item_ids)
-        .eq('user_id', user.id);
-
-      if (!getCurrentError && currentItems) {
-        // Update each item individually
-        for (const item of currentItems) {
-          await supabase
-            .from('items')
-            .update({
-              wear_count: (item.wear_count || 0) + 1,
-              last_worn: wearDate,
-            })
-            .eq('id', item.id)
-            .eq('user_id', user.id);
-        }
-      }
-    }
-
-    // Record wear history
-    const { error: historyError } = await supabase
-      .from('outfit_wear_history')
-      .insert({
-        outfit_id: input.id,
-        user_id: user.id,
-        worn_date: wearDate,
-        notes: input.notes,
-      });
-
-    if (historyError) {
-      console.warn('Failed to record wear history:', historyError.message);
-    }
-
-    return updatedOutfit;
+    return mockOutfits[outfitIndex];
   });
 
 export const getOutfitStatsProcedure = protectedProcedure
   .query(async ({ ctx }: { ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data: totalOutfits, error: totalError } = await supabase
-      .from('outfits')
-      .select('id', { count: 'exact' })
-      .eq('user_id', user.id);
+    const userOutfits = mockOutfits.filter(outfit => outfit.user_id === userId);
 
-    if (totalError) throw new Error(`Failed to get total outfits: ${totalError.message}`);
+    const totalOutfits = userOutfits.length;
+    const favoriteOutfits = userOutfits.filter(outfit => outfit.is_favorite).length;
 
-    const { data: favoriteOutfits, error: favoriteError } = await supabase
-      .from('outfits')
-      .select('id', { count: 'exact' })
-      .eq('user_id', user.id)
-      .eq('is_favorite', true);
-
-    if (favoriteError) throw new Error(`Failed to get favorite outfits: ${favoriteError.message}`);
-
-    const { data: occasionStats, error: occasionError } = await supabase
-      .from('outfits')
-      .select('occasion')
-      .eq('user_id', user.id)
-      .not('occasion', 'is', null);
-
-    if (occasionError) throw new Error(`Failed to get occasion stats: ${occasionError.message}`);
-
-    const { data: mostWornOutfits, error: mostWornError } = await supabase
-      .from('outfits')
-      .select('id, name, wear_count, last_worn')
-      .eq('user_id', user.id)
-      .not('wear_count', 'is', null)
-      .order('wear_count', { ascending: false })
-      .limit(5);
-
-    if (mostWornError) throw new Error(`Failed to get most worn outfits: ${mostWornError.message}`);
-
-    const occasions = occasionStats?.reduce((acc: Record<string, number>, outfit: any) => {
+    const occasions = userOutfits.reduce((acc: Record<string, number>, outfit: any) => {
       if (outfit.occasion) {
         acc[outfit.occasion] = (acc[outfit.occasion] || 0) + 1;
       }
       return acc;
-    }, {}) || {};
+    }, {});
+
+    const mostWornOutfits = userOutfits
+      .filter(outfit => outfit.wear_count > 0)
+      .sort((a, b) => (b.wear_count || 0) - (a.wear_count || 0))
+      .slice(0, 5)
+      .map(outfit => ({
+        id: outfit.id,
+        name: outfit.name,
+        wear_count: outfit.wear_count,
+        last_worn: outfit.last_worn
+      }));
 
     return {
-      totalOutfits: totalOutfits?.length || 0,
-      favoriteOutfits: favoriteOutfits?.length || 0,
+      totalOutfits,
+      favoriteOutfits,
       occasionsCount: Object.keys(occasions).length,
       topOccasions: Object.entries(occasions)
         .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 5)
         .map(([occasion, count]) => ({ occasion, count })),
-      mostWornOutfits: mostWornOutfits || [],
+      mostWornOutfits,
     };
   });
 
@@ -376,35 +260,22 @@ export const getOutfitRecommendationsProcedure = protectedProcedure
     limit: z.number().min(1).max(20).default(5),
   }).optional())
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    let query = supabase
-      .from('outfits')
-      .select(`
-        *,
-        items:item_ids (
-          id,
-          name,
-          brand,
-          category,
-          color,
-          image_url
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('wear_count', { ascending: true, nullsFirst: true })
-      .limit(input.limit);
+    let filteredOutfits = mockOutfits.filter(outfit => outfit.user_id === userId);
 
+    // Apply filters
     if (input.occasion) {
-      query = query.eq('occasion', input.occasion);
+      filteredOutfits = filteredOutfits.filter(outfit => outfit.occasion === input.occasion);
     }
     if (input.season) {
-      query = query.contains('season', [input.season]);
+      filteredOutfits = filteredOutfits.filter(outfit => 
+        outfit.season?.includes(input.season)
+      );
     }
 
-    const { data, error } = await query;
+    // Sort by wear count (ascending) to recommend less worn outfits
+    filteredOutfits.sort((a, b) => (a.wear_count || 0) - (b.wear_count || 0));
 
-    if (error) throw new Error(`Failed to get outfit recommendations: ${error.message}`);
-    return data || [];
+    return filteredOutfits.slice(0, input.limit);
   });

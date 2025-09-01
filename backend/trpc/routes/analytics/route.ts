@@ -147,10 +147,10 @@ export const getWardrobeOverviewProcedure = publicProcedure
     }
 
     const totalItems = items.length;
-    const totalValue = items.reduce((sum: number, item: any) => sum + (item.purchasePrice || 0), 0);
-    const totalWears = items.reduce((sum: number, item: any) => sum + (item.wearCount || 0), 0);
-    const totalWashes = items.reduce((sum: number, item: any) => sum + (item.washHistory?.length || 0), 0);
-    const itemsNeedingWash = items.filter((item: any) => item.cleaningStatus === 'dirty').length;
+    const totalValue = items.reduce((sum: number, item: Item) => sum + (item.purchasePrice || 0), 0);
+    const totalWears = items.reduce((sum: number, item: Item) => sum + (item.wearCount || 0), 0);
+    const totalWashes = items.reduce((sum: number, item: Item) => sum + (item.washHistory?.length || 0), 0);
+    const itemsNeedingWash = items.filter((item: Item) => item.cleaningStatus === 'dirty').length;
 
     const averageWearCount = totalItems > 0 ? totalWears / totalItems : 0;
     const averageItemValue = totalItems > 0 ? totalValue / totalItems : 0;
@@ -175,13 +175,13 @@ export const getCategoryBreakdownProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
 
     const items = mockItems
-      .map((item: any) => ({ category: item.category, purchase_price: item.purchasePrice, wear_count: item.wearCount }));
+      .map((item: Item) => ({ category: item.category, purchase_price: item.purchasePrice, wear_count: item.wearCount }));
 
     if (items.length === 0) {
       return [];
     }
 
-    const categoryStats = items.reduce((acc: any, item: any) => {
+    const categoryStats = items.reduce((acc: Record<string, { count: number; totalValue: number; totalWears: number }>, item: { category: string; purchase_price?: number; wear_count?: number }) => {
       const category = item.category;
       if (!acc[category]) {
         acc[category] = {
@@ -198,7 +198,7 @@ export const getCategoryBreakdownProcedure = publicProcedure
 
     const totalItems = items.length;
 
-    return Object.entries(categoryStats).map(([category, stats]: [string, any]) => ({
+    return Object.entries(categoryStats).map(([category, stats]) => ({
       category,
       count: stats.count,
       percentage: (stats.count / totalItems) * 100,
@@ -213,13 +213,13 @@ export const getColorBreakdownProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
 
     const items = mockItems
-      .map((item: any) => ({ color: item.color }));
+      .map((item: Item) => ({ color: item.color }));
 
     if (items.length === 0) {
       return [];
     }
 
-    const colorStats = items.reduce((acc: any, item: any) => {
+    const colorStats = items.reduce((acc: Record<string, number>, item: { color: string }) => {
       const color = item.color;
       acc[color] = (acc[color] || 0) + 1;
       return acc;
@@ -228,12 +228,12 @@ export const getColorBreakdownProcedure = publicProcedure
     const totalItems = items.length;
 
     return Object.entries(colorStats)
-      .map(([color, count]: [string, any]) => ({
+      .map(([color, count]) => ({
         color,
         count,
         percentage: (count / totalItems) * 100
       }))
-      .sort((a: any, b: any) => b.count - a.count) as ColorBreakdown[];
+      .sort((a, b) => b.count - a.count) as ColorBreakdown[];
   });
 
 // Get brand breakdown analytics
@@ -242,13 +242,13 @@ export const getBrandBreakdownProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
 
     const items = mockItems
-      .map((item: any) => ({ brand: item.brand, purchase_price: item.purchasePrice, wear_count: item.wearCount }));
+      .map((item: Item) => ({ brand: item.brand, purchase_price: item.purchasePrice, wear_count: item.wearCount }));
 
     if (items.length === 0) {
       return [];
     }
 
-    const brandStats = items.reduce((acc: any, item: any) => {
+    const brandStats = items.reduce((acc: Record<string, { count: number; totalValue: number; totalWears: number }>, item: { brand: string; purchase_price?: number; wear_count?: number }) => {
       const brand = item.brand;
       if (!acc[brand]) {
         acc[brand] = {
@@ -266,14 +266,14 @@ export const getBrandBreakdownProcedure = publicProcedure
     const totalItems = items.length;
 
     return Object.entries(brandStats)
-      .map(([brand, stats]: [string, any]) => ({
+      .map(([brand, stats]) => ({
         brand,
         count: stats.count,
         percentage: (stats.count / totalItems) * 100,
         totalValue: stats.totalValue,
         averageWearCount: stats.count > 0 ? stats.totalWears / stats.count : 0
       }))
-      .sort((a: any, b: any) => b.count - a.count) as BrandBreakdown[];
+      .sort((a, b) => b.count - a.count) as BrandBreakdown[];
   });
 
 // Get wear analytics
@@ -287,8 +287,8 @@ export const getWearAnalyticsProcedure = publicProcedure
     const { timeFrame, limit } = input;
 
     const items = mockItems
-      .map((item: any) => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, wear_count: item.wearCount, last_worn: item.lastWorn }))
-      .sort((a: any, b: any) => b.wear_count - a.wear_count);
+      .map((item: Item) => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, wear_count: item.wearCount, last_worn: item.lastWorn }))
+      .sort((a, b) => (b.wear_count || 0) - (a.wear_count || 0));
 
     if (items.length === 0) {
       return {
@@ -300,29 +300,29 @@ export const getWearAnalyticsProcedure = publicProcedure
 
     // Most worn items
     const mostWornItems = items
-      .filter((item: any) => item.wear_count > 0)
+      .filter((item) => (item.wear_count || 0) > 0)
       .slice(0, limit)
-      .map((item: any) => ({
+      .map((item) => ({
         id: item.id,
         name: item.name,
         brand: item.brand,
         category: item.category,
-        wearCount: item.wear_count,
-        lastWorn: item.last_worn
+        wearCount: item.wear_count || 0,
+        lastWorn: item.last_worn || ''
       }));
 
     // Least worn items (but worn at least once)
     const leastWornItems = items
-      .filter((item: any) => item.wear_count > 0)
-      .sort((a: any, b: any) => a.wear_count - b.wear_count)
+      .filter((item) => (item.wear_count || 0) > 0)
+      .sort((a, b) => (a.wear_count || 0) - (b.wear_count || 0))
       .slice(0, limit)
-      .map((item: any) => ({
+      .map((item) => ({
         id: item.id,
         name: item.name,
         brand: item.brand,
         category: item.category,
-        wearCount: item.wear_count,
-        lastWorn: item.last_worn
+        wearCount: item.wear_count || 0,
+        lastWorn: item.last_worn || ''
       }));
 
     // Items not worn in specified timeframe
@@ -331,13 +331,13 @@ export const getWearAnalyticsProcedure = publicProcedure
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     const notWornItems = items
-      .filter((item: any) => {
+      .filter((item) => {
         if (!item.last_worn) return true;
         const lastWornDate = new Date(item.last_worn);
         return lastWornDate < cutoffDate;
       })
       .slice(0, limit)
-      .map((item: any) => {
+      .map((item) => {
         const daysSinceLastWorn = item.last_worn 
           ? Math.floor((Date.now() - new Date(item.last_worn).getTime()) / (1000 * 60 * 60 * 24))
           : 999;
@@ -347,7 +347,7 @@ export const getWearAnalyticsProcedure = publicProcedure
           brand: item.brand,
           category: item.category,
           daysSinceLastWorn,
-          lastWorn: item.last_worn
+          lastWorn: item.last_worn || ''
         };
       });
 
@@ -368,8 +368,8 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     const { months } = input;
 
     const items = mockItems
-      .map((item: any) => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, purchase_price: item.purchasePrice, purchase_date: item.purchaseDate }))
-      .sort((a: any, b: any) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime());
+      .map((item: Item) => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, purchase_price: item.purchasePrice, purchase_date: item.purchaseDate }))
+      .sort((a, b) => new Date(b.purchase_date || '').getTime() - new Date(a.purchase_date || '').getTime());
 
     if (items.length === 0) {
       return {
@@ -382,17 +382,17 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     // Recent purchases (last 10)
     const recentPurchases = items
       .slice(0, 10)
-      .map((item: any) => ({
+      .map((item) => ({
         id: item.id,
         name: item.name,
         brand: item.brand,
         category: item.category,
         purchasePrice: item.purchase_price || 0,
-        purchaseDate: item.purchase_date
+        purchaseDate: item.purchase_date || ''
       }));
 
     // Monthly spending analysis
-    const monthlyStats = items.reduce((acc: any, item: any) => {
+    const monthlyStats = items.reduce((acc: Record<string, { totalSpent: number; itemCount: number }>, item) => {
       if (!item.purchase_date) return acc;
       
       const date = new Date(item.purchase_date);
@@ -412,7 +412,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     }, {} as Record<string, { totalSpent: number; itemCount: number }>);
 
     const monthlySpending = Object.entries(monthlyStats)
-      .map(([month, stats]: [string, any]) => ({
+      .map(([month, stats]) => ({
         month,
         totalSpent: stats.totalSpent,
         itemCount: stats.itemCount
@@ -421,7 +421,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
       .slice(0, months);
 
     // Category spending analysis
-    const categoryStats = items.reduce((acc: any, item: any) => {
+    const categoryStats = items.reduce((acc: Record<string, { totalSpent: number; itemCount: number }>, item) => {
       const category = item.category;
       if (!acc[category]) {
         acc[category] = {
@@ -435,7 +435,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     }, {} as Record<string, { totalSpent: number; itemCount: number }>);
 
     const categorySpending = Object.entries(categoryStats)
-      .map(([category, stats]: [string, any]) => ({
+      .map(([category, stats]) => ({
         category,
         totalSpent: stats.totalSpent,
         itemCount: stats.itemCount,
@@ -456,7 +456,7 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
 
     const items = mockItems
-      .map((item: any) => ({ season: item.season, wear_count: item.wearCount }));
+      .map((item: Item) => ({ season: item.season, wear_count: item.wearCount }));
 
     if (items.length === 0) {
       return {
@@ -477,11 +477,11 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
       all: { count: 0, totalWears: 0 }
     };
 
-    items.forEach((item: any) => {
+    items.forEach((item) => {
       const seasons = Array.isArray(item.season) ? item.season : [item.season];
       const wearCount = item.wear_count || 0;
 
-      seasons.forEach((season: any) => {
+      seasons.forEach((season: string) => {
         if (seasonalStats[season as keyof typeof seasonalStats]) {
           seasonalStats[season as keyof typeof seasonalStats].count += 1;
           seasonalStats[season as keyof typeof seasonalStats].totalWears += wearCount;
@@ -511,7 +511,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
 
     const items = mockItems
-      .map((item: any) => ({ id: item.id, name: item.name, brand: item.brand, cleaning_status: item.cleaningStatus, wash_history: item.washHistory || [], next_wash_due: item.nextWashDue }));
+      .map((item: Item) => ({ id: item.id, name: item.name, brand: item.brand, cleaning_status: item.cleaningStatus, wash_history: item.washHistory || [], next_wash_due: item.nextWashDue }));
 
     if (items.length === 0) {
       return {
@@ -523,14 +523,14 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
       };
     }
 
-    const cleanItems = items.filter((item: any) => item.cleaning_status === 'clean').length;
-    const dirtyItems = items.filter((item: any) => item.cleaning_status === 'dirty').length;
-    const needsRepairItems = items.filter((item: any) => item.cleaning_status === 'needs repair').length;
+    const cleanItems = items.filter((item) => item.cleaning_status === 'clean').length;
+    const dirtyItems = items.filter((item) => item.cleaning_status === 'dirty').length;
+    const needsRepairItems = items.filter((item) => item.cleaning_status === 'needs repair').length;
 
     // Wash frequency analysis
     const washFrequency = items
-      .filter((item: any) => item.wash_history && item.wash_history.length > 0)
-      .map((item: any) => {
+      .filter((item) => item.wash_history && item.wash_history.length > 0)
+      .map((item) => {
         const washHistory = item.wash_history || [];
         const totalWashes = washHistory.length;
         
@@ -554,12 +554,12 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
           lastWashed
         };
       })
-      .sort((a: any, b: any) => b.totalWashes - a.totalWashes)
+      .sort((a, b) => b.totalWashes - a.totalWashes)
       .slice(0, 10);
 
     // Upcoming maintenance
     const upcomingMaintenance = items
-      .filter((item: any) => {
+      .filter((item) => {
         if (item.cleaning_status === 'dirty') return true;
         if (item.cleaning_status === 'needs repair') return true;
         if (item.next_wash_due) {
@@ -570,7 +570,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
         }
         return false;
       })
-      .map((item: any) => {
+      .map((item) => {
         let maintenanceType: 'wash' | 'repair' | 'dry_clean' = 'wash';
         let priority: 'low' | 'medium' | 'high' = 'medium';
         let dueDate = new Date().toISOString();
@@ -596,7 +596,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
           priority
         };
       })
-      .sort((a: any, b: any) => {
+      .sort((a, b) => {
         const priorityOrder: { [key: string]: number } = { high: 3, medium: 2, low: 1 };
         return priorityOrder[b.priority] - priorityOrder[a.priority];
       });
@@ -668,10 +668,10 @@ export const getAnalyticsDashboardProcedure = publicProcedure
 
     // Calculate overview
     const totalItems = items.length;
-    const totalValue = items.reduce((sum: number, item: any) => sum + (item.purchasePrice || 0), 0);
-    const totalWears = items.reduce((sum: number, item: any) => sum + (item.wearCount || 0), 0);
-    const totalWashes = items.reduce((sum: number, item: any) => sum + (item.washHistory?.length || 0), 0);
-    const itemsNeedingWash = items.filter((item: any) => item.cleaningStatus === 'dirty').length;
+    const totalValue = items.reduce((sum: number, item: Item) => sum + (item.purchasePrice || 0), 0);
+    const totalWears = items.reduce((sum: number, item: Item) => sum + (item.wearCount || 0), 0);
+    const totalWashes = items.reduce((sum: number, item: Item) => sum + (item.washHistory?.length || 0), 0);
+    const itemsNeedingWash = items.filter((item: Item) => item.cleaningStatus === 'dirty').length;
 
     const overview = {
       totalItems,
