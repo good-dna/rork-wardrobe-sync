@@ -136,7 +136,6 @@ export default function HomeScreen() {
                     day: 'numeric' 
                   })}
                 </Typography>
-
               </View>
               <Pressable style={styles.scanButton} onPress={handleScanPress}>
                 <Scan size={24} color={colors.background} />
