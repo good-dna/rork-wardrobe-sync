@@ -25,6 +25,19 @@ export const trpcClient = trpc.createClient({
     httpLink({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
+      fetch: async (url, options) => {
+        try {
+          const response = await fetch(url, options);
+          return response;
+        } catch (error) {
+          console.warn('tRPC fetch failed:', error);
+          // Return a mock response for development
+          return new Response(
+            JSON.stringify({ error: { message: 'Backend not available', code: 'NETWORK_ERROR' } }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      },
     }),
   ],
 });
