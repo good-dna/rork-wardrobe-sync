@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../create-context';
-import { supabase } from '../../../../lib/supabase';
 
 // Analytics data types
 interface WardrobeOverview {
@@ -132,16 +131,9 @@ export const getWardrobeOverviewProcedure = publicProcedure
 
 
     // Get all wardrobe items
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('*')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems.filter(item => item.user_id === userId);
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return {
         totalItems: 0,
         totalValue: 0,
@@ -182,16 +174,11 @@ export const getCategoryBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('category, purchase_price, wear_count')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ category: item.category, purchase_price: item.purchase_price, wear_count: item.wear_count }));
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return [];
     }
 
@@ -226,16 +213,11 @@ export const getColorBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('color')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ color: item.color }));
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return [];
     }
 
@@ -261,16 +243,11 @@ export const getBrandBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('brand, purchase_price, wear_count')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ brand: item.brand, purchase_price: item.purchase_price, wear_count: item.wear_count }));
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return [];
     }
 
@@ -312,17 +289,12 @@ export const getWearAnalyticsProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
     const { timeFrame, limit } = input;
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('id, name, brand, category, wear_count, last_worn')
-      .eq('user_id', userId)
-      .order('wear_count', { ascending: false });
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, wear_count: item.wear_count, last_worn: item.last_worn }))
+      .sort((a, b) => b.wear_count - a.wear_count);
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return {
         mostWornItems: [],
         leastWornItems: [],
@@ -399,17 +371,12 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     const userId = 'demo-user'; // For demo purposes
     const { months } = input;
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('id, name, brand, category, purchase_price, purchase_date')
-      .eq('user_id', userId)
-      .order('purchase_date', { ascending: false });
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, purchase_price: item.purchase_price, purchase_date: item.purchase_date }))
+      .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime());
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return {
         recentPurchases: [],
         monthlySpending: [],
@@ -493,16 +460,11 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('season, wear_count')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ season: item.season, wear_count: item.wear_count }));
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return {
         springItems: 0,
         summerItems: 0,
@@ -554,16 +516,11 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('id, name, brand, cleaning_status, wash_history, next_wash_due')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems
+      .filter(item => item.user_id === userId)
+      .map(item => ({ id: item.id, name: item.name, brand: item.brand, cleaning_status: item.cleaning_status, wash_history: item.wash_history, next_wash_due: (item as any).next_wash_due }));
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return {
         cleanItems: 0,
         dirtyItems: 0,
@@ -670,16 +627,9 @@ export const getAnalyticsDashboardProcedure = publicProcedure
     const userId = 'demo-user';
 
     // Get all wardrobe items
-    const { data: items, error } = await supabase
-      .from('wardrobe_items')
-      .select('*')
-      .eq('user_id', userId);
+    const items = mockWardrobeItems.filter(item => item.user_id === userId);
 
-    if (error) {
-      throw new Error(`Failed to fetch wardrobe items: ${error.message}`);
-    }
-
-    if (!items || items.length === 0) {
+    if (items.length === 0) {
       return {
         overview: {
           totalItems: 0,

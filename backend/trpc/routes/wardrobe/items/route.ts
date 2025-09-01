@@ -1,6 +1,35 @@
 import { z } from 'zod';
 import { protectedProcedure } from '../../../create-context';
-import { supabase } from '../../../../../lib/supabase';
+
+// Mock data store for demo purposes
+let mockItems: any[] = [
+  {
+    id: '1',
+    name: 'Classic White T-Shirt',
+    brand: 'Uniqlo',
+    category: 'clothes',
+    color: 'white',
+    size: 'M',
+    season: ['spring', 'summer'],
+    price: 15,
+    user_id: 'demo-user',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: '2',
+    name: 'Blue Jeans',
+    brand: 'Levi\'s',
+    category: 'clothes',
+    color: 'blue',
+    size: '32',
+    season: ['all'],
+    price: 80,
+    user_id: 'demo-user',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
 
 const ItemSchema = z.object({
   name: z.string().min(1),
@@ -17,23 +46,24 @@ const ItemSchema = z.object({
 });
 
 const UpdateItemSchema = ItemSchema.partial().extend({
-  id: z.string().uuid(),
+  id: z.string(),
 });
 
 export const addItemProcedure = protectedProcedure
   .input(ItemSchema)
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data, error } = await supabase
-      .from('items')
-      .insert({ ...input, user_id: user.id })
-      .select()
-      .single();
+    const newItem = {
+      id: `item-${Date.now()}`,
+      ...input,
+      user_id: userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-    if (error) throw new Error(`Failed to add item: ${error.message}`);
-    return data;
+    mockItems.push(newItem);
+    return newItem;
   });
 
 export const listMyItemsProcedure = protectedProcedure
@@ -47,151 +77,118 @@ export const listMyItemsProcedure = protectedProcedure
     offset: z.number().min(0).default(0),
   }).optional())
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    let query = supabase
-      .from('items')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .range(input.offset, input.offset + input.limit - 1);
+    let filteredItems = mockItems.filter(item => item.user_id === userId);
 
+    // Apply filters
     if (input.category) {
-      query = query.eq('category', input.category);
+      filteredItems = filteredItems.filter(item => item.category === input.category);
     }
     if (input.color) {
-      query = query.eq('color', input.color);
+      filteredItems = filteredItems.filter(item => item.color === input.color);
     }
     if (input.brand) {
-      query = query.ilike('brand', `%${input.brand}%`);
+      filteredItems = filteredItems.filter(item => 
+        item.brand?.toLowerCase().includes(input.brand.toLowerCase())
+      );
     }
     if (input.season) {
-      query = query.contains('season', [input.season]);
+      filteredItems = filteredItems.filter(item => 
+        item.season?.includes(input.season)
+      );
     }
     if (input.search) {
-      query = query.or(`name.ilike.%${input.search}%,brand.ilike.%${input.search}%,notes.ilike.%${input.search}%`);
+      const searchLower = input.search.toLowerCase();
+      filteredItems = filteredItems.filter(item => 
+        item.name?.toLowerCase().includes(searchLower) ||
+        item.brand?.toLowerCase().includes(searchLower) ||
+        item.notes?.toLowerCase().includes(searchLower)
+      );
     }
 
-    const { data, error } = await query;
+    // Sort by created_at descending
+    filteredItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    if (error) throw new Error(`Failed to fetch items: ${error.message}`);
-    return data || [];
+    // Apply pagination
+    const start = input.offset || 0;
+    const end = start + (input.limit || 50);
+    
+    return filteredItems.slice(start, end);
   });
 
 export const getItemProcedure = protectedProcedure
-  .input(z.object({ id: z.string().uuid() }))
+  .input(z.object({ id: z.string() }))
   .query(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data, error } = await supabase
-      .from('items')
-      .select('*')
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Item not found');
-      }
-      throw new Error(`Failed to fetch item: ${error.message}`);
+    const item = mockItems.find(item => item.id === input.id && item.user_id === userId);
+    
+    if (!item) {
+      throw new Error('Item not found');
     }
-    return data;
+    
+    return item;
   });
 
 export const updateItemProcedure = protectedProcedure
   .input(UpdateItemSchema)
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
+    const userId = 'demo-user'; // For demo purposes
     const { id, ...updateData } = input;
 
-    const { data, error } = await supabase
-      .from('items')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Item not found');
-      }
-      throw new Error(`Failed to update item: ${error.message}`);
+    const itemIndex = mockItems.findIndex(item => item.id === id && item.user_id === userId);
+    
+    if (itemIndex === -1) {
+      throw new Error('Item not found');
     }
-    return data;
+
+    mockItems[itemIndex] = {
+      ...mockItems[itemIndex],
+      ...updateData,
+      updated_at: new Date().toISOString()
+    };
+
+    return mockItems[itemIndex];
   });
 
 export const deleteItemProcedure = protectedProcedure
-  .input(z.object({ id: z.string().uuid() }))
+  .input(z.object({ id: z.string() }))
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data, error } = await supabase
-      .from('items')
-      .delete()
-      .eq('id', input.id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Item not found');
-      }
-      throw new Error(`Failed to delete item: ${error.message}`);
+    const itemIndex = mockItems.findIndex(item => item.id === input.id && item.user_id === userId);
+    
+    if (itemIndex === -1) {
+      throw new Error('Item not found');
     }
-    return { success: true, deletedItem: data };
+
+    const deletedItem = mockItems.splice(itemIndex, 1)[0];
+    return { success: true, deletedItem };
   });
 
 export const getItemStatsProcedure = protectedProcedure
   .query(async ({ ctx }: { ctx: any }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = 'demo-user'; // For demo purposes
 
-    const { data: totalItems, error: totalError } = await supabase
-      .from('items')
-      .select('id', { count: 'exact' })
-      .eq('user_id', user.id);
+    const userItems = mockItems.filter(item => item.user_id === userId);
 
-    if (totalError) throw new Error(`Failed to get total items: ${totalError.message}`);
-
-    const { data: categoryStats, error: categoryError } = await supabase
-      .from('items')
-      .select('category')
-      .eq('user_id', user.id);
-
-    if (categoryError) throw new Error(`Failed to get category stats: ${categoryError.message}`);
-
-    const { data: brandStats, error: brandError } = await supabase
-      .from('items')
-      .select('brand')
-      .eq('user_id', user.id)
-      .not('brand', 'is', null);
-
-    if (brandError) throw new Error(`Failed to get brand stats: ${brandError.message}`);
-
-    const categories = categoryStats?.reduce((acc: Record<string, number>, item: any) => {
+    const categories = userItems.reduce((acc: Record<string, number>, item: any) => {
       if (item.category) {
         acc[item.category] = (acc[item.category] || 0) + 1;
       }
       return acc;
-    }, {}) || {};
+    }, {});
 
-    const brands = brandStats?.reduce((acc: Record<string, number>, item: any) => {
+    const brands = userItems.reduce((acc: Record<string, number>, item: any) => {
       if (item.brand) {
         acc[item.brand] = (acc[item.brand] || 0) + 1;
       }
       return acc;
-    }, {}) || {};
+    }, {});
 
     return {
-      totalItems: totalItems?.length || 0,
+      totalItems: userItems.length,
       categoriesCount: Object.keys(categories).length,
       brandsCount: Object.keys(brands).length,
       topCategories: Object.entries(categories)

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Scan, Sparkles, MapPin, Thermometer, Wifi, WifiOff } from 'lucide-react-native';
+import { Scan, Sparkles, MapPin, Thermometer } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
 import Typography from '@/components/ui/Typography';
@@ -17,7 +17,7 @@ import {
   getTemperatureUnit, 
   getMockWeatherData 
 } from '@/services/weatherService';
-import { testSupabaseConnection } from '@/lib/supabase';
+import { dataApi } from '@/services/dataApi';
 
 
 const aiSuggestionOptions = [
@@ -56,7 +56,8 @@ export default function HomeScreen() {
   const { profile, weatherCache } = useUserStore();
   const [weatherRecommendations, setWeatherRecommendations] = useState<WeatherRecommendation[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
-  const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; error?: string } | null>(null);
+  const [homeFeedData, setHomeFeedData] = useState<any>(null);
+  const [isLoadingHomeFeed, setIsLoadingHomeFeed] = useState(true);
   
   // Get current weather data
   const currentWeather = getMockWeatherData('sunny'); // In real app, use actual weather
@@ -65,18 +66,19 @@ export default function HomeScreen() {
   
   useEffect(() => {
     loadWeatherRecommendations();
-    checkSupabaseConnection();
+    loadHomeFeed();
   }, [profile?.locationPreferences]);
   
-  const checkSupabaseConnection = async () => {
+  const loadHomeFeed = async () => {
+    setIsLoadingHomeFeed(true);
     try {
-      const result = await testSupabaseConnection();
-      setSupabaseStatus({ connected: result.success, error: result.error });
+      const feedData = await dataApi.getHomeFeed('demo-user-1');
+      setHomeFeedData(feedData);
+      console.log('Home feed loaded successfully:', feedData);
     } catch (error) {
-      setSupabaseStatus({ 
-        connected: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      });
+      console.error('Failed to load home feed:', error);
+    } finally {
+      setIsLoadingHomeFeed(false);
     }
   };
   
@@ -134,22 +136,7 @@ export default function HomeScreen() {
                     day: 'numeric' 
                   })}
                 </Typography>
-                {/* Supabase Status Indicator */}
-                {supabaseStatus && (
-                  <Pressable 
-                    style={styles.statusRow} 
-                    onPress={() => router.push('/debug-supabase')}
-                  >
-                    {supabaseStatus.connected ? (
-                      <Wifi size={14} color={colors.success} />
-                    ) : (
-                      <WifiOff size={14} color={colors.error} />
-                    )}
-                    <Typography variant="small" color={supabaseStatus.connected ? colors.success : colors.error} style={styles.statusText}>
-                      {supabaseStatus.connected ? 'Connected' : 'Offline'} • Tap for details
-                    </Typography>
-                  </Pressable>
-                )}
+
               </View>
               <Pressable style={styles.scanButton} onPress={handleScanPress}>
                 <Scan size={24} color={colors.background} />
@@ -302,7 +289,7 @@ export default function HomeScreen() {
             <View style={styles.collectionsGrid}>
               <Card style={styles.collectionCard}>
                 <Typography variant="h3" color={colors.text}>
-                  42
+                  {isLoadingHomeFeed ? '...' : homeFeedData?.stats?.totalItems || 0}
                 </Typography>
                 <Typography variant="caption" color={colors.textSecondary}>
                   Total Items
@@ -311,7 +298,7 @@ export default function HomeScreen() {
               
               <Card style={styles.collectionCard}>
                 <Typography variant="h3" color={colors.success}>
-                  $2,340
+                  ${isLoadingHomeFeed ? '...' : (homeFeedData?.stats?.totalValue || 0).toLocaleString()}
                 </Typography>
                 <Typography variant="caption" color={colors.textSecondary}>
                   Total Value
@@ -579,13 +566,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     borderRadius: tokens.radius.md,
   },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: tokens.spacing.xs,
-  },
-  statusText: {
-    marginLeft: tokens.spacing.xs,
-    fontSize: 12,
-  },
+
 });
