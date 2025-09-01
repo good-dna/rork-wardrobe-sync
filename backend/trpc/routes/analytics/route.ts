@@ -174,14 +174,13 @@ export const getCategoryBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems
-      .map((item: Item) => ({ category: item.category, purchase_price: item.purchasePrice, wear_count: item.wearCount }));
+    const items = mockItems;
 
     if (items.length === 0) {
       return [];
     }
 
-    const categoryStats = items.reduce((acc: Record<string, { count: number; totalValue: number; totalWears: number }>, item: { category: string; purchase_price?: number; wear_count?: number }) => {
+    const categoryStats = items.reduce((acc: Record<string, { count: number; totalValue: number; totalWears: number }>, item: Item) => {
       const category = item.category;
       if (!acc[category]) {
         acc[category] = {
@@ -191,8 +190,8 @@ export const getCategoryBreakdownProcedure = publicProcedure
         };
       }
       acc[category].count += 1;
-      acc[category].totalValue += item.purchase_price || 0;
-      acc[category].totalWears += item.wear_count || 0;
+      acc[category].totalValue += item.purchasePrice || 0;
+      acc[category].totalWears += item.wearCount || 0;
       return acc;
     }, {} as Record<string, { count: number; totalValue: number; totalWears: number }>);
 
@@ -212,14 +211,13 @@ export const getColorBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems
-      .map((item: Item) => ({ color: item.color }));
+    const items = mockItems;
 
     if (items.length === 0) {
       return [];
     }
 
-    const colorStats = items.reduce((acc: Record<string, number>, item: { color: string }) => {
+    const colorStats = items.reduce((acc: Record<string, number>, item: Item) => {
       const color = item.color;
       acc[color] = (acc[color] || 0) + 1;
       return acc;
@@ -241,14 +239,13 @@ export const getBrandBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems
-      .map((item: Item) => ({ brand: item.brand, purchase_price: item.purchasePrice, wear_count: item.wearCount }));
+    const items = mockItems;
 
     if (items.length === 0) {
       return [];
     }
 
-    const brandStats = items.reduce((acc: Record<string, { count: number; totalValue: number; totalWears: number }>, item: { brand: string; purchase_price?: number; wear_count?: number }) => {
+    const brandStats = items.reduce((acc: Record<string, { count: number; totalValue: number; totalWears: number }>, item: Item) => {
       const brand = item.brand;
       if (!acc[brand]) {
         acc[brand] = {
@@ -258,8 +255,8 @@ export const getBrandBreakdownProcedure = publicProcedure
         };
       }
       acc[brand].count += 1;
-      acc[brand].totalValue += item.purchase_price || 0;
-      acc[brand].totalWears += item.wear_count || 0;
+      acc[brand].totalValue += item.purchasePrice || 0;
+      acc[brand].totalWears += item.wearCount || 0;
       return acc;
     }, {} as Record<string, { count: number; totalValue: number; totalWears: number }>);
 
@@ -287,7 +284,14 @@ export const getWearAnalyticsProcedure = publicProcedure
     const { timeFrame, limit } = input;
 
     const items = mockItems
-      .map((item: Item) => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, wear_count: item.wearCount, last_worn: item.lastWorn }))
+      .map((item: Item) => ({ 
+        id: item.id, 
+        name: item.name, 
+        brand: item.brand, 
+        category: item.category, 
+        wear_count: item.wearCount, 
+        last_worn: item.lastWorn 
+      }))
       .sort((a, b) => (b.wear_count || 0) - (a.wear_count || 0));
 
     if (items.length === 0) {
@@ -368,7 +372,14 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     const { months } = input;
 
     const items = mockItems
-      .map((item: Item) => ({ id: item.id, name: item.name, brand: item.brand, category: item.category, purchase_price: item.purchasePrice, purchase_date: item.purchaseDate }))
+      .map((item: Item) => ({ 
+        id: item.id, 
+        name: item.name, 
+        brand: item.brand, 
+        category: item.category, 
+        purchase_price: item.purchasePrice, 
+        purchase_date: item.purchaseDate 
+      }))
       .sort((a, b) => new Date(b.purchase_date || '').getTime() - new Date(a.purchase_date || '').getTime());
 
     if (items.length === 0) {
@@ -455,8 +466,7 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems
-      .map((item: Item) => ({ season: item.season, wear_count: item.wearCount }));
+    const items = mockItems;
 
     if (items.length === 0) {
       return {
@@ -477,9 +487,9 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
       all: { count: 0, totalWears: 0 }
     };
 
-    items.forEach((item) => {
+    items.forEach((item: Item) => {
       const seasons = Array.isArray(item.season) ? item.season : [item.season];
-      const wearCount = item.wear_count || 0;
+      const wearCount = item.wearCount || 0;
 
       seasons.forEach((season: string) => {
         if (seasonalStats[season as keyof typeof seasonalStats]) {
@@ -510,8 +520,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems
-      .map((item: Item) => ({ id: item.id, name: item.name, brand: item.brand, cleaning_status: item.cleaningStatus, wash_history: item.washHistory || [], next_wash_due: item.nextWashDue }));
+    const items = mockItems;
 
     if (items.length === 0) {
       return {
@@ -523,15 +532,15 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
       };
     }
 
-    const cleanItems = items.filter((item) => item.cleaning_status === 'clean').length;
-    const dirtyItems = items.filter((item) => item.cleaning_status === 'dirty').length;
-    const needsRepairItems = items.filter((item) => item.cleaning_status === 'needs repair').length;
+    const cleanItems = items.filter((item: Item) => item.cleaningStatus === 'clean').length;
+    const dirtyItems = items.filter((item: Item) => item.cleaningStatus === 'dirty').length;
+    const needsRepairItems = items.filter((item: Item) => item.cleaningStatus === 'needs repair').length;
 
     // Wash frequency analysis
     const washFrequency = items
-      .filter((item) => item.wash_history && item.wash_history.length > 0)
-      .map((item) => {
-        const washHistory = item.wash_history || [];
+      .filter((item: Item) => item.washHistory && item.washHistory.length > 0)
+      .map((item: Item) => {
+        const washHistory = item.washHistory || [];
         const totalWashes = washHistory.length;
         
         let daysBetweenWashes = 0;
@@ -559,31 +568,31 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
 
     // Upcoming maintenance
     const upcomingMaintenance = items
-      .filter((item) => {
-        if (item.cleaning_status === 'dirty') return true;
-        if (item.cleaning_status === 'needs repair') return true;
-        if (item.next_wash_due) {
-          const dueDate = new Date(item.next_wash_due);
+      .filter((item: Item) => {
+        if (item.cleaningStatus === 'dirty') return true;
+        if (item.cleaningStatus === 'needs repair') return true;
+        if (item.nextWashDue) {
+          const dueDate = new Date(item.nextWashDue);
           const today = new Date();
           const daysDiff = (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
           return daysDiff <= 7; // Due within a week
         }
         return false;
       })
-      .map((item) => {
+      .map((item: Item) => {
         let maintenanceType: 'wash' | 'repair' | 'dry_clean' = 'wash';
         let priority: 'low' | 'medium' | 'high' = 'medium';
         let dueDate = new Date().toISOString();
 
-        if (item.cleaning_status === 'needs repair') {
+        if (item.cleaningStatus === 'needs repair') {
           maintenanceType = 'repair';
           priority = 'high';
-        } else if (item.cleaning_status === 'dirty') {
+        } else if (item.cleaningStatus === 'dirty') {
           maintenanceType = 'wash';
           priority = 'medium';
-        } else if (item.next_wash_due) {
-          dueDate = item.next_wash_due;
-          const daysDiff = (new Date(item.next_wash_due).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+        } else if (item.nextWashDue) {
+          dueDate = item.nextWashDue;
+          const daysDiff = (new Date(item.nextWashDue).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
           priority = daysDiff <= 2 ? 'high' : daysDiff <= 5 ? 'medium' : 'low';
         }
 
