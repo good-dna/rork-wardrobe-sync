@@ -17,6 +17,13 @@ export const mockItems: Item[] = [
     notes: 'Comfortable for daily wear',
     tags: ['casual', 'work', 'versatile'],
     cleaningStatus: 'clean',
+    wearHistory: [
+      { date: '2023-06-10', notes: 'Work meeting' },
+      { date: '2023-06-05', notes: 'Casual day' }
+    ],
+    washHistory: [
+      { date: '2023-06-01', notes: 'Regular wash' }
+    ],
   },
   {
     id: '2',
@@ -34,6 +41,14 @@ export const mockItems: Item[] = [
     notes: 'Favorite pair, goes with everything',
     tags: ['casual', 'everyday', 'comfortable'],
     cleaningStatus: 'dirty',
+    wearHistory: [
+      { date: '2023-06-15', notes: 'Weekend outing' },
+      { date: '2023-06-12', notes: 'Work from home' }
+    ],
+    washHistory: [
+      { date: '2023-05-20', notes: 'Regular wash' }
+    ],
+    nextWashDue: '2023-06-20',
   },
   {
     id: '3',
@@ -51,6 +66,11 @@ export const mockItems: Item[] = [
     notes: 'Great for cool evenings',
     tags: ['casual', 'evening', 'statement'],
     cleaningStatus: 'clean',
+    wearHistory: [
+      { date: '2023-05-20', notes: 'Date night' },
+      { date: '2023-04-15', notes: 'Cool evening walk' }
+    ],
+    washHistory: [],
   },
   {
     id: '4',
@@ -68,6 +88,13 @@ export const mockItems: Item[] = [
     notes: 'Comfortable for long runs',
     tags: ['athletic', 'running', 'workout'],
     cleaningStatus: 'clean',
+    wearHistory: [
+      { date: '2023-06-18', notes: 'Morning run' },
+      { date: '2023-06-16', notes: 'Gym workout' }
+    ],
+    washHistory: [
+      { date: '2023-06-10', notes: 'Cleaned after run' }
+    ],
   },
   {
     id: '5',
@@ -85,6 +112,11 @@ export const mockItems: Item[] = [
     notes: 'Gift from family',
     tags: ['formal', 'everyday', 'accessory'],
     cleaningStatus: 'clean',
+    wearHistory: [
+      { date: '2023-06-19', notes: 'Daily wear' },
+      { date: '2023-06-18', notes: 'Work meeting' }
+    ],
+    washHistory: [],
   },
   {
     id: '6',
@@ -102,6 +134,11 @@ export const mockItems: Item[] = [
     notes: 'Signature scent for special occasions',
     tags: ['fragrance', 'evening', 'special'],
     cleaningStatus: 'clean',
+    wearHistory: [
+      { date: '2023-06-19', notes: 'Special dinner' },
+      { date: '2023-06-15', notes: 'Date night' }
+    ],
+    washHistory: [],
   },
 ];
 
