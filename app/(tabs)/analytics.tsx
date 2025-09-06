@@ -229,7 +229,7 @@ export default function AnalyticsScreen() {
             <View style={styles.insightContent}>
               <Text style={styles.insightItemName}>{mostWornItems[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-{mostWornItems[0].brand} • Worn {mostWornItems[0].wearCount} times
+                {mostWornItems[0].brand} • Worn {mostWornItems[0].wearCount} times
               </Text>
             </View>
           ) : (
@@ -246,7 +246,7 @@ export default function AnalyticsScreen() {
             <View style={styles.insightContent}>
               <Text style={styles.insightItemName}>{leastWornItems[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-{leastWornItems[0].brand} • Worn {leastWornItems[0].wearCount} times
+                {leastWornItems[0].brand} • Worn {leastWornItems[0].wearCount} times
               </Text>
             </View>
           ) : (
@@ -263,7 +263,7 @@ export default function AnalyticsScreen() {
             <View style={styles.insightContent}>
               <Text style={styles.insightItemName}>{mostRecentPurchase.name}</Text>
               <Text style={styles.insightItemDetail}>
-{mostRecentPurchase.brand} • Purchased on {mostRecentPurchase.purchaseDate}
+                {mostRecentPurchase.brand} • Purchased on {mostRecentPurchase.purchaseDate}
               </Text>
             </View>
           ) : (
