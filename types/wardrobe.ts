@@ -165,3 +165,26 @@ export interface EnhancedItem extends Item {
   weatherTags?: string[]; // computed tags based on weather rules
   fitScore?: number; // 0-100, computed based on current weather
 }
+
+// Outfit Scheduling Types
+export interface ScheduledOutfit {
+  id: string;
+  userId: string;
+  dateISO: string;
+  outfitId?: string; // Reference to existing outfit
+  name: string;
+  category: Occasion;
+  items: string[]; // Item IDs
+  notes?: string;
+  reminderEnabled?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OutfitPlan {
+  id: string;
+  name: string;
+  items: string[];
+  category: Occasion;
+  notes?: string;
+}

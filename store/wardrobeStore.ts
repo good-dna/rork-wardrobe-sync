@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Item, OutfitSuggestion, WishlistItem, WardrobeFilters, WearLogEntry, WashLogEntry } from '@/types/wardrobe';
+import { Item, OutfitSuggestion, WishlistItem, WardrobeFilters, WearLogEntry, WashLogEntry, ScheduledOutfit } from '@/types/wardrobe';
 import { mockItems, mockOutfitSuggestions, mockWishlist } from '@/constants/mockData';
 
 interface WardrobeState {
   items: Item[];
   outfits: OutfitSuggestion[];
   wishlist: WishlistItem[];
+  scheduledOutfits: ScheduledOutfit[];
   filters: WardrobeFilters;
   
   // Actions
@@ -30,6 +31,13 @@ interface WardrobeState {
   addWishlistItem: (item: WishlistItem) => void;
   updateWishlistItem: (id: string, updates: Partial<WishlistItem>) => void;
   deleteWishlistItem: (id: string) => void;
+  
+  // Scheduled outfit actions
+  addScheduledOutfit: (outfit: ScheduledOutfit) => void;
+  updateScheduledOutfit: (id: string, updates: Partial<ScheduledOutfit>) => void;
+  deleteScheduledOutfit: (id: string) => void;
+  getScheduledOutfitsForDate: (date: string) => ScheduledOutfit[];
+  getScheduledOutfitsForDateRange: (startDate: string, endDate: string) => ScheduledOutfit[];
   
   setFilters: (filters: WardrobeFilters) => void;
   clearFilters: () => void;
@@ -66,6 +74,7 @@ export const useWardrobeStore = create<WardrobeState>()(
       items: enhancedMockItems,
       outfits: mockOutfitSuggestions,
       wishlist: mockWishlist,
+      scheduledOutfits: [],
       filters: {},
       
       // Item actions
@@ -186,6 +195,38 @@ export const useWardrobeStore = create<WardrobeState>()(
       deleteWishlistItem: (id) => set((state) => ({
         wishlist: state.wishlist.filter((item) => item.id !== id)
       })),
+      
+      // Scheduled outfit actions
+      addScheduledOutfit: (outfit) => set((state) => ({ 
+        scheduledOutfits: [...state.scheduledOutfits, { 
+          ...outfit, 
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }] 
+      })),
+      
+      updateScheduledOutfit: (id, updates) => set((state) => ({
+        scheduledOutfits: state.scheduledOutfits.map((outfit) => 
+          outfit.id === id 
+            ? { ...outfit, ...updates, updatedAt: new Date().toISOString() } 
+            : outfit
+        )
+      })),
+      
+      deleteScheduledOutfit: (id) => set((state) => ({
+        scheduledOutfits: state.scheduledOutfits.filter((outfit) => outfit.id !== id)
+      })),
+      
+      getScheduledOutfitsForDate: (date) => {
+        return get().scheduledOutfits.filter((outfit) => outfit.dateISO === date);
+      },
+      
+      getScheduledOutfitsForDateRange: (startDate, endDate) => {
+        return get().scheduledOutfits.filter((outfit) => 
+          outfit.dateISO >= startDate && outfit.dateISO <= endDate
+        );
+      },
       
       // Filter actions
       setFilters: (filters) => set({ filters }),
