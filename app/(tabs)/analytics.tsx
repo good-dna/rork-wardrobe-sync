@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { BarChart2, TrendingUp, TrendingDown, DollarSign, Calendar, Palette, ShoppingBag, Clock, Droplets, AlertTriangle } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
-import { useWardrobeStore } from '@/store/wardrobeStore';
+import { trpc } from '@/lib/trpc';
 import StatsCard from '@/components/StatsCard';
 
 type TimeFrame = '7days' | '30days' | '90days' | 'all';
@@ -10,70 +10,43 @@ type TimeFrame = '7days' | '30days' | '90days' | 'all';
 export default function AnalyticsScreen() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('30days');
   
-  const items = useWardrobeStore((state) => state.items);
-  const getMostWornItems = useWardrobeStore((state) => state.getMostWornItems);
-  const getLeastWornItems = useWardrobeStore((state) => state.getLeastWornItems);
-  const getTotalWardrobeValue = useWardrobeStore((state) => state.getTotalWardrobeValue);
-  const getItemsNeedingWash = useWardrobeStore((state) => state.getItemsNeedingWash);
-  const getItemsNotWornSince = useWardrobeStore((state) => state.getItemsNotWornSince);
+  // Fetch analytics data using tRPC
+  const overviewQuery = trpc.analytics.overview.useQuery({ timeFrame });
+  const categoriesQuery = trpc.analytics.categories.useQuery();
+  const colorsQuery = trpc.analytics.colors.useQuery();
+  const wearQuery = trpc.analytics.wear.useQuery({ timeFrame, limit: 1 });
+  const purchasesQuery = trpc.analytics.purchases.useQuery({ months: 12 });
+  const maintenanceQuery = trpc.analytics.maintenance.useQuery();
   
-  // Memoize calculations to prevent infinite loops
-  const totalValue = useMemo(() => getTotalWardrobeValue(), [getTotalWardrobeValue, items]);
-  const mostWornItems = useMemo(() => getMostWornItems(1), [getMostWornItems, items]);
-  const leastWornItems = useMemo(() => getLeastWornItems(1), [getLeastWornItems, items]);
-  const itemsNeedingWash = useMemo(() => getItemsNeedingWash(), [getItemsNeedingWash, items]);
+  const isLoading = overviewQuery.isLoading || categoriesQuery.isLoading || colorsQuery.isLoading || wearQuery.isLoading || purchasesQuery.isLoading || maintenanceQuery.isLoading;
   
-  // Calculate items not worn based on selected timeframe
-  const notWornItems = useMemo(() => {
-    const days = timeFrame === '7days' ? 7 : timeFrame === '30days' ? 30 : timeFrame === '90days' ? 90 : 365;
-    return getItemsNotWornSince(days);
-  }, [getItemsNotWornSince, timeFrame, items]);
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.title, { marginTop: 16 }]}>Loading Analytics...</Text>
+      </View>
+    );
+  }
   
-  // Calculate category breakdown
-  const categoryBreakdown = useMemo(() => {
-    return items.reduce((acc, item) => {
-      acc[item.category] = (acc[item.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  }, [items]);
+  const overview = overviewQuery.data;
+  const categories = categoriesQuery.data || [];
+  const colorsData = colorsQuery.data || [];
+  const wearData = wearQuery.data;
+  const purchaseData = purchasesQuery.data;
+  const maintenanceData = maintenanceQuery.data;
   
-  // Calculate color breakdown
-  const colorBreakdown = useMemo(() => {
-    return items.reduce((acc, item) => {
-      acc[item.color] = (acc[item.color] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  }, [items]);
+  // Convert categories to breakdown format
+  const categoryBreakdown = categories.reduce((acc, cat) => {
+    acc[cat.category] = cat.count;
+    return acc;
+  }, {} as Record<string, number>);
   
-  // Calculate average wear count
-  const averageWearCount = useMemo(() => {
-    return items.length > 0
-      ? items.reduce((sum, item) => sum + item.wearCount, 0) / items.length
-      : 0;
-  }, [items]);
-  
-  // Calculate most recent purchase
-  const mostRecentPurchase = useMemo(() => {
-    return items.length > 0
-      ? [...items].sort((a, b) => 
-          new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime()
-        )[0]
-      : null;
-  }, [items]);
-  
-  // Calculate wash statistics
-  const washStats = useMemo(() => {
-    const totalWashes = items.reduce((sum, item) => sum + (item.washHistory?.length || 0), 0);
-    const avgWearsBetweenWashes = totalWashes > 0 
-      ? items.reduce((sum, item) => sum + item.wearCount, 0) / totalWashes 
-      : 0;
-    
-    return {
-      totalWashes,
-      avgWearsBetweenWashes,
-      itemsNeedingWash: itemsNeedingWash.length
-    };
-  }, [items, itemsNeedingWash]);
+  // Convert colors to breakdown format
+  const colorBreakdown = colorsData.reduce((acc, color) => {
+    acc[color.color] = color.count;
+    return acc;
+  }, {} as Record<string, number>);
   
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -158,14 +131,14 @@ export default function AnalyticsScreen() {
           <View style={styles.statsItem}>
             <StatsCard 
               title="Total Items" 
-              value={items.length} 
+              value={overview?.totalItems || 0} 
               subtitle="in your wardrobe" 
             />
           </View>
           <View style={styles.statsItem}>
             <StatsCard 
               title="Total Value" 
-              value={`$${totalValue.toFixed(2)}`} 
+              value={`${(overview?.totalValue || 0).toFixed(2)}`} 
               subtitle="estimated worth" 
               color={colors.success}
             />
@@ -173,16 +146,16 @@ export default function AnalyticsScreen() {
           <View style={styles.statsItem}>
             <StatsCard 
               title="Avg. Wear Count" 
-              value={averageWearCount.toFixed(1)} 
+              value={(overview?.averageWearCount || 0).toFixed(1)} 
               subtitle="times per item" 
               color={colors.info}
             />
           </View>
           <View style={styles.statsItem}>
             <StatsCard 
-              title="Not Worn" 
-              value={notWornItems.length} 
-              subtitle={`in ${timeFrame === 'all' ? 'a year' : timeFrame.replace('days', ' days')}`} 
+              title="Items Needing Wash" 
+              value={overview?.itemsNeedingWash || 0} 
+              subtitle="need attention" 
               color={colors.warning}
             />
           </View>
@@ -196,7 +169,7 @@ export default function AnalyticsScreen() {
             <View style={styles.washStatIconContainer}>
               <Droplets size={24} color={colors.info} />
             </View>
-            <Text style={styles.washStatValue}>{washStats.totalWashes}</Text>
+            <Text style={styles.washStatValue}>{overview?.totalWashes || 0}</Text>
             <Text style={styles.washStatLabel}>Total Washes</Text>
           </View>
           
@@ -204,7 +177,7 @@ export default function AnalyticsScreen() {
             <View style={styles.washStatIconContainer}>
               <Clock size={24} color={colors.primary} />
             </View>
-            <Text style={styles.washStatValue}>{washStats.avgWearsBetweenWashes.toFixed(1)}</Text>
+            <Text style={styles.washStatValue}>{(overview?.avgWearsBetweenWashes || 0).toFixed(1)}</Text>
             <Text style={styles.washStatLabel}>Wears Between Washes</Text>
           </View>
           
@@ -212,7 +185,7 @@ export default function AnalyticsScreen() {
             <View style={styles.washStatIconContainer}>
               <AlertTriangle size={24} color={colors.warning} />
             </View>
-            <Text style={styles.washStatValue}>{washStats.itemsNeedingWash}</Text>
+            <Text style={styles.washStatValue}>{maintenanceData?.dirtyItems || 0}</Text>
             <Text style={styles.washStatLabel}>Need Washing</Text>
           </View>
         </View>
@@ -225,11 +198,11 @@ export default function AnalyticsScreen() {
             <Text style={styles.insightTitle}>Most Worn</Text>
             <TrendingUp size={18} color={colors.success} />
           </View>
-          {mostWornItems.length > 0 ? (
+          {wearData?.mostWornItems && wearData.mostWornItems.length > 0 ? (
             <View style={styles.insightContent}>
-              <Text style={styles.insightItemName}>{mostWornItems[0].name}</Text>
+              <Text style={styles.insightItemName}>{wearData.mostWornItems[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-                {mostWornItems[0].brand} • Worn {mostWornItems[0].wearCount} times
+                {wearData.mostWornItems[0].brand} <Text>•</Text> Worn {wearData.mostWornItems[0].wearCount} times
               </Text>
             </View>
           ) : (
@@ -242,11 +215,11 @@ export default function AnalyticsScreen() {
             <Text style={styles.insightTitle}>Least Worn</Text>
             <TrendingDown size={18} color={colors.error} />
           </View>
-          {leastWornItems.length > 0 ? (
+          {wearData?.leastWornItems && wearData.leastWornItems.length > 0 ? (
             <View style={styles.insightContent}>
-              <Text style={styles.insightItemName}>{leastWornItems[0].name}</Text>
+              <Text style={styles.insightItemName}>{wearData.leastWornItems[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-                {leastWornItems[0].brand} • Worn {leastWornItems[0].wearCount} times
+                {wearData.leastWornItems[0].brand} <Text>•</Text> Worn {wearData.leastWornItems[0].wearCount} times
               </Text>
             </View>
           ) : (
@@ -259,11 +232,11 @@ export default function AnalyticsScreen() {
             <Text style={styles.insightTitle}>Latest Purchase</Text>
             <Calendar size={18} color={colors.info} />
           </View>
-          {mostRecentPurchase ? (
+          {purchaseData?.recentPurchases && purchaseData.recentPurchases.length > 0 ? (
             <View style={styles.insightContent}>
-              <Text style={styles.insightItemName}>{mostRecentPurchase.name}</Text>
+              <Text style={styles.insightItemName}>{purchaseData.recentPurchases[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-                {mostRecentPurchase.brand} • Purchased on {mostRecentPurchase.purchaseDate}
+                {purchaseData.recentPurchases[0].brand} <Text>•</Text> Purchased on {purchaseData.recentPurchases[0].purchaseDate}
               </Text>
             </View>
           ) : (
@@ -292,7 +265,7 @@ export default function AnalyticsScreen() {
                     style={[
                       styles.compositionBar, 
                       { 
-                        width: `${(count / items.length) * 100}%`,
+                        width: `${(count / (overview?.totalItems || 1)) * 100}%`,
                         backgroundColor: colors.primary,
                       }
                     ]} 
@@ -323,7 +296,7 @@ export default function AnalyticsScreen() {
                       style={[
                         styles.compositionBar, 
                         { 
-                          width: `${(count / items.length) * 100}%`,
+                          width: `${(count / (overview?.totalItems || 1)) * 100}%`,
                           backgroundColor: colors.secondary,
                         }
                       ]} 
@@ -343,7 +316,7 @@ export default function AnalyticsScreen() {
             <Text style={styles.valueTitle}>Wardrobe Value</Text>
             <DollarSign size={18} color={colors.success} />
           </View>
-          <Text style={styles.valueAmount}>${totalValue.toFixed(2)}</Text>
+          <Text style={styles.valueAmount}>${(overview?.totalValue || 0).toFixed(2)}</Text>
           <Text style={styles.valueSubtitle}>Total estimated value</Text>
           
           <View style={styles.valueDivider} />
@@ -352,16 +325,13 @@ export default function AnalyticsScreen() {
             <View style={styles.valueMetric}>
               <Text style={styles.valueMetricLabel}>Avg. Item Value</Text>
               <Text style={styles.valueMetricAmount}>
-                ${items.length > 0 ? (totalValue / items.length).toFixed(2) : '0.00'}
+                ${(overview?.averageItemValue || 0).toFixed(2)}
               </Text>
             </View>
             <View style={styles.valueMetric}>
               <Text style={styles.valueMetricLabel}>Cost Per Wear</Text>
               <Text style={styles.valueMetricAmount}>
-                ${items.length > 0 && items.reduce((sum, item) => sum + item.wearCount, 0) > 0
-                  ? (totalValue / items.reduce((sum, item) => sum + item.wearCount, 0)).toFixed(2)
-                  : '0.00'
-                }
+                ${(overview?.costPerWear || 0).toFixed(2)}
               </Text>
             </View>
           </View>

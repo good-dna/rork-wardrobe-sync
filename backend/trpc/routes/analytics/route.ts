@@ -131,7 +131,7 @@ export const getWardrobeOverviewProcedure = publicProcedure
     const { timeFrame: _ } = input;
 
     // Get all wardrobe items
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return {
@@ -174,7 +174,7 @@ export const getCategoryBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return [];
@@ -211,7 +211,7 @@ export const getColorBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return [];
@@ -239,7 +239,7 @@ export const getBrandBreakdownProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return [];
@@ -466,7 +466,7 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return {
@@ -520,7 +520,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return {
@@ -545,13 +545,13 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
         
         let daysBetweenWashes = 0;
         if (totalWashes > 1) {
-          const dates = washHistory.map((wash: any) => new Date(wash.date)).sort((a: Date, b: Date) => a.getTime() - b.getTime());
+          const dates = washHistory.map((wash: { date: string }) => new Date(wash.date)).sort((a: Date, b: Date) => a.getTime() - b.getTime());
           const totalDays = (dates[dates.length - 1].getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24);
           daysBetweenWashes = totalDays / (totalWashes - 1);
         }
         
         const lastWashed = washHistory.length > 0 
-          ? washHistory.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
+          ? washHistory.sort((a: { date: string }, b: { date: string }) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
           : '';
 
         return {
@@ -607,7 +607,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
       })
       .sort((a, b) => {
         const priorityOrder: { [key: string]: number } = { high: 3, medium: 2, low: 1 };
-        return priorityOrder[b.priority] - priorityOrder[a.priority];
+        return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       });
 
     return {
@@ -629,7 +629,7 @@ export const getAnalyticsDashboardProcedure = publicProcedure
     const userId = 'demo-user';
 
     // Get all wardrobe items
-    const items = mockItems;
+    const items = mockItems as Item[];
 
     if (items.length === 0) {
       return {
