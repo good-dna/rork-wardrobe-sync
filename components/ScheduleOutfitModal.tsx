@@ -12,17 +12,18 @@ import {
 import { X, Check, Plus, Minus, Calendar, Bell, BellOff } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { ScheduledOutfit, Occasion } from '@/types/wardrobe';
+// import { ScheduledOutfit, Occasion } from '@/types/wardrobe';
 import ItemCard from './ItemCard';
+import { usePlans } from '@/hooks/usePlans';
 
 interface ScheduleOutfitModalProps {
   visible: boolean;
   onClose: () => void;
-  selectedDate: string;
-  editingOutfit?: ScheduledOutfit;
+  selectedDate: Date;
+  editingOutfit?: any;
 }
 
-const occasionOptions: { value: Occasion; label: string }[] = [
+const occasionOptions: { value: 'casual' | 'formal' | 'work' | 'athletic' | 'evening' | 'special'; label: string }[] = [
   { value: 'casual', label: 'Casual' },
   { value: 'work', label: 'Work' },
   { value: 'formal', label: 'Formal' },
@@ -39,11 +40,12 @@ export default function ScheduleOutfitModal({
 }: ScheduleOutfitModalProps) {
   const items = useWardrobeStore((state) => state.items);
   const outfits = useWardrobeStore((state) => state.outfits);
-  const addScheduledOutfit = useWardrobeStore((state) => state.addScheduledOutfit);
-  const updateScheduledOutfit = useWardrobeStore((state) => state.updateScheduledOutfit);
+  
+  // Use tRPC for plans management
+  const { addPlan, updatePlan } = usePlans();
 
   const [outfitName, setOutfitName] = useState<string>(editingOutfit?.name || '');
-  const [selectedCategory, setSelectedCategory] = useState<Occasion>(
+  const [selectedCategory, setSelectedCategory] = useState<'casual' | 'formal' | 'work' | 'athletic' | 'evening' | 'special'>(
     editingOutfit?.category || 'casual'
   );
   const [selectedItems, setSelectedItems] = useState<string[]>(
@@ -56,7 +58,7 @@ export default function ScheduleOutfitModal({
   const [showExistingOutfits, setShowExistingOutfits] = useState<boolean>(false);
 
   const formattedDate = useMemo(() => {
-    return new Date(selectedDate).toLocaleDateString('en-US', {
+    return selectedDate.toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
@@ -84,12 +86,12 @@ export default function ScheduleOutfitModal({
 
   const handleExistingOutfitSelect = (outfit: any) => {
     setOutfitName(outfit.name);
-    setSelectedCategory(outfit.occasion);
-    setSelectedItems(outfit.items);
+    setSelectedCategory(outfit.occasion || 'casual');
+    setSelectedItems(outfit.items || []);
     setShowExistingOutfits(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!outfitName.trim()) {
       Alert.alert('Error', 'Please enter an outfit name');
       return;
@@ -100,24 +102,35 @@ export default function ScheduleOutfitModal({
       return;
     }
 
-    const outfitData: Omit<ScheduledOutfit, 'id' | 'createdAt' | 'updatedAt'> = {
-      userId: 'current-user', // In a real app, this would come from auth
-      dateISO: selectedDate,
-      name: outfitName.trim(),
-      category: selectedCategory,
-      items: selectedItems,
-      notes: notes.trim() || undefined,
-      reminderEnabled,
-    };
+    try {
+      if (editingOutfit) {
+        // Update existing plan
+        await updatePlan({
+          id: editingOutfit.id,
+          name: outfitName.trim(),
+          category: selectedCategory,
+          items: selectedItems,
+          notes: notes.trim() || undefined,
+          reminderEnabled,
+        });
+      } else {
+        // Add new plan using the exact script format
+        await addPlan({
+          selected: selectedDate, // JS Date for the day the user tapped
+          name: outfitName.trim(),
+          category: selectedCategory,
+          items: selectedItems,
+          notes: notes.trim() || undefined,
+          reminderEnabled,
+        });
+      }
 
-    if (editingOutfit) {
-      updateScheduledOutfit(editingOutfit.id, outfitData);
-    } else {
-      addScheduledOutfit(outfitData as ScheduledOutfit);
+      onClose();
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save outfit plan:', error);
+      Alert.alert('Error', 'Failed to save outfit plan. Please try again.');
     }
-
-    onClose();
-    resetForm();
   };
 
   const resetForm = () => {
@@ -185,7 +198,7 @@ export default function ScheduleOutfitModal({
                       >
                         <Text style={styles.existingOutfitName}>{outfit.name}</Text>
                         <Text style={styles.existingOutfitCategory}>
-                          {occasionOptions.find((o) => o.value === outfit.occasion)?.label}
+                          {occasionOptions.find((o) => o.value === (outfit.occasion || 'casual'))?.label || 'Casual'}
                         </Text>
                       </Pressable>
                     ))}

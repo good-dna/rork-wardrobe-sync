@@ -3,37 +3,41 @@ import { StyleSheet, Text, View, ScrollView, Pressable, Modal, TextInput } from 
 import { Calendar as CalendarIcon, Clock, Droplets, X, Check, Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { Item, WearLogEntry, WashLogEntry, ScheduledOutfit } from '@/types/wardrobe';
+import { Item, WearLogEntry, WashLogEntry } from '@/types/wardrobe';
 import ItemCard from '@/components/ItemCard';
 import ScheduleOutfitModal from '@/components/ScheduleOutfitModal';
-import ScheduledOutfitCard from '@/components/ScheduledOutfitCard';
+import { usePlans } from '@/hooks/usePlans';
 
 type CalendarView = 'month' | 'week' | 'list';
 type LogType = 'wear' | 'wash';
 
 export default function CalendarScreen() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<CalendarView>('month');
   const [modalVisible, setModalVisible] = useState(false);
   const [logType, setLogType] = useState<LogType>('wear');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [logNote, setLogNote] = useState('');
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
-  const [editingOutfit, setEditingOutfit] = useState<ScheduledOutfit | null>(null);
+  const [editingOutfit, setEditingOutfit] = useState<any>(null);
   
   const items = useWardrobeStore((state) => state.items);
 
   const logItemWorn = useWardrobeStore((state) => state.logItemWorn);
   const logItemWashed = useWardrobeStore((state) => state.logItemWashed);
   const setNextWashDue = useWardrobeStore((state) => state.setNextWashDue);
-  const getScheduledOutfitsForDate = useWardrobeStore((state) => state.getScheduledOutfitsForDate);
+  // Use tRPC for calendar plans
+  const { plansForDate, plansForRange } = usePlans({ 
+    date: selectedDate,
+    startDate: new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
+    endDate: new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
+  });
   
   // Generate calendar days for the current month
   const calendarDays = useMemo(() => {
     const days = [];
-    const date = new Date(selectedDate);
-    const year = date.getFullYear();
-    const month = date.getMonth();
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
     
     // Get first day of month
     const firstDay = new Date(year, month, 1);
@@ -50,12 +54,12 @@ export default function CalendarScreen() {
     // Add days of current month
     for (let i = 1; i <= daysInMonth; i++) {
       const currentDate = new Date(year, month, i);
-      const dateString = currentDate.toISOString().split('T')[0];
+      const dateString = currentDate.toLocaleDateString('en-CA');
       days.push({
         date: dateString,
         day: i.toString(),
         isCurrentMonth: true,
-        isToday: dateString === new Date().toISOString().split('T')[0],
+        isToday: dateString === new Date().toLocaleDateString('en-CA'),
       });
     }
     
@@ -64,15 +68,15 @@ export default function CalendarScreen() {
   
   // Get events for the selected date
   const eventsForSelectedDate = useMemo(() => {
+    const selectedDateString = selectedDate.toLocaleDateString('en-CA');
     const wearEvents: { item: Item; entry: WearLogEntry }[] = [];
     const washEvents: { item: Item; entry: WashLogEntry }[] = [];
-    const scheduledOutfitsForDate = getScheduledOutfitsForDate(selectedDate);
     
     items.forEach(item => {
       // Check wear history
       if (item.wearHistory) {
         item.wearHistory.forEach(entry => {
-          if (entry.date === selectedDate) {
+          if (entry.date === selectedDateString) {
             wearEvents.push({ item, entry });
           }
         });
@@ -81,19 +85,20 @@ export default function CalendarScreen() {
       // Check wash history
       if (item.washHistory) {
         item.washHistory.forEach(entry => {
-          if (entry.date === selectedDate) {
+          if (entry.date === selectedDateString) {
             washEvents.push({ item, entry });
           }
         });
       }
     });
     
-    return { wearEvents, washEvents, scheduledOutfits: scheduledOutfitsForDate };
-  }, [items, selectedDate, getScheduledOutfitsForDate]);
+    return { wearEvents, washEvents, scheduledOutfits: plansForDate };
+  }, [items, selectedDate, plansForDate]);
   
   // Get items with wash due on selected date
   const washDueItems = useMemo(() => {
-    return items.filter(item => item.nextWashDue === selectedDate);
+    const selectedDateString = selectedDate.toLocaleDateString('en-CA');
+    return items.filter(item => item.nextWashDue === selectedDateString);
   }, [items, selectedDate]);
   
   // Get all items for list view
@@ -101,20 +106,21 @@ export default function CalendarScreen() {
     return [...items].sort((a, b) => a.name.localeCompare(b.name));
   }, [items]);
   
-  const handleDateSelect = (date: string) => {
-    setSelectedDate(date);
+  const handleDateSelect = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    setSelectedDate(new Date(year, month - 1, day));
   };
   
   const handlePrevMonth = () => {
-    const date = new Date(selectedDate);
-    date.setMonth(date.getMonth() - 1);
-    setSelectedDate(date.toISOString().split('T')[0]);
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    setSelectedDate(newDate);
   };
   
   const handleNextMonth = () => {
-    const date = new Date(selectedDate);
-    date.setMonth(date.getMonth() + 1);
-    setSelectedDate(date.toISOString().split('T')[0]);
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setSelectedDate(newDate);
   };
   
   const openLogModal = (item: Item, type: LogType) => {
@@ -127,27 +133,29 @@ export default function CalendarScreen() {
   const handleLogSubmit = () => {
     if (!selectedItem) return;
     
+    const selectedDateString = selectedDate.toLocaleDateString('en-CA');
+    
     if (logType === 'wear') {
       logItemWorn(selectedItem.id, {
-        date: selectedDate,
+        date: selectedDateString,
         notes: logNote
       });
     } else {
       logItemWashed(selectedItem.id, {
-        date: selectedDate,
+        date: selectedDateString,
         notes: logNote
       });
       
       // Set next wash due date (e.g., 7 days after washing)
       const nextWashDate = new Date(selectedDate);
       nextWashDate.setDate(nextWashDate.getDate() + 7);
-      setNextWashDue(selectedItem.id, nextWashDate.toISOString().split('T')[0]);
+      setNextWashDue(selectedItem.id, nextWashDate.toLocaleDateString('en-CA'));
     }
     
     setModalVisible(false);
   };
 
-  const openScheduleModal = (outfit?: ScheduledOutfit) => {
+  const openScheduleModal = (outfit?: any) => {
     setEditingOutfit(outfit || null);
     setScheduleModalVisible(true);
   };
@@ -158,9 +166,8 @@ export default function CalendarScreen() {
   };
   
   const renderCalendarHeader = () => {
-    const date = new Date(selectedDate);
-    const monthName = date.toLocaleString('default', { month: 'long' });
-    const year = date.getFullYear();
+    const monthName = selectedDate.toLocaleString('default', { month: 'long' });
+    const year = selectedDate.getFullYear();
     
     return (
       <View style={styles.calendarHeader}>
@@ -207,14 +214,14 @@ export default function CalendarScreen() {
           );
           
           const hasWashDue = items.some(item => item.nextWashDue === day.date);
-          const hasScheduledOutfits = getScheduledOutfitsForDate(day.date).length > 0;
+          const hasScheduledOutfits = plansForRange.some(plan => plan.date_ymd === day.date);
           
           return (
             <Pressable
               key={index}
               style={[
                 styles.calendarDay,
-                selectedDate === day.date && styles.calendarSelectedDay,
+                selectedDate.toLocaleDateString('en-CA') === day.date && styles.calendarSelectedDay,
                 day.isToday && styles.calendarToday
               ]}
               onPress={() => handleDateSelect(day.date)}
@@ -222,7 +229,7 @@ export default function CalendarScreen() {
               <Text 
                 style={[
                   styles.calendarDayText,
-                  selectedDate === day.date && styles.calendarSelectedDayText,
+                  selectedDate.toLocaleDateString('en-CA') === day.date && styles.calendarSelectedDayText,
                   day.isToday && styles.calendarTodayText
                 ]}
               >
@@ -243,7 +250,7 @@ export default function CalendarScreen() {
   
   const renderSelectedDateEvents = () => {
     const { wearEvents, washEvents, scheduledOutfits } = eventsForSelectedDate;
-    const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
+    const formattedDate = selectedDate.toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric'
@@ -269,12 +276,20 @@ export default function CalendarScreen() {
               <CalendarIcon size={16} color="#C8A45D" />
               <Text style={styles.eventSectionTitle}>Scheduled Outfits</Text>
             </View>
-            {scheduledOutfits.map((outfit) => (
-              <ScheduledOutfitCard
-                key={outfit.id}
-                scheduledOutfit={outfit}
-                onEdit={openScheduleModal}
-              />
+            {scheduledOutfits.map((plan: any) => (
+              <View key={plan.id} style={styles.scheduledPlanCard}>
+                <Text style={styles.scheduledPlanName}>{plan.name}</Text>
+                <Text style={styles.scheduledPlanCategory}>{plan.category}</Text>
+                {plan.notes && (
+                  <Text style={styles.scheduledPlanNotes}>{plan.notes}</Text>
+                )}
+                <Pressable
+                  style={styles.editPlanButton}
+                  onPress={() => openScheduleModal(plan)}
+                >
+                  <Text style={styles.editPlanButtonText}>Edit</Text>
+                </Pressable>
+              </View>
             ))}
           </View>
         )}
@@ -486,7 +501,7 @@ export default function CalendarScreen() {
             <View style={styles.modalForm}>
               <Text style={styles.modalLabel}>Date</Text>
               <Text style={styles.modalDate}>
-                {new Date(selectedDate).toLocaleDateString('en-US', {
+                {selectedDate.toLocaleDateString('en-US', {
                   weekday: 'long',
                   month: 'long',
                   day: 'numeric'
@@ -829,5 +844,43 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  scheduledPlanCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  scheduledPlanName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  scheduledPlanCategory: {
+    fontSize: 12,
+    color: colors.subtext,
+    textTransform: 'capitalize',
+    marginBottom: 4,
+  },
+  scheduledPlanNotes: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  editPlanButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  editPlanButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
