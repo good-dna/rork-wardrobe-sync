@@ -137,6 +137,50 @@ export const usePlans = (options: UsePlanOptions = {}) => {
     });
   };
 
+  /**
+   * Implements the requested JS script for fetching plans by date
+   * Equivalent to: const { data } = await supabase.from('plans').select('*').eq('user_id', user.id).eq('date_ymd', ymd).order('created_at', { ascending: true });
+   */
+  const getPlansForSelectedDate = async (
+    selected: Date,
+    user: User
+  ): Promise<any[]> => {
+    const ymd = selected.toLocaleDateString('en-CA'); // "2025-08-31" (safe ISO-like)
+    
+    const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+    
+    if (response.success) {
+      // Sort by created_at ascending to match the supabase query
+      const sortedPlans = response.plans.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      
+      return sortedPlans;
+    }
+    
+    return [];
+  };
+
+  /**
+   * Alternative that returns supabase-like structure
+   */
+  const fetchPlansForDate = async (
+    selected: Date,
+    user: User
+  ): Promise<{ data: any[] }> => {
+    const ymd = selected.toLocaleDateString('en-CA');
+    const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+    
+    if (response.success) {
+      const data = response.plans.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      return { data };
+    }
+    
+    return { data: [] };
+  };
+
   return {
     // Queries
     plansForDate: plansForDateQuery.data?.plans || [],
@@ -166,8 +210,10 @@ export const usePlans = (options: UsePlanOptions = {}) => {
     isUpdatingPlan: updatePlanMutation.isPending,
     isDeletingPlan: deletePlanMutation.isPending,
     
-    // Convenience function
+    // Convenience functions
     savePlan,
+    getPlansForSelectedDate,
+    fetchPlansForDate,
     
     // Refetch functions
     refetchPlansForDate: plansForDateQuery.refetch,

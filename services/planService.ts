@@ -139,3 +139,61 @@ export const deletePlan = async (planId: string) => {
 export const getAllPlans = async () => {
   return await trpcClient.plans.getAll.query();
 };
+
+/**
+ * Implements the requested JS script for fetching plans by date
+ * @param selected - JS Date for the day the user tapped
+ * @param user - User object with id
+ * @returns Array of plans for the specified date
+ */
+export const getPlansForSelectedDate = async (
+  selected: Date,
+  user: User
+): Promise<any[]> => {
+  // Convert selected date to ISO-like format as requested
+  const ymd = selected.toLocaleDateString('en-CA'); // "2025-08-31" (safe ISO-like)
+  
+  try {
+    // Equivalent to: const { data } = await supabase.from('plans').select('*').eq('user_id', user.id).eq('date_ymd', ymd).order('created_at', { ascending: true });
+    const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+    
+    if (response.success) {
+      // Sort by created_at ascending to match the supabase query
+      const sortedPlans = response.plans.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      
+      console.log(`Successfully fetched ${sortedPlans.length} plans for ${ymd}:`, sortedPlans);
+      return sortedPlans;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch plans for date:', error);
+    throw error;
+  }
+};
+
+/**
+ * Alternative implementation that returns the exact structure as supabase
+ * This mimics the supabase query result format
+ */
+export const fetchPlansForDate = async (
+  selected: Date,
+  user: User
+): Promise<{ data: any[] }> => {
+  const ymd = selected.toLocaleDateString('en-CA');
+  
+  const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+  
+  if (response.success) {
+    // Sort by created_at ascending to match supabase order
+    const data = response.plans.sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    
+    return { data };
+  }
+  
+  return { data: [] };
+};
