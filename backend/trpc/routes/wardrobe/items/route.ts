@@ -178,7 +178,7 @@ export const getItemStatsProcedure = protectedProcedure
       return acc;
     }, {});
 
-    return {
+    const result = {
       totalItems: userItems.length,
       categoriesCount: Object.keys(categories).length,
       brandsCount: Object.keys(brands).length,
@@ -191,4 +191,7 @@ export const getItemStatsProcedure = protectedProcedure
         .slice(0, 5)
         .map(([brand, count]) => ({ brand, count })),
     };
+    
+    console.log('Item stats result:', result);
+    return result;
   });

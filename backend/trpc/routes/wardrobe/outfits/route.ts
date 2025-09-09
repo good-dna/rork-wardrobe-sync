@@ -236,7 +236,7 @@ export const getOutfitStatsProcedure = protectedProcedure
         last_worn: outfit.last_worn
       }));
 
-    return {
+    const result = {
       totalOutfits,
       favoriteOutfits,
       occasionsCount: Object.keys(occasions).length,
@@ -246,6 +246,9 @@ export const getOutfitStatsProcedure = protectedProcedure
         .map(([occasion, count]) => ({ occasion, count })),
       mostWornOutfits,
     };
+    
+    console.log('Outfit stats result:', result);
+    return result;
   });
 
 export const getOutfitRecommendationsProcedure = protectedProcedure

@@ -134,7 +134,7 @@ export const getWardrobeOverviewProcedure = publicProcedure
     const items = mockItems as Item[];
 
     if (items.length === 0) {
-      return {
+      const emptyResult = {
         totalItems: 0,
         totalValue: 0,
         averageWearCount: 0,
@@ -143,7 +143,9 @@ export const getWardrobeOverviewProcedure = publicProcedure
         totalWashes: 0,
         avgWearsBetweenWashes: 0,
         itemsNeedingWash: 0
-      } as WardrobeOverview;
+      };
+      console.log('Empty wardrobe overview result:', emptyResult);
+      return emptyResult;
     }
 
     const totalItems = items.length;
@@ -157,7 +159,7 @@ export const getWardrobeOverviewProcedure = publicProcedure
     const costPerWear = totalWears > 0 ? totalValue / totalWears : 0;
     const avgWearsBetweenWashes = totalWashes > 0 ? totalWears / totalWashes : 0;
 
-    return {
+    const result = {
       totalItems,
       totalValue,
       averageWearCount,
@@ -166,7 +168,10 @@ export const getWardrobeOverviewProcedure = publicProcedure
       totalWashes,
       avgWearsBetweenWashes,
       itemsNeedingWash
-    } as WardrobeOverview;
+    };
+    
+    console.log('Wardrobe overview result:', result);
+    return result;
   });
 
 // Get category breakdown analytics
