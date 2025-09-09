@@ -86,23 +86,23 @@ export const listMyOutfitsProcedure = protectedProcedure
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    let filteredOutfits = backendMockOutfits.filter(outfit => outfit.user_id === userId);
+    let filteredOutfits = mockOutfits.filter((outfit: any) => outfit.user_id === userId);
 
     // Apply filters
     if (input.occasion) {
-      filteredOutfits = filteredOutfits.filter(outfit => outfit.occasion === input.occasion);
+      filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.occasion === input.occasion);
     }
     if (input.is_favorite !== undefined) {
-      filteredOutfits = filteredOutfits.filter(outfit => outfit.is_favorite === input.is_favorite);
+      filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.is_favorite === input.is_favorite);
     }
     if (input.season) {
-      filteredOutfits = filteredOutfits.filter(outfit => 
+      filteredOutfits = filteredOutfits.filter((outfit: any) => 
         outfit.season?.includes(input.season)
       );
     }
     if (input.search) {
       const searchLower = input.search.toLowerCase();
-      filteredOutfits = filteredOutfits.filter(outfit => 
+      filteredOutfits = filteredOutfits.filter((outfit: any) => 
         outfit.name?.toLowerCase().includes(searchLower) ||
         outfit.description?.toLowerCase().includes(searchLower) ||
         outfit.notes?.toLowerCase().includes(searchLower)
@@ -110,7 +110,7 @@ export const listMyOutfitsProcedure = protectedProcedure
     }
 
     // Sort by created_at descending
-    filteredOutfits.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    filteredOutfits.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // Apply pagination
     const start = input.offset || 0;
@@ -213,7 +213,7 @@ export const getOutfitStatsProcedure = protectedProcedure
   .query(async ({ ctx }: { ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const userOutfits = mockOutfits.filter(outfit => outfit.user_id === userId);
+    const userOutfits = mockOutfits.filter((outfit: any) => outfit.user_id === userId);
 
     const totalOutfits = userOutfits.length;
     const favoriteOutfits = userOutfits.filter(outfit => outfit.is_favorite).length;
@@ -262,20 +262,20 @@ export const getOutfitRecommendationsProcedure = protectedProcedure
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    let filteredOutfits = backendMockOutfits.filter(outfit => outfit.user_id === userId);
+    let filteredOutfits = mockOutfits.filter((outfit: any) => outfit.user_id === userId);
 
     // Apply filters
     if (input.occasion) {
-      filteredOutfits = filteredOutfits.filter(outfit => outfit.occasion === input.occasion);
+      filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.occasion === input.occasion);
     }
     if (input.season) {
-      filteredOutfits = filteredOutfits.filter(outfit => 
+      filteredOutfits = filteredOutfits.filter((outfit: any) => 
         outfit.season?.includes(input.season)
       );
     }
 
     // Sort by wear count (ascending) to recommend less worn outfits
-    filteredOutfits.sort((a, b) => (a.wear_count || 0) - (b.wear_count || 0));
+    filteredOutfits.sort((a: any, b: any) => (a.wear_count || 0) - (b.wear_count || 0));
 
     return filteredOutfits.slice(0, input.limit);
   });
