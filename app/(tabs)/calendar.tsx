@@ -507,7 +507,7 @@ export default function CalendarScreen() {
             </View>
             
             <Pressable style={styles.modalSubmitButton} onPress={handleLogSubmit}>
-              <Check size={18} color="white" style={{ marginRight: 8 }} />
+              <Check size={18} color="white" />
               <Text style={styles.modalSubmitButtonText}>
                 {logType === 'wear' ? 'Log Wear' : 'Log Wash'}
               </Text>
@@ -823,6 +823,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: 8,
   },
   modalSubmitButtonText: {
     color: 'white',
