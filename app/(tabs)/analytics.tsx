@@ -202,7 +202,7 @@ export default function AnalyticsScreen() {
             <View style={styles.insightContent}>
               <Text style={styles.insightItemName}>{wearData.mostWornItems[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-                {wearData.mostWornItems[0].brand} <Text>•</Text> Worn {wearData.mostWornItems[0].wearCount} times
+                {wearData.mostWornItems[0].brand} • Worn {wearData.mostWornItems[0].wearCount} times
               </Text>
             </View>
           ) : (
@@ -219,7 +219,7 @@ export default function AnalyticsScreen() {
             <View style={styles.insightContent}>
               <Text style={styles.insightItemName}>{wearData.leastWornItems[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-                {wearData.leastWornItems[0].brand} <Text>•</Text> Worn {wearData.leastWornItems[0].wearCount} times
+                {wearData.leastWornItems[0].brand} • Worn {wearData.leastWornItems[0].wearCount} times
               </Text>
             </View>
           ) : (
@@ -236,7 +236,7 @@ export default function AnalyticsScreen() {
             <View style={styles.insightContent}>
               <Text style={styles.insightItemName}>{purchaseData.recentPurchases[0].name}</Text>
               <Text style={styles.insightItemDetail}>
-                {purchaseData.recentPurchases[0].brand} <Text>•</Text> Purchased on {purchaseData.recentPurchases[0].purchaseDate}
+                {purchaseData.recentPurchases[0].brand} • Purchased on {purchaseData.recentPurchases[0].purchaseDate}
               </Text>
             </View>
           ) : (

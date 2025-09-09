@@ -292,7 +292,7 @@ export const getWearAnalyticsProcedure = publicProcedure
         wear_count: item.wearCount, 
         last_worn: item.lastWorn 
       }))
-      .sort((a, b) => (b.wear_count || 0) - (a.wear_count || 0));
+      .sort((a: any, b: any) => (b.wear_count || 0) - (a.wear_count || 0));
 
     if (items.length === 0) {
       return {
@@ -304,9 +304,9 @@ export const getWearAnalyticsProcedure = publicProcedure
 
     // Most worn items
     const mostWornItems = items
-      .filter((item) => (item.wear_count || 0) > 0)
+      .filter((item: any) => (item.wear_count || 0) > 0)
       .slice(0, limit)
-      .map((item) => ({
+      .map((item: any) => ({
         id: item.id,
         name: item.name,
         brand: item.brand,
@@ -317,10 +317,10 @@ export const getWearAnalyticsProcedure = publicProcedure
 
     // Least worn items (but worn at least once)
     const leastWornItems = items
-      .filter((item) => (item.wear_count || 0) > 0)
-      .sort((a, b) => (a.wear_count || 0) - (b.wear_count || 0))
+      .filter((item: any) => (item.wear_count || 0) > 0)
+      .sort((a: any, b: any) => (a.wear_count || 0) - (b.wear_count || 0))
       .slice(0, limit)
-      .map((item) => ({
+      .map((item: any) => ({
         id: item.id,
         name: item.name,
         brand: item.brand,
@@ -335,13 +335,13 @@ export const getWearAnalyticsProcedure = publicProcedure
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     const notWornItems = items
-      .filter((item) => {
+      .filter((item: any) => {
         if (!item.last_worn) return true;
         const lastWornDate = new Date(item.last_worn);
         return lastWornDate < cutoffDate;
       })
       .slice(0, limit)
-      .map((item) => {
+      .map((item: any) => {
         const daysSinceLastWorn = item.last_worn 
           ? Math.floor((Date.now() - new Date(item.last_worn).getTime()) / (1000 * 60 * 60 * 24))
           : 999;
@@ -380,7 +380,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
         purchase_price: item.purchasePrice, 
         purchase_date: item.purchaseDate 
       }))
-      .sort((a, b) => new Date(b.purchase_date || '').getTime() - new Date(a.purchase_date || '').getTime());
+      .sort((a: any, b: any) => new Date(b.purchase_date || '').getTime() - new Date(a.purchase_date || '').getTime());
 
     if (items.length === 0) {
       return {
@@ -393,7 +393,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
     // Recent purchases (last 10)
     const recentPurchases = items
       .slice(0, 10)
-      .map((item) => ({
+      .map((item: any) => ({
         id: item.id,
         name: item.name,
         brand: item.brand,
@@ -403,7 +403,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
       }));
 
     // Monthly spending analysis
-    const monthlyStats = items.reduce((acc: Record<string, { totalSpent: number; itemCount: number }>, item) => {
+    const monthlyStats = items.reduce((acc: Record<string, { totalSpent: number; itemCount: number }>, item: any) => {
       if (!item.purchase_date) return acc;
       
       const date = new Date(item.purchase_date);
@@ -432,7 +432,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
       .slice(0, months);
 
     // Category spending analysis
-    const categoryStats = items.reduce((acc: Record<string, { totalSpent: number; itemCount: number }>, item) => {
+    const categoryStats = items.reduce((acc: Record<string, { totalSpent: number; itemCount: number }>, item: any) => {
       const category = item.category;
       if (!acc[category]) {
         acc[category] = {
@@ -491,7 +491,7 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
       const seasons = Array.isArray(item.season) ? item.season : [item.season];
       const wearCount = item.wearCount || 0;
 
-      seasons.forEach((season: string) => {
+      seasons.forEach((season: any) => {
         if (seasonalStats[season as keyof typeof seasonalStats]) {
           seasonalStats[season as keyof typeof seasonalStats].count += 1;
           seasonalStats[season as keyof typeof seasonalStats].totalWears += wearCount;
@@ -563,7 +563,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
           lastWashed
         };
       })
-      .sort((a, b) => b.totalWashes - a.totalWashes)
+      .sort((a: any, b: any) => b.totalWashes - a.totalWashes)
       .slice(0, 10);
 
     // Upcoming maintenance
@@ -605,7 +605,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
           priority
         };
       })
-      .sort((a, b) => {
+      .sort((a: any, b: any) => {
         const priorityOrder: { [key: string]: number } = { high: 3, medium: 2, low: 1 };
         return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       });
