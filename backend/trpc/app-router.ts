@@ -72,6 +72,15 @@ import {
   getBrandStatsProcedure,
   getBrandSuggestionsProcedure
 } from "./routes/brands/route";
+import {
+  addPlanProcedure,
+  getPlansByDateProcedure,
+  getPlansByDateRangeProcedure,
+  updatePlanProcedure,
+  deletePlanProcedure,
+  getPlanProcedure,
+  getAllPlansProcedure
+} from "./routes/plans/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -161,6 +170,15 @@ export const appRouter = createTRPCRouter({
     delete: deleteBrandProcedure,
     stats: getBrandStatsProcedure,
     suggestions: getBrandSuggestionsProcedure,
+  }),
+  plans: createTRPCRouter({
+    add: addPlanProcedure,
+    getByDate: getPlansByDateProcedure,
+    getByDateRange: getPlansByDateRangeProcedure,
+    update: updatePlanProcedure,
+    delete: deletePlanProcedure,
+    get: getPlanProcedure,
+    getAll: getAllPlansProcedure,
   }),
 });
 
