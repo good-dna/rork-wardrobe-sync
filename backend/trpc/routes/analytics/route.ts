@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../create-context';
+import { protectedProcedure } from '../../create-context';
 import { mockItems } from '../../../../constants/mockData';
 import { Item } from '../../../../types/wardrobe';
 
@@ -122,7 +122,7 @@ interface MaintenanceAnalytics {
 }
 
 // Get wardrobe overview statistics
-export const getWardrobeOverviewProcedure = publicProcedure
+export const getWardrobeOverviewProcedure = protectedProcedure
   .input(z.object({
     timeFrame: z.enum(['7days', '30days', '90days', 'all']).optional().default('30days')
   }))
@@ -170,12 +170,12 @@ export const getWardrobeOverviewProcedure = publicProcedure
       itemsNeedingWash
     };
     
-    console.log('Wardrobe overview result:', result);
+    console.log('Wardrobe overview result:', JSON.stringify(result, null, 2));
     return result;
   });
 
 // Get category breakdown analytics
-export const getCategoryBreakdownProcedure = publicProcedure
+export const getCategoryBreakdownProcedure = protectedProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
@@ -212,7 +212,7 @@ export const getCategoryBreakdownProcedure = publicProcedure
   });
 
 // Get color breakdown analytics
-export const getColorBreakdownProcedure = publicProcedure
+export const getColorBreakdownProcedure = protectedProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
@@ -240,7 +240,7 @@ export const getColorBreakdownProcedure = publicProcedure
   });
 
 // Get brand breakdown analytics
-export const getBrandBreakdownProcedure = publicProcedure
+export const getBrandBreakdownProcedure = protectedProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
@@ -279,7 +279,7 @@ export const getBrandBreakdownProcedure = publicProcedure
   });
 
 // Get wear analytics
-export const getWearAnalyticsProcedure = publicProcedure
+export const getWearAnalyticsProcedure = protectedProcedure
   .input(z.object({
     timeFrame: z.enum(['7days', '30days', '90days', 'all']).optional().default('30days'),
     limit: z.number().min(1).max(50).optional().default(10)
@@ -368,7 +368,7 @@ export const getWearAnalyticsProcedure = publicProcedure
   });
 
 // Get purchase analytics
-export const getPurchaseAnalyticsProcedure = publicProcedure
+export const getPurchaseAnalyticsProcedure = protectedProcedure
   .input(z.object({
     months: z.number().min(1).max(24).optional().default(12)
   }))
@@ -467,7 +467,7 @@ export const getPurchaseAnalyticsProcedure = publicProcedure
   });
 
 // Get seasonal analytics
-export const getSeasonalAnalyticsProcedure = publicProcedure
+export const getSeasonalAnalyticsProcedure = protectedProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
@@ -521,7 +521,7 @@ export const getSeasonalAnalyticsProcedure = publicProcedure
   });
 
 // Get maintenance analytics
-export const getMaintenanceAnalyticsProcedure = publicProcedure
+export const getMaintenanceAnalyticsProcedure = protectedProcedure
   .query(async ({ ctx }) => {
     const userId = 'demo-user'; // For demo purposes
 
@@ -625,7 +625,7 @@ export const getMaintenanceAnalyticsProcedure = publicProcedure
   });
 
 // Get comprehensive analytics dashboard data
-export const getAnalyticsDashboardProcedure = publicProcedure
+export const getAnalyticsDashboardProcedure = protectedProcedure
   .input(z.object({
     timeFrame: z.enum(['7days', '30days', '90days', 'all']).optional().default('30days')
   }))

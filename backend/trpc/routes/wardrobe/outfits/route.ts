@@ -247,7 +247,7 @@ export const getOutfitStatsProcedure = protectedProcedure
       mostWornOutfits,
     };
     
-    console.log('Outfit stats result:', result);
+    console.log('Outfit stats result:', JSON.stringify(result, null, 2));
     return result;
   });
 

@@ -1,26 +1,154 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart2, TrendingUp, TrendingDown, DollarSign, Calendar, Palette, ShoppingBag, Clock, Droplets, AlertTriangle } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { trpc } from '@/lib/trpc';
+import { useWardrobeStore } from '@/store/wardrobeStore';
 import StatsCard from '@/components/StatsCard';
 
 type TimeFrame = '7days' | '30days' | '90days' | 'all';
 
 export default function AnalyticsScreen() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('30days');
+  const items = useWardrobeStore((state) => state.items);
+  const insets = useSafeAreaInsets();
   
-  // Fetch analytics data using tRPC
-  const overviewQuery = trpc.analytics.overview.useQuery({ timeFrame });
-  const categoriesQuery = trpc.analytics.categories.useQuery();
-  const colorsQuery = trpc.analytics.colors.useQuery();
-  const wearQuery = trpc.analytics.wear.useQuery({ timeFrame, limit: 1 });
-  const purchasesQuery = trpc.analytics.purchases.useQuery({ months: 12 });
-  const maintenanceQuery = trpc.analytics.maintenance.useQuery();
+  // Try to fetch analytics data using tRPC, but fall back to local data
+  const overviewQuery = trpc.analytics.overview.useQuery({ timeFrame }, { 
+    retry: false,
+    refetchOnWindowFocus: false 
+  });
+  const categoriesQuery = trpc.analytics.categories.useQuery(undefined, { 
+    retry: false,
+    refetchOnWindowFocus: false 
+  });
+  const colorsQuery = trpc.analytics.colors.useQuery(undefined, { 
+    retry: false,
+    refetchOnWindowFocus: false 
+  });
+  const wearQuery = trpc.analytics.wear.useQuery({ timeFrame, limit: 1 }, { 
+    retry: false,
+    refetchOnWindowFocus: false 
+  });
+  const purchasesQuery = trpc.analytics.purchases.useQuery({ months: 12 }, { 
+    retry: false,
+    refetchOnWindowFocus: false 
+  });
+  const maintenanceQuery = trpc.analytics.maintenance.useQuery(undefined, { 
+    retry: false,
+    refetchOnWindowFocus: false 
+  });
+  
+  // Calculate local analytics as fallback
+  const localAnalytics = useMemo(() => {
+    const totalItems = items.length;
+    const totalValue = items.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+    const totalWears = items.reduce((sum, item) => sum + (item.wearCount || 0), 0);
+    const totalWashes = items.reduce((sum, item) => sum + (item.washHistory?.length || 0), 0);
+    const itemsNeedingWash = items.filter(item => item.cleaningStatus === 'dirty').length;
+    
+    // Category breakdown
+    const categoryStats = items.reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Color breakdown
+    const colorStats = items.reduce((acc, item) => {
+      acc[item.color] = (acc[item.color] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Most worn item
+    const mostWornItem = items
+      .filter(item => (item.wearCount || 0) > 0)
+      .sort((a, b) => (b.wearCount || 0) - (a.wearCount || 0))[0];
+    
+    // Least worn item
+    const leastWornItem = items
+      .filter(item => (item.wearCount || 0) > 0)
+      .sort((a, b) => (a.wearCount || 0) - (b.wearCount || 0))[0];
+    
+    // Recent purchase
+    const recentPurchase = items
+      .filter(item => item.purchaseDate)
+      .sort((a, b) => new Date(b.purchaseDate!).getTime() - new Date(a.purchaseDate!).getTime())[0];
+    
+    return {
+      overview: {
+        totalItems,
+        totalValue,
+        averageWearCount: totalItems > 0 ? totalWears / totalItems : 0,
+        averageItemValue: totalItems > 0 ? totalValue / totalItems : 0,
+        costPerWear: totalWears > 0 ? totalValue / totalWears : 0,
+        totalWashes,
+        avgWearsBetweenWashes: totalWashes > 0 ? totalWears / totalWashes : 0,
+        itemsNeedingWash
+      },
+      categories: Object.entries(categoryStats).map(([category, count]) => ({
+        category,
+        count,
+        percentage: (count / totalItems) * 100
+      })),
+      colors: Object.entries(colorStats).map(([color, count]) => ({
+        color,
+        count,
+        percentage: (count / totalItems) * 100
+      })),
+      wear: {
+        mostWornItems: mostWornItem ? [{
+          id: mostWornItem.id,
+          name: mostWornItem.name,
+          brand: mostWornItem.brand,
+          category: mostWornItem.category,
+          wearCount: mostWornItem.wearCount || 0,
+          lastWorn: mostWornItem.lastWorn || ''
+        }] : [],
+        leastWornItems: leastWornItem ? [{
+          id: leastWornItem.id,
+          name: leastWornItem.name,
+          brand: leastWornItem.brand,
+          category: leastWornItem.category,
+          wearCount: leastWornItem.wearCount || 0,
+          lastWorn: leastWornItem.lastWorn || ''
+        }] : [],
+        notWornItems: []
+      },
+      purchases: {
+        recentPurchases: recentPurchase ? [{
+          id: recentPurchase.id,
+          name: recentPurchase.name,
+          brand: recentPurchase.brand,
+          category: recentPurchase.category,
+          purchasePrice: recentPurchase.purchasePrice || 0,
+          purchaseDate: recentPurchase.purchaseDate || ''
+        }] : [],
+        monthlySpending: [],
+        categorySpending: []
+      },
+      maintenance: {
+        cleanItems: items.filter(item => item.cleaningStatus === 'clean').length,
+        dirtyItems: items.filter(item => item.cleaningStatus === 'dirty').length,
+        needsRepairItems: items.filter(item => item.cleaningStatus === 'needs repair').length,
+        washFrequency: [],
+        upcomingMaintenance: []
+      }
+    };
+  }, [items]);
   
   const isLoading = overviewQuery.isLoading || categoriesQuery.isLoading || colorsQuery.isLoading || wearQuery.isLoading || purchasesQuery.isLoading || maintenanceQuery.isLoading;
   
-  if (isLoading) {
+  // Use tRPC data if available, otherwise fall back to local analytics
+  const overview = overviewQuery.data || localAnalytics.overview;
+  const categories = categoriesQuery.data || localAnalytics.categories;
+  const colorsData = colorsQuery.data || localAnalytics.colors;
+  const wearData = wearQuery.data || localAnalytics.wear;
+  const purchaseData = purchasesQuery.data || localAnalytics.purchases;
+  const maintenanceData = maintenanceQuery.data || localAnalytics.maintenance;
+  
+  // Show loading only if we don't have local data and queries are still loading
+  if (isLoading && items.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -29,27 +157,20 @@ export default function AnalyticsScreen() {
     );
   }
   
-  const overview = overviewQuery.data;
-  const categories = categoriesQuery.data || [];
-  const colorsData = colorsQuery.data || [];
-  const wearData = wearQuery.data;
-  const purchaseData = purchasesQuery.data;
-  const maintenanceData = maintenanceQuery.data;
-  
   // Convert categories to breakdown format
-  const categoryBreakdown = categories.reduce((acc, cat) => {
+  const categoryBreakdown = categories.reduce((acc: Record<string, number>, cat: any) => {
     acc[cat.category] = cat.count;
     return acc;
   }, {} as Record<string, number>);
   
   // Convert colors to breakdown format
-  const colorBreakdown = colorsData.reduce((acc, color) => {
+  const colorBreakdown = colorsData.reduce((acc: Record<string, number>, color: any) => {
     acc[color.color] = color.count;
     return acc;
   }, {} as Record<string, number>);
   
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Wardrobe Analytics</Text>
         <BarChart2 size={24} color={colors.primary} />

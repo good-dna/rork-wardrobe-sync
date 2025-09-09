@@ -192,6 +192,6 @@ export const getItemStatsProcedure = protectedProcedure
         .map(([brand, count]) => ({ brand, count })),
     };
     
-    console.log('Item stats result:', result);
+    console.log('Item stats result:', JSON.stringify(result, null, 2));
     return result;
   });
