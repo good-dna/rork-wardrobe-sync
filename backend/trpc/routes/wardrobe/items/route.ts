@@ -1,35 +1,26 @@
 import { z } from 'zod';
 import { protectedProcedure } from '../../../create-context';
+import { mockItems } from '../../../../../constants/mockData';
+import { Item } from '../../../../../types/wardrobe';
 
-// Mock data store for demo purposes
-let mockItems: any[] = [
-  {
-    id: '1',
-    name: 'Classic White T-Shirt',
-    brand: 'Uniqlo',
-    category: 'clothes',
-    color: 'white',
-    size: 'M',
-    season: ['spring', 'summer'],
-    price: 15,
-    user_id: 'demo-user',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: '2',
-    name: 'Blue Jeans',
-    brand: 'Levi\'s',
-    category: 'clothes',
-    color: 'blue',
-    size: '32',
-    season: ['all'],
-    price: 80,
-    user_id: 'demo-user',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
+// Convert frontend mock data to backend format
+let backendMockItems = mockItems.map(item => ({
+  id: item.id,
+  name: item.name,
+  brand: item.brand,
+  category: item.category,
+  color: item.color,
+  size: 'M', // Default size since not in frontend data
+  season: item.season,
+  price: item.purchasePrice,
+  image_url: item.imageUrl,
+  purchase_date: item.purchaseDate,
+  tags: item.tags,
+  notes: item.notes,
+  user_id: 'demo-user',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
+}));
 
 const ItemSchema = z.object({
   name: z.string().min(1),
@@ -62,7 +53,7 @@ export const addItemProcedure = protectedProcedure
       updated_at: new Date().toISOString()
     };
 
-    mockItems.push(newItem);
+    backendMockItems.push(newItem);
     return newItem;
   });
 
@@ -79,7 +70,7 @@ export const listMyItemsProcedure = protectedProcedure
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    let filteredItems = mockItems.filter(item => item.user_id === userId);
+    let filteredItems = backendMockItems.filter(item => item.user_id === userId);
 
     // Apply filters
     if (input.category) {
@@ -122,7 +113,7 @@ export const getItemProcedure = protectedProcedure
   .query(async ({ input, ctx }: { input: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const item = mockItems.find(item => item.id === input.id && item.user_id === userId);
+    const item = backendMockItems.find(item => item.id === input.id && item.user_id === userId);
     
     if (!item) {
       throw new Error('Item not found');
@@ -137,19 +128,19 @@ export const updateItemProcedure = protectedProcedure
     const userId = 'demo-user'; // For demo purposes
     const { id, ...updateData } = input;
 
-    const itemIndex = mockItems.findIndex(item => item.id === id && item.user_id === userId);
+    const itemIndex = backendMockItems.findIndex(item => item.id === id && item.user_id === userId);
     
     if (itemIndex === -1) {
       throw new Error('Item not found');
     }
 
-    mockItems[itemIndex] = {
-      ...mockItems[itemIndex],
+    backendMockItems[itemIndex] = {
+      ...backendMockItems[itemIndex],
       ...updateData,
       updated_at: new Date().toISOString()
     };
 
-    return mockItems[itemIndex];
+    return backendMockItems[itemIndex];
   });
 
 export const deleteItemProcedure = protectedProcedure
@@ -157,13 +148,13 @@ export const deleteItemProcedure = protectedProcedure
   .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const itemIndex = mockItems.findIndex(item => item.id === input.id && item.user_id === userId);
+    const itemIndex = backendMockItems.findIndex(item => item.id === input.id && item.user_id === userId);
     
     if (itemIndex === -1) {
       throw new Error('Item not found');
     }
 
-    const deletedItem = mockItems.splice(itemIndex, 1)[0];
+    const deletedItem = backendMockItems.splice(itemIndex, 1)[0];
     return { success: true, deletedItem };
   });
 
@@ -171,7 +162,7 @@ export const getItemStatsProcedure = protectedProcedure
   .query(async ({ ctx }: { ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    const userItems = mockItems.filter(item => item.user_id === userId);
+    const userItems = backendMockItems.filter(item => item.user_id === userId);
 
     const categories = userItems.reduce((acc: Record<string, number>, item: any) => {
       if (item.category) {

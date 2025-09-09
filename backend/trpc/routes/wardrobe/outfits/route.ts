@@ -86,7 +86,7 @@ export const listMyOutfitsProcedure = protectedProcedure
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    let filteredOutfits = mockOutfits.filter(outfit => outfit.user_id === userId);
+    let filteredOutfits = backendMockOutfits.filter(outfit => outfit.user_id === userId);
 
     // Apply filters
     if (input.occasion) {
@@ -262,7 +262,7 @@ export const getOutfitRecommendationsProcedure = protectedProcedure
   .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
     const userId = 'demo-user'; // For demo purposes
 
-    let filteredOutfits = mockOutfits.filter(outfit => outfit.user_id === userId);
+    let filteredOutfits = backendMockOutfits.filter(outfit => outfit.user_id === userId);
 
     // Apply filters
     if (input.occasion) {
