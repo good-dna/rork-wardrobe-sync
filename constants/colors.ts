@@ -2,21 +2,21 @@
 export const colors = {
   // Primary gradient backgrounds
   background: '#0B0B0D', // Pure black base
-  backgroundSecondary: '#141419', // Charcoal gradient end
+  backgroundSecondary: '#111114', // Surface color
   
   // Surface colors
-  card: '#1C1C21', // Glass card surface
-  cardElevated: '#252529', // Elevated cards
+  card: '#111114', // Glass card surface
+  cardElevated: '#1E1F25', // Elevated cards
   cardPressed: '#2A2A2F', // Pressed state
   
   // Text hierarchy
   text: '#FFFFFF', // Primary text
-  textSecondary: '#B8B8C0', // Secondary text
+  textSecondary: '#B6B7BF', // Secondary text (muted)
   textTertiary: '#8A8A95', // Tertiary/disabled text
   
   // Accent colors
-  primary: '#F5C85B', // Sun/accent gold
-  primaryLight: 'rgba(245, 200, 91, 0.1)', // Light primary background
+  primary: '#C8A45D', // Gold accent
+  primaryLight: 'rgba(200, 164, 93, 0.1)', // Light primary background
   secondary: '#8A8AFF', // Action purple
   success: '#52D1A6', // Success green
   error: '#FF6B6B', // Error red
@@ -24,14 +24,14 @@ export const colors = {
   info: '#5DADE2', // Info blue
   
   // Interactive states
-  border: '#2A2A2F',
+  border: '#1E1F25',
   borderActive: '#3A3A3F',
   overlay: 'rgba(0, 0, 0, 0.8)',
-  glass: 'rgba(28, 28, 33, 0.8)',
+  glass: 'rgba(17, 17, 20, 0.8)',
   
   // Legacy support
-  subtext: '#B8B8C0',
-  lightGray: '#3A3A3F',
+  subtext: '#B6B7BF',
+  lightGray: '#1E1F25',
   mediumGray: '#8A8A95',
   darkGray: '#5A5A5F',
 };
