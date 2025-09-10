@@ -1,83 +1,74 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
-import { Home, Shirt, Calendar, Search, User } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import React from "react";
+import { Tabs } from "expo-router";
+import { Home, Search, Shirt, Heart, BarChart3, User, Calendar } from "lucide-react-native";
+import { colors } from "@/constants/colors";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarInactiveTintColor: colors.mediumGray,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: colors.background,
           borderTopColor: colors.border,
-          borderTopWidth: 1,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-          marginTop: 4,
+        headerStyle: {
+          backgroundColor: colors.background,
         },
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <Home size={24} color={color} fill={focused ? color : 'none'} />
-          ),
+          title: "Home",
+          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="wardrobe"
         options={{
-          title: 'Closet',
-          tabBarIcon: ({ color, focused }) => (
-            <Shirt size={24} color={color} fill={focused ? color : 'none'} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: 'Calendar',
-          tabBarIcon: ({ color, focused }) => (
-            <Calendar size={24} color={color} fill={focused ? color : 'none'} />
-          ),
+          title: "Wardrobe",
+          tabBarIcon: ({ color }) => <Shirt size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="outfits"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color, focused }) => (
-            <Search size={24} color={color} fill={focused ? color : 'none'} />
-          ),
+          title: "Outfits",
+          tabBarIcon: ({ color }) => <Search size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="calendar"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <User size={24} color={color} fill={focused ? color : 'none'} />
-          ),
+          title: "Calendar",
+          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
         }}
       />
-      {/* Hide other tabs */}
       <Tabs.Screen
         name="wishlist"
         options={{
-          href: null, // This hides the tab
+          title: "Wishlist",
+          tabBarIcon: ({ color }) => <Heart size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="analytics"
         options={{
-          href: null, // This hides the tab
+          title: "Analytics",
+          tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
     </Tabs>

@@ -1,233 +1,335 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, TrendingUp, Heart, Calendar as CalendarIcon, Plus } from 'lucide-react-native';
+import { Scan, Sparkles, MapPin, Thermometer } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
 import Typography from '@/components/ui/Typography';
-import { trpc } from '@/lib/trpc';
+import Card from '@/components/ui/Card';
+import TemperatureBadge from '@/components/ui/TemperatureBadge';
+import { 
+  getCurrentWeatherRecommendations, 
+  WeatherRecommendation 
+} from '@/services/weatherRecommendationService';
 import { 
   convertTemperature, 
   getTemperatureUnit, 
   getMockWeatherData 
 } from '@/services/weatherService';
+import { dataApi } from '@/services/dataApi';
+
+
+const aiSuggestionOptions = [
+  {
+    id: 'casual',
+    title: 'Casual Day',
+    subtitle: 'Relaxed and comfortable',
+    icon: '👕',
+    color: colors.primary,
+  },
+  {
+    id: 'work',
+    title: 'Work Professional',
+    subtitle: 'Business meetings',
+    icon: '👔',
+    color: colors.secondary,
+  },
+  {
+    id: 'formal',
+    title: 'Formal Event',
+    subtitle: 'Special occasions',
+    icon: '🤵',
+    color: colors.success,
+  },
+  {
+    id: 'weather',
+    title: 'Weather-Based',
+    subtitle: 'Perfect for today',
+    icon: '🌤️',
+    color: '#34C759',
+  },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile } = useUserStore();
-  const insets = useSafeAreaInsets();
+  const { profile, weatherCache } = useUserStore();
+  const [weatherRecommendations, setWeatherRecommendations] = useState<WeatherRecommendation[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+  const [homeFeedData, setHomeFeedData] = useState<any>(null);
+  const [isLoadingHomeFeed, setIsLoadingHomeFeed] = useState(true);
   
   // Get current weather data
-  const currentWeather = getMockWeatherData('sunny');
+  const currentWeather = getMockWeatherData('sunny'); // In real app, use actual weather
   const units = profile?.locationPreferences?.units || 'metric';
   const location = profile?.locationPreferences?.location;
   
-  // Fetch data using tRPC
-  const itemStatsQuery = trpc.wardrobe.items.stats.useQuery();
-  const outfitStatsQuery = trpc.wardrobe.outfits.stats.useQuery();
-  const plansQuery = trpc.plans.getAll.useQuery();
-  const outfitRecommendationsQuery = trpc.wardrobe.outfits.recommendations.useQuery({ limit: 3 });
+  useEffect(() => {
+    loadWeatherRecommendations();
+    loadHomeFeed();
+  }, [profile?.locationPreferences]);
   
-  // Calculate stats
-  const totalItems = itemStatsQuery.data?.totalItems || 0;
-  const favoriteOutfits = outfitStatsQuery.data?.favoriteOutfits || 0;
-  const totalOutfits = outfitStatsQuery.data?.totalOutfits || 0;
-  const upcomingPlans = plansQuery.data?.plans?.filter(plan => {
-    const planDate = new Date(plan.date_ymd);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return planDate >= today;
-  }).length || 0;
+  const loadHomeFeed = async () => {
+    setIsLoadingHomeFeed(true);
+    try {
+      const feedData = await dataApi.getHomeFeed('demo-user-1');
+      setHomeFeedData(feedData);
+      console.log('Home feed loaded successfully:', feedData);
+    } catch (error) {
+      console.error('Failed to load home feed:', error);
+    } finally {
+      setIsLoadingHomeFeed(false);
+    }
+  };
   
-  const handleAddPress = () => {
+  const loadWeatherRecommendations = async () => {
+    setIsLoadingRecommendations(true);
+    try {
+      const recommendations = await getCurrentWeatherRecommendations(
+        profile?.locationPreferences
+      );
+      setWeatherRecommendations(recommendations.slice(0, 2)); // Show top 2 recommendations
+    } catch (error) {
+      console.error('Failed to load weather recommendations:', error);
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  };
+  
+  const handleScanPress = () => {
     router.push('/add-item');
   };
 
-  const handleStatsPress = (type: string) => {
-    switch (type) {
-      case 'items':
-        router.push('/wardrobe');
-        break;
-      case 'favorites':
-        router.push('/outfits?filter=favorites');
-        break;
-      case 'outfits':
-        router.push('/outfits');
-        break;
-      case 'plans':
-        router.push('/calendar');
-        break;
-    }
+  const handleWeatherPress = () => {
+    router.push('/weather-outfit');
   };
 
-  const handleRecommendationPress = (outfitId: string) => {
-    router.push(`/outfit/${outfitId}`);
+  const handleAIRecommendationPress = () => {
+    router.push('/ai-recommendations');
+  };
+
+  const handleQuickAIPress = (occasionId: string) => {
+    router.push(`/ai-recommendations?occasion=${occasionId}`);
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
+      <LinearGradient
+        colors={[colors.background, colors.backgroundSecondary]}
+        style={styles.gradient}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Typography variant="h1" style={styles.greeting}>
-              {`Welcome back, ${profile?.displayName?.split(' ')[0] || 'there'}`}
-            </Typography>
-            <View style={styles.weatherChip}>
-              <MapPin size={14} color={colors.textSecondary} />
-              <Typography variant="small" color={colors.textSecondary} style={styles.locationText}>
-                {location ? `${location.city}` : 'Set location'}
-              </Typography>
-              <View style={styles.temperatureChip}>
-                <Typography variant="small" color={colors.text}>
-                  {convertTemperature(currentWeather.temperature, units)}{getTemperatureUnit(units)}
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <View>
+                <Typography variant="h1" style={styles.greeting}>
+                  Welcome, {profile?.displayName?.split(' ')[0] || 'there'}
+                </Typography>
+                <Typography variant="body" color={colors.textSecondary}>
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
                 </Typography>
               </View>
+              <Pressable style={styles.scanButton} onPress={handleScanPress}>
+                <Scan size={24} color={colors.background} />
+              </Pressable>
             </View>
-          </View>
-          <Pressable style={styles.profileAvatar} onPress={() => router.push('/profile')}>
-            <Typography variant="h3" color={colors.primary}>
-              {profile?.displayName?.charAt(0) || 'U'}
-            </Typography>
-          </Pressable>
-        </View>
 
-        {/* Stats Cards Grid */}
-        <View style={styles.statsGrid}>
-          <Pressable style={styles.statCard} onPress={() => handleStatsPress('items')}>
-            <View style={styles.statIcon}>
-              <TrendingUp size={20} color={colors.primary} />
-            </View>
-            <Typography variant="h2" color={colors.text} style={styles.statNumber}>
-              {totalItems.toString()}
-            </Typography>
-            <Typography variant="caption" color={colors.textSecondary}>
-              Total Items
-            </Typography>
-          </Pressable>
-          
-          <Pressable style={styles.statCard} onPress={() => handleStatsPress('favorites')}>
-            <View style={styles.statIcon}>
-              <Heart size={20} color={colors.error} />
-            </View>
-            <Typography variant="h2" color={colors.text} style={styles.statNumber}>
-              {favoriteOutfits.toString()}
-            </Typography>
-            <Typography variant="caption" color={colors.textSecondary}>
-              Favorites
-            </Typography>
-          </Pressable>
-          
-          <Pressable style={styles.statCard} onPress={() => handleStatsPress('outfits')}>
-            <View style={styles.statIcon}>
-              <TrendingUp size={20} color={colors.success} />
-            </View>
-            <Typography variant="h2" color={colors.text} style={styles.statNumber}>
-              {totalOutfits.toString()}
-            </Typography>
-            <Typography variant="caption" color={colors.textSecondary}>
-              Outfits
-            </Typography>
-          </Pressable>
-          
-          <Pressable style={styles.statCard} onPress={() => handleStatsPress('plans')}>
-            <View style={styles.statIcon}>
-              <CalendarIcon size={20} color={colors.info} />
-            </View>
-            <Typography variant="h2" color={colors.text} style={styles.statNumber}>
-              {upcomingPlans.toString()}
-            </Typography>
-            <Typography variant="caption" color={colors.textSecondary}>
-              Upcoming Plans
-            </Typography>
-          </Pressable>
-        </View>
-
-        {/* Today's Recommendations */}
-        <View style={styles.sectionHeader}>
-          <Typography variant="h2" style={styles.sectionTitle}>
-            Today&apos;s Recommendations
-          </Typography>
-        </View>
-
-        {outfitRecommendationsQuery.isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Typography variant="caption" color={colors.textSecondary} style={styles.loadingText}>
-              Loading recommendations...
-            </Typography>
-          </View>
-        ) : (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recommendationsCarousel}
-          >
-            {outfitRecommendationsQuery.data?.map((outfit: any) => (
-              <Pressable 
-                key={outfit.id} 
-                style={styles.recommendationCard}
-                onPress={() => handleRecommendationPress(outfit.id)}
-              >
-                <View style={styles.outfitImageContainer}>
-                  {outfit.image_url ? (
-                    <Image source={{ uri: outfit.image_url }} style={styles.outfitImage} />
-                  ) : (
-                    <View style={styles.outfitImagePlaceholder}>
-                      <Typography variant="h3" color={colors.textSecondary}>
-                        {outfit.name.charAt(0)}
-                      </Typography>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.outfitInfo}>
-                  <Typography variant="body" style={styles.outfitName} numberOfLines={1}>
-                    {outfit.name}
+            {/* Weather & Location Section */}
+            <Card style={styles.weatherCard}>
+              <View style={styles.weatherHeader}>
+                <View style={styles.weatherInfo}>
+                  <View style={styles.locationRow}>
+                    <MapPin size={16} color={colors.textSecondary} />
+                    <Typography variant="caption" color={colors.textSecondary} style={styles.locationText}>
+                      {location ? `${location.city}, ${location.region}` : 'Location not set'}
+                    </Typography>
+                  </View>
+                  <View style={styles.temperatureRow}>
+                    <Thermometer size={20} color={colors.primary} />
+                    <Typography variant="h2" style={styles.temperature}>
+                      {convertTemperature(currentWeather.temperature, units)}{getTemperatureUnit(units)}
+                    </Typography>
+                  </View>
+                  <Typography variant="caption" color={colors.textSecondary}>
+                    {currentWeather.description}
                   </Typography>
-                  <View style={styles.outfitTags}>
-                    {outfit.tags?.slice(0, 2).map((tag: string) => (
-                      <View key={tag} style={styles.tag}>
-                        <Typography variant="small" color={colors.textSecondary}>
-                          {tag}
+                </View>
+                <Pressable style={styles.weatherButton} onPress={handleWeatherPress}>
+                  <Typography variant="caption" color={colors.primary} style={styles.weatherButtonText}>
+                    View Details
+                  </Typography>
+                </Pressable>
+              </View>
+            </Card>
+
+            {/* Weather-Based Recommendations */}
+            <View style={styles.sectionHeader}>
+              <Typography variant="h2" style={styles.sectionTitle}>
+                Weather Recommendations
+              </Typography>
+              {!location && (
+                <Pressable onPress={() => router.push('/location-settings')}>
+                  <Typography variant="caption" color={colors.primary}>
+                    Set Location
+                  </Typography>
+                </Pressable>
+              )}
+            </View>
+
+            {isLoadingRecommendations ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Typography variant="caption" color={colors.textSecondary} style={styles.loadingText}>
+                  Loading recommendations...
+                </Typography>
+              </View>
+            ) : weatherRecommendations.length > 0 ? (
+              <View style={styles.recommendationsContainer}>
+                {weatherRecommendations.map((recommendation) => (
+                  <Card key={recommendation.id} style={styles.recommendationCard}>
+                    <View style={styles.recommendationHeader}>
+                      <Typography variant="body" style={styles.recommendationTitle}>
+                        {recommendation.title}
+                      </Typography>
+                      <View style={styles.confidenceBadge}>
+                        <Typography variant="small" color={colors.primary}>
+                          {recommendation.confidence}%
                         </Typography>
                       </View>
-                    ))}
-                  </View>
-                  <Pressable style={styles.tryButton}>
-                    <Typography variant="small" color={colors.primary} style={styles.tryButtonText}>
-                      Try
+                    </View>
+                    <Typography variant="caption" color={colors.textSecondary} style={styles.recommendationDescription}>
+                      {recommendation.description}
                     </Typography>
-                  </Pressable>
-                </View>
+                    <View style={styles.recommendationItems}>
+                      {recommendation.items.slice(0, 3).map((item) => (
+                        <View key={item.id} style={styles.recommendationItem}>
+                          <View style={styles.itemImagePlaceholder}>
+                            <Typography variant="small">{item.category.charAt(0).toUpperCase()}</Typography>
+                          </View>
+                          <Typography variant="small" color={colors.textSecondary} style={styles.itemName}>
+                            {item.name.length > 12 ? item.name.substring(0, 12) + '...' : item.name}
+                          </Typography>
+                        </View>
+                      ))}
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            ) : (
+              <Card style={styles.noRecommendationsCard}>
+                <Typography variant="body" color={colors.textSecondary} style={styles.noRecommendationsText}>
+                  {location ? 'No weather-based recommendations available' : 'Set your location to get personalized weather recommendations'}
+                </Typography>
+                <Pressable 
+                  style={styles.setupLocationButton} 
+                  onPress={() => router.push(location ? '/ai-recommendations' : '/location-settings')}
+                >
+                  <Typography variant="caption" color={colors.primary}>
+                    {location ? 'View AI Recommendations' : 'Set Location'}
+                  </Typography>
+                </Pressable>
+              </Card>
+            )}
+
+            <View style={styles.sectionHeader}>
+              <Typography variant="h2" style={styles.sectionTitle}>
+                AI-powered wardrobe suggestion
+              </Typography>
+            </View>
+
+            <View style={styles.aiOptionsGrid}>
+              {aiSuggestionOptions.map((option) => (
+                <Pressable
+                  key={option.id}
+                  style={styles.aiOptionCard}
+                  onPress={() => handleQuickAIPress(option.id)}
+                >
+                  <View style={[styles.aiOptionIcon, { backgroundColor: option.color + '20' }]}>
+                    <Typography variant="h3" style={styles.aiOptionEmoji}>
+                      {option.icon}
+                    </Typography>
+                  </View>
+                  <Typography variant="body" style={styles.aiOptionTitle}>
+                    {option.title}
+                  </Typography>
+                  <Typography variant="caption" color={colors.textSecondary} style={styles.aiOptionSubtitle}>
+                    {option.subtitle}
+                  </Typography>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable style={styles.viewAllAIButton} onPress={handleAIRecommendationPress}>
+              <Sparkles size={18} color={colors.primary} />
+              <Typography variant="body" color={colors.primary} style={styles.viewAllAIText}>
+                View All AI Options
+              </Typography>
+            </Pressable>
+
+            <View style={styles.sectionHeader}>
+              <Typography variant="h3" style={styles.sectionTitle}>
+                Your Collections
+              </Typography>
+              <Pressable onPress={() => router.push('/wardrobe')}>
+                <Typography variant="caption" color={colors.primary}>
+                  View All
+                </Typography>
               </Pressable>
-            ))}
+            </View>
+
+            <View style={styles.collectionsGrid}>
+              <Card style={styles.collectionCard}>
+                <Typography variant="h3" color={colors.text}>
+                  {isLoadingHomeFeed ? '...' : homeFeedData?.stats?.totalItems || 0}
+                </Typography>
+                <Typography variant="caption" color={colors.textSecondary}>
+                  Total Items
+                </Typography>
+              </Card>
+              
+              <Card style={styles.collectionCard}>
+                <Typography variant="h3" color={colors.success}>
+                  ${isLoadingHomeFeed ? '...' : (homeFeedData?.stats?.totalValue || 0).toLocaleString()}
+                </Typography>
+                <Typography variant="caption" color={colors.textSecondary}>
+                  Total Value
+                </Typography>
+              </Card>
+            </View>
+
+            <View style={styles.quickActions}>
+              <Pressable 
+                style={styles.actionButton}
+                onPress={() => router.push('/outfits')}
+              >
+                <Sparkles size={20} color={colors.primary} />
+                <Typography variant="caption" color={colors.text} style={styles.actionText}>
+                  Generate Outfit
+                </Typography>
+              </Pressable>
+              
+              <Pressable 
+                style={styles.actionButton}
+                onPress={() => router.push('/calendar')}
+              >
+                <Scan size={20} color={colors.secondary} />
+                <Typography variant="caption" color={colors.text} style={styles.actionText}>
+                  Plan Outfits
+                </Typography>
+              </Pressable>
+            </View>
+
           </ScrollView>
-        )}
-
-        {/* Activity Feed */}
-        <View style={styles.sectionHeader}>
-          <Typography variant="h2" style={styles.sectionTitle}>
-            Recent Activity
-          </Typography>
-        </View>
-
-        <View style={styles.activityCard}>
-          <Typography variant="body" color={colors.textSecondary} style={styles.activityPlaceholder}>
-            Your recent wardrobe activity will appear here
-          </Typography>
-        </View>
-
-      </ScrollView>
-      
-      {/* Add Item FAB */}
-      <Pressable style={styles.fab} onPress={handleAddPress}>
-        <Plus size={24} color={colors.background} />
-      </Pressable>
+        </SafeAreaView>
+      </LinearGradient>
     </View>
   );
 }
@@ -235,7 +337,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  gradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -250,72 +357,143 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: tokens.spacing.xl,
   },
-  headerLeft: {
-    flex: 1,
-  },
   greeting: {
-    marginBottom: tokens.spacing.sm,
-    color: colors.text,
+    marginBottom: tokens.spacing.xs,
   },
-  weatherChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radius.full,
-    alignSelf: 'flex-start',
-  },
-  locationText: {
-    marginLeft: tokens.spacing.xs,
-    marginRight: tokens.spacing.sm,
-  },
-  temperatureChip: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: 2,
-    borderRadius: tokens.radius.sm,
-  },
-  profileAvatar: {
+  scanButton: {
     width: 48,
     height: 48,
-    borderRadius: tokens.radius.full,
-    backgroundColor: colors.card,
+    borderRadius: tokens.radius.xl,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.md,
-    marginBottom: tokens.spacing.xl,
-  },
-  statCard: {
-    width: '47%',
-    backgroundColor: colors.card,
-    padding: tokens.spacing.lg,
-    borderRadius: tokens.radius.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statIcon: {
-    marginBottom: tokens.spacing.sm,
-  },
-  statNumber: {
-    marginBottom: tokens.spacing.xs,
-    fontWeight: '700',
+    ...tokens.shadow.md,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: tokens.spacing.xl,
     marginBottom: tokens.spacing.lg,
   },
   sectionTitle: {
-    color: colors.text,
+    flex: 1,
+  },
+  collectionsGrid: {
+    flexDirection: 'row',
+    gap: tokens.spacing.md,
+    marginBottom: tokens.spacing.xl,
+  },
+  collectionCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: tokens.spacing.lg,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: tokens.spacing.md,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    padding: tokens.spacing.lg,
+    borderRadius: tokens.radius.lg,
+    ...tokens.shadow.sm,
+  },
+  actionText: {
+    marginLeft: tokens.spacing.xs,
+  },
+  aiOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.md,
+    marginBottom: tokens.spacing.lg,
+  },
+  aiOptionCard: {
+    width: '47%',
+    backgroundColor: colors.card,
+    borderRadius: tokens.radius.lg,
+    padding: tokens.spacing.md,
+    alignItems: 'center',
+    ...tokens.shadow.sm,
+  },
+  aiOptionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.spacing.sm,
+  },
+  aiOptionEmoji: {
+    fontSize: 20,
+  },
+  aiOptionTitle: {
+    textAlign: 'center',
+    marginBottom: tokens.spacing.xs,
+    fontWeight: '600',
+  },
+  aiOptionSubtitle: {
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  viewAllAIButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderRadius: tokens.radius.lg,
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    marginBottom: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    ...tokens.shadow.sm,
+  },
+  viewAllAIText: {
+    marginLeft: tokens.spacing.sm,
+    fontWeight: '600',
+  },
+  weatherCard: {
+    marginBottom: tokens.spacing.lg,
+    padding: tokens.spacing.lg,
+  },
+  weatherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  weatherInfo: {
+    flex: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
+  },
+  locationText: {
+    marginLeft: tokens.spacing.xs,
+  },
+  temperatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
+  },
+  temperature: {
+    marginLeft: tokens.spacing.xs,
+    fontWeight: '700',
+  },
+  weatherButton: {
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: tokens.radius.md,
+  },
+  weatherButtonText: {
+    fontWeight: '600',
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -326,85 +504,66 @@ const styles = StyleSheet.create({
   loadingText: {
     marginLeft: tokens.spacing.sm,
   },
-  recommendationsCarousel: {
-    paddingRight: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xl,
+  recommendationsContainer: {
+    gap: tokens.spacing.md,
+    marginBottom: tokens.spacing.lg,
   },
   recommendationCard: {
-    width: 200,
-    backgroundColor: colors.card,
-    borderRadius: tokens.radius.lg,
-    marginRight: tokens.spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
+    padding: tokens.spacing.lg,
   },
-  outfitImageContainer: {
-    height: 120,
-  },
-  outfitImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  outfitImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  outfitInfo: {
-    padding: tokens.spacing.md,
-  },
-  outfitName: {
-    fontWeight: '600',
-    marginBottom: tokens.spacing.xs,
-    color: colors.text,
-  },
-  outfitTags: {
+  recommendationHeader: {
     flexDirection: 'row',
-    gap: tokens.spacing.xs,
-    marginBottom: tokens.spacing.sm,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
   },
-  tag: {
-    backgroundColor: colors.lightGray,
-    paddingHorizontal: tokens.spacing.xs,
+  recommendationTitle: {
+    fontWeight: '600',
+    flex: 1,
+  },
+  confidenceBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 2,
     borderRadius: tokens.radius.sm,
   },
-  tryButton: {
-    backgroundColor: colors.primaryLight,
-    paddingVertical: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.sm,
-    borderRadius: tokens.radius.sm,
-    alignSelf: 'flex-start',
+  recommendationDescription: {
+    marginBottom: tokens.spacing.md,
   },
-  tryButtonText: {
-    fontWeight: '600',
+  recommendationItems: {
+    flexDirection: 'row',
+    gap: tokens.spacing.sm,
   },
-  activityCard: {
-    backgroundColor: colors.card,
-    padding: tokens.spacing.xl,
-    borderRadius: tokens.radius.lg,
+  recommendationItem: {
     alignItems: 'center',
-    marginBottom: tokens.spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    flex: 1,
   },
-  activityPlaceholder: {
-    textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 100,
-    right: tokens.spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+  itemImagePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: tokens.radius.md,
+    backgroundColor: colors.lightGray,
     alignItems: 'center',
     justifyContent: 'center',
-    ...tokens.shadow.lg,
+    marginBottom: tokens.spacing.xs,
   },
+  itemName: {
+    textAlign: 'center',
+  },
+  noRecommendationsCard: {
+    padding: tokens.spacing.xl,
+    alignItems: 'center',
+    marginBottom: tokens.spacing.lg,
+  },
+  noRecommendationsText: {
+    textAlign: 'center',
+    marginBottom: tokens.spacing.md,
+  },
+  setupLocationButton: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: tokens.radius.md,
+  },
+
 });
