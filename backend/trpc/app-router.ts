@@ -23,7 +23,10 @@ import {
   getSneakersByBrandProcedure,
   toggleSneakerFavoriteProcedure,
   recordSneakerWearProcedure,
-  getSneakerStatsProcedure
+  getSneakerStatsProcedure,
+  addSneakerProcedure,
+  updateSneakerProcedure,
+  deleteSneakerProcedure
 } from "./routes/sneakers/route";
 import { getCurrentWeatherProcedure } from "./routes/weather/current/route";
 import { getForecastProcedure } from "./routes/weather/forecast/route";
@@ -118,6 +121,9 @@ export const appRouter = createTRPCRouter({
     toggleFavorite: toggleSneakerFavoriteProcedure,
     recordWear: recordSneakerWearProcedure,
     getStats: getSneakerStatsProcedure,
+    add: addSneakerProcedure,
+    update: updateSneakerProcedure,
+    delete: deleteSneakerProcedure,
   }),
   weather: createTRPCRouter({
     current: getCurrentWeatherProcedure,
