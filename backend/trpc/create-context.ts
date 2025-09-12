@@ -8,6 +8,7 @@ export const createContext = async (opts: FetchCreateContextFnOptions) => {
   const authHeader = opts.req.headers.get('authorization');
   let userId: string | null = null;
   
+  // Only try to authenticate if we have a real Supabase client
   if (authHeader && supabaseAdmin) {
     try {
       const token = authHeader.replace('Bearer ', '');
@@ -18,9 +19,14 @@ export const createContext = async (opts: FetchCreateContextFnOptions) => {
     }
   }
   
+  // If no supabaseAdmin (demo mode), log it
+  if (!supabaseAdmin) {
+    console.log('Running in demo mode - no Supabase connection');
+  }
+  
   return {
     req: opts.req,
-    supabase: supabaseAdmin,
+    supabase: supabaseAdmin, // This will be null in demo mode
     userId: userId || 'demo-user', // Fallback for demo
   };
 };

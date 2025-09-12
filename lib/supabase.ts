@@ -5,11 +5,11 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'demo_service_role_key';
 
 // Check if we're using demo/development credentials
-const isDemoMode = supabaseUrl === 'https://demo.supabase.co' || supabaseAnonKey === 'demo_anon_key' || !process.env.EXPO_PUBLIC_SUPABASE_URL;
+const isDemoMode = supabaseUrl === 'https://demo.supabase.co' || supabaseAnonKey === 'demo_anon_key' || !process.env.EXPO_PUBLIC_SUPABASE_URL || supabaseUrl.includes('demo') || supabaseAnonKey.includes('demo');
 
 // Always use demo mode if environment variables are missing
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables, using demo mode');
+if (!supabaseUrl || !supabaseAnonKey || isDemoMode) {
+  console.warn('Missing or demo Supabase environment variables, using demo mode');
 }
 
 // Create a mock client for demo mode
@@ -24,6 +24,10 @@ const createMockClient = () => {
     ilike: () => mockQuery,
     limit: () => mockQuery,
     order: () => mockQuery,
+    range: () => mockQuery,
+    contains: () => mockQuery,
+    or: () => mockQuery,
+    single: () => mockQuery,
     then: (callback: (result: any) => any) => Promise.resolve(callback(mockResponse))
   };
   
@@ -49,7 +53,7 @@ export const supabase = isDemoMode
     });
 
 // Admin client for backend use (bypasses RLS)
-export const supabaseAdmin = isDemoMode || !supabaseServiceRoleKey
+export const supabaseAdmin = isDemoMode || !supabaseServiceRoleKey || supabaseServiceRoleKey.includes('demo')
   ? null
   : createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
