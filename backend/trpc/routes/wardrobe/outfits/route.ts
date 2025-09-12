@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { protectedProcedure } from '../../../create-context';
+import { protectedProcedure } from '@/backend/trpc/create-context';
+import { Inserts } from '@/lib/supabase';
 
 // Mock data store for demo purposes
-let mockOutfits: any[] = [
+const mockOutfits: any[] = [
   {
     id: '1',
     name: 'Casual Friday',
@@ -57,21 +58,48 @@ const UpdateOutfitSchema = OutfitSchema.partial().extend({
 
 export const addOutfitProcedure = protectedProcedure
   .input(OutfitSchema)
-  .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .mutation(async ({ input, ctx }) => {
+    const userId = ctx.userId;
 
-    const newOutfit = {
-      id: `outfit-${Date.now()}`,
-      ...input,
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
+      const newOutfit = {
+        id: `outfit-${Date.now()}`,
+        ...input,
+        user_id: userId,
+        wear_count: 0,
+        last_worn: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      mockOutfits.push(newOutfit);
+      return newOutfit;
+    }
+
+    const outfitData: Inserts<'outfits'> = {
       user_id: userId,
+      name: input.name,
+      description: input.description || null,
+      items: input.item_ids,
+      occasion: input.occasion || null,
+      season: input.season || null,
+      image_url: input.image_url || null,
+      is_favorite: input.is_favorite || false,
       wear_count: 0,
-      last_worn: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
     };
 
-    mockOutfits.push(newOutfit);
-    return newOutfit;
+    const { data, error } = await ctx.supabase
+      .from('outfits')
+      .insert(outfitData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to add outfit: ${error.message}`);
+    }
+
+    return data;
   });
 
 export const listMyOutfitsProcedure = protectedProcedure
@@ -83,40 +111,73 @@ export const listMyOutfitsProcedure = protectedProcedure
     limit: z.number().min(1).max(100).default(50),
     offset: z.number().min(0).default(0),
   }).optional())
-  .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async ({ input = {}, ctx }) => {
+    const userId = ctx.userId;
 
-    let filteredOutfits = mockOutfits.filter((outfit: any) => outfit.user_id === userId);
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
+      let filteredOutfits = mockOutfits.filter((outfit: any) => outfit.user_id === userId);
+
+      // Apply filters
+      if (input.occasion) {
+        filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.occasion === input.occasion);
+      }
+      if (input.is_favorite !== undefined) {
+        filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.is_favorite === input.is_favorite);
+      }
+      if (input.season) {
+        filteredOutfits = filteredOutfits.filter((outfit: any) => 
+          outfit.season?.includes(input.season)
+        );
+      }
+      if (input.search) {
+        const searchLower = input.search.toLowerCase();
+        filteredOutfits = filteredOutfits.filter((outfit: any) => 
+          outfit.name?.toLowerCase().includes(searchLower) ||
+          outfit.description?.toLowerCase().includes(searchLower) ||
+          outfit.notes?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Sort by created_at descending
+      filteredOutfits.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Apply pagination
+      const start = input.offset || 0;
+      const end = start + (input.limit || 50);
+      
+      return filteredOutfits.slice(start, end);
+    }
+
+    let query = ctx.supabase
+      .from('outfits')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(input.offset || 0, (input.offset || 0) + (input.limit || 50) - 1);
 
     // Apply filters
     if (input.occasion) {
-      filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.occasion === input.occasion);
+      query = query.eq('occasion', input.occasion);
     }
     if (input.is_favorite !== undefined) {
-      filteredOutfits = filteredOutfits.filter((outfit: any) => outfit.is_favorite === input.is_favorite);
+      query = query.eq('is_favorite', input.is_favorite);
     }
     if (input.season) {
-      filteredOutfits = filteredOutfits.filter((outfit: any) => 
-        outfit.season?.includes(input.season)
-      );
+      query = query.contains('season', [input.season]);
     }
     if (input.search) {
-      const searchLower = input.search.toLowerCase();
-      filteredOutfits = filteredOutfits.filter((outfit: any) => 
-        outfit.name?.toLowerCase().includes(searchLower) ||
-        outfit.description?.toLowerCase().includes(searchLower) ||
-        outfit.notes?.toLowerCase().includes(searchLower)
-      );
+      query = query.or(`name.ilike.%${input.search}%,description.ilike.%${input.search}%`);
     }
 
-    // Sort by created_at descending
-    filteredOutfits.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const { data, error } = await query;
 
-    // Apply pagination
-    const start = input.offset || 0;
-    const end = start + (input.limit || 50);
-    
-    return filteredOutfits.slice(start, end);
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to list outfits: ${error.message}`);
+    }
+
+    return data || [];
   });
 
 export const getOutfitProcedure = protectedProcedure

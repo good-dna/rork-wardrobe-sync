@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { protectedProcedure } from '../../../create-context';
-import { mockItems } from '../../../../../constants/mockData';
-import { Item } from '../../../../../types/wardrobe';
+import { protectedProcedure } from '@/backend/trpc/create-context';
+import { mockItems } from '@/constants/mockData';
+import { Inserts } from '@/lib/supabase';
 
-// Convert frontend mock data to backend format
-let backendMockItems = mockItems.map(item => ({
+// Convert frontend mock data to backend format for fallback
+const backendMockItems = mockItems.map(item => ({
   id: item.id,
   name: item.name,
   brand: item.brand,
@@ -42,19 +42,50 @@ const UpdateItemSchema = ItemSchema.partial().extend({
 
 export const addItemProcedure = protectedProcedure
   .input(ItemSchema)
-  .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .mutation(async ({ input, ctx }) => {
+    const userId = ctx.userId;
 
-    const newItem = {
-      id: `item-${Date.now()}`,
-      ...input,
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
+      const newItem = {
+        id: `item-${Date.now()}`,
+        ...input,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      backendMockItems.push(newItem as any);
+      return newItem;
+    }
+
+    const itemData: Inserts<'wardrobe_items'> = {
       user_id: userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      name: input.name,
+      brand: input.brand || null,
+      category: input.category || 'clothes',
+      color: input.color || null,
+      size: input.size || null,
+      season: input.season || null,
+      image_url: input.image_url || null,
+      price: input.price || null,
+      purchase_date: input.purchase_date || null,
+      tags: input.tags || null,
+      notes: input.notes || null,
+      source: 'manual',
     };
 
-    backendMockItems.push(newItem);
-    return newItem;
+    const { data, error } = await ctx.supabase
+      .from('wardrobe_items')
+      .insert(itemData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to add item: ${error.message}`);
+    }
+
+    return data;
   });
 
 export const listMyItemsProcedure = protectedProcedure
@@ -67,45 +98,81 @@ export const listMyItemsProcedure = protectedProcedure
     limit: z.number().min(1).max(100).default(50),
     offset: z.number().min(0).default(0),
   }).optional())
-  .query(async ({ input = {}, ctx }: { input?: any; ctx: any }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async ({ input = {}, ctx }) => {
+    const userId = ctx.userId;
 
-    let filteredItems = backendMockItems.filter(item => item.user_id === userId);
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
+      let filteredItems = backendMockItems.filter(item => item.user_id === userId);
+
+      // Apply filters
+      if (input.category) {
+        filteredItems = filteredItems.filter(item => item.category === input.category);
+      }
+      if (input.color) {
+        filteredItems = filteredItems.filter(item => item.color === input.color);
+      }
+      if (input.brand) {
+        filteredItems = filteredItems.filter(item => 
+          item.brand?.toLowerCase().includes(input.brand!.toLowerCase())
+        );
+      }
+      if (input.season) {
+        filteredItems = filteredItems.filter(item => 
+          item.season?.includes(input.season! as any)
+        );
+      }
+      if (input.search) {
+        const searchLower = input.search.toLowerCase();
+        filteredItems = filteredItems.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.brand?.toLowerCase().includes(searchLower) ||
+          item.notes?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Sort by created_at descending
+      filteredItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Apply pagination
+      const start = input.offset || 0;
+      const end = start + (input.limit || 50);
+      
+      return filteredItems.slice(start, end);
+    }
+
+    let query = ctx.supabase
+      .from('wardrobe_items')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(input.offset || 0, (input.offset || 0) + (input.limit || 50) - 1);
 
     // Apply filters
     if (input.category) {
-      filteredItems = filteredItems.filter(item => item.category === input.category);
+      query = query.eq('category', input.category);
     }
     if (input.color) {
-      filteredItems = filteredItems.filter(item => item.color === input.color);
+      query = query.eq('color', input.color);
     }
     if (input.brand) {
-      filteredItems = filteredItems.filter(item => 
-        item.brand?.toLowerCase().includes(input.brand.toLowerCase())
-      );
+      query = query.ilike('brand', `%${input.brand}%`);
     }
     if (input.season) {
-      filteredItems = filteredItems.filter(item => 
-        item.season?.includes(input.season)
-      );
+      query = query.contains('season', [input.season]);
     }
     if (input.search) {
-      const searchLower = input.search.toLowerCase();
-      filteredItems = filteredItems.filter(item => 
-        item.name?.toLowerCase().includes(searchLower) ||
-        item.brand?.toLowerCase().includes(searchLower) ||
-        item.notes?.toLowerCase().includes(searchLower)
-      );
+      query = query.or(`name.ilike.%${input.search}%,brand.ilike.%${input.search}%,notes.ilike.%${input.search}%`);
     }
 
-    // Sort by created_at descending
-    filteredItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const { data, error } = await query;
 
-    // Apply pagination
-    const start = input.offset || 0;
-    const end = start + (input.limit || 50);
-    
-    return filteredItems.slice(start, end);
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to list items: ${error.message}`);
+    }
+
+    return data || [];
   });
 
 export const getItemProcedure = protectedProcedure
@@ -159,19 +226,63 @@ export const deleteItemProcedure = protectedProcedure
   });
 
 export const getItemStatsProcedure = protectedProcedure
-  .query(async ({ ctx }: { ctx: any }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async ({ ctx }) => {
+    const userId = ctx.userId;
 
-    const userItems = backendMockItems.filter(item => item.user_id === userId);
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
+      const userItems = backendMockItems.filter(item => item.user_id === userId);
 
-    const categories = userItems.reduce((acc: Record<string, number>, item: any) => {
+      const categories = userItems.reduce((acc: Record<string, number>, item: any) => {
+        if (item.category) {
+          acc[item.category] = (acc[item.category] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      const brands = userItems.reduce((acc: Record<string, number>, item: any) => {
+        if (item.brand) {
+          acc[item.brand] = (acc[item.brand] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      const result = {
+        totalItems: userItems.length,
+        categoriesCount: Object.keys(categories).length,
+        brandsCount: Object.keys(brands).length,
+        topCategories: Object.entries(categories)
+          .sort(([,a], [,b]) => (b as number) - (a as number))
+          .slice(0, 5)
+          .map(([category, count]) => ({ category, count })),
+        topBrands: Object.entries(brands)
+          .sort(([,a], [,b]) => (b as number) - (a as number))
+          .slice(0, 5)
+          .map(([brand, count]) => ({ brand, count })),
+      };
+      
+      console.log('Item stats result:', JSON.stringify(result, null, 2));
+      return result;
+    }
+
+    const { data: items, error } = await ctx.supabase
+      .from('wardrobe_items')
+      .select('category, brand')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to get item stats: ${error.message}`);
+    }
+
+    const categories = (items || []).reduce((acc: Record<string, number>, item) => {
       if (item.category) {
         acc[item.category] = (acc[item.category] || 0) + 1;
       }
       return acc;
     }, {});
 
-    const brands = userItems.reduce((acc: Record<string, number>, item: any) => {
+    const brands = (items || []).reduce((acc: Record<string, number>, item) => {
       if (item.brand) {
         acc[item.brand] = (acc[item.brand] || 0) + 1;
       }
@@ -179,7 +290,7 @@ export const getItemStatsProcedure = protectedProcedure
     }, {});
 
     const result = {
-      totalItems: userItems.length,
+      totalItems: items?.length || 0,
       categoriesCount: Object.keys(categories).length,
       brandsCount: Object.keys(brands).length,
       topCategories: Object.entries(categories)

@@ -1,26 +1,233 @@
-import 'react-native-url-polyfill/auto'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://mpqgxxxagueuqehiazyl.supabase.co'
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wcWd4eHhhZ3VldXFlaGlhenlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NTAzMjYsImV4cCI6MjA3MjIyNjMyNn0.8AbuWjGXYTBg9-hMirXUSrfk5iksEO36e2DSjszITOk'
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
-
-// Test connection function
-export const testSupabaseConnection = async () => {
-  try {
-    console.log('Testing Supabase connection...')
-    const { data, error } = await supabase.from('_test').select('*').limit(1)
-    
-    if (error) {
-      console.log('Supabase connection test result:', error.message)
-      return { success: false, error: error.message }
-    }
-    
-    console.log('Supabase connection successful')
-    return { success: true, data }
-  } catch (err) {
-    console.error('Supabase connection failed:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
-  }
+if (!supabaseUrl) {
+  throw new Error('Missing SUPABASE_URL environment variable');
 }
+
+if (!supabaseAnonKey) {
+  throw new Error('Missing SUPABASE_ANON_KEY environment variable');
+}
+
+// Client for frontend use (with RLS)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+});
+
+// Admin client for backend use (bypasses RLS)
+export const supabaseAdmin = supabaseServiceRoleKey 
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
+
+// Database types
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          updated_at?: string;
+        };
+      };
+      wardrobe_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          brand: string | null;
+          category: string;
+          color: string | null;
+          size: string | null;
+          material: string | null;
+          season: string[] | null;
+          image_url: string | null;
+          bg_removed_url: string | null;
+          barcode: string | null;
+          sku: string | null;
+          source: string;
+          price: number | null;
+          purchase_date: string | null;
+          tags: string[] | null;
+          notes: string | null;
+          waterproof: boolean | null;
+          warmth_rating: number | null;
+          breathability: number | null;
+          fragrance_family: string | null;
+          strap_type: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          brand?: string | null;
+          category: string;
+          color?: string | null;
+          size?: string | null;
+          material?: string | null;
+          season?: string[] | null;
+          image_url?: string | null;
+          bg_removed_url?: string | null;
+          barcode?: string | null;
+          sku?: string | null;
+          source: string;
+          price?: number | null;
+          purchase_date?: string | null;
+          tags?: string[] | null;
+          notes?: string | null;
+          waterproof?: boolean | null;
+          warmth_rating?: number | null;
+          breathability?: number | null;
+          fragrance_family?: string | null;
+          strap_type?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          brand?: string | null;
+          category?: string;
+          color?: string | null;
+          size?: string | null;
+          material?: string | null;
+          season?: string[] | null;
+          image_url?: string | null;
+          bg_removed_url?: string | null;
+          barcode?: string | null;
+          sku?: string | null;
+          source?: string;
+          price?: number | null;
+          purchase_date?: string | null;
+          tags?: string[] | null;
+          notes?: string | null;
+          waterproof?: boolean | null;
+          warmth_rating?: number | null;
+          breathability?: number | null;
+          fragrance_family?: string | null;
+          strap_type?: string | null;
+          updated_at?: string;
+        };
+      };
+      outfits: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          items: string[];
+          occasion: string | null;
+          season: string[] | null;
+          weather_min_temp: number | null;
+          weather_max_temp: number | null;
+          weather_conditions: string[] | null;
+          image_url: string | null;
+          is_favorite: boolean;
+          wear_count: number;
+          last_worn: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          items: string[];
+          occasion?: string | null;
+          season?: string[] | null;
+          weather_min_temp?: number | null;
+          weather_max_temp?: number | null;
+          weather_conditions?: string[] | null;
+          image_url?: string | null;
+          is_favorite?: boolean;
+          wear_count?: number;
+          last_worn?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          items?: string[];
+          occasion?: string | null;
+          season?: string[] | null;
+          weather_min_temp?: number | null;
+          weather_max_temp?: number | null;
+          weather_conditions?: string[] | null;
+          image_url?: string | null;
+          is_favorite?: boolean;
+          wear_count?: number;
+          last_worn?: string | null;
+          updated_at?: string;
+        };
+      };
+      plans: {
+        Row: {
+          id: string;
+          user_id: string;
+          date_ymd: string;
+          outfit_id: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          date_ymd: string;
+          outfit_id: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          date_ymd?: string;
+          outfit_id?: string;
+          notes?: string | null;
+          updated_at?: string;
+        };
+      };
+    };
+  };
+}
+
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+export type Inserts<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
+export type Updates<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];

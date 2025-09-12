@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { protectedProcedure } from '../../create-context';
+import { protectedProcedure } from '@/backend/trpc/create-context';
+import { Inserts } from '@/lib/supabase';
 import { TRPCError } from '@trpc/server';
 
 // Mock data store - replace with actual database
-let mockPlans: Array<{
+const mockPlans: Array<{
   id: string;
   user_id: string;
   date_ymd: string;
@@ -21,43 +22,50 @@ let mockPlans: Array<{
 export const addPlanProcedure = protectedProcedure
   .input(z.object({
     date_ymd: z.string(), // "2025-08-31" format
-    outfit_id: z.string().optional(),
-    name: z.string(),
-    category: z.enum(['casual', 'formal', 'work', 'athletic', 'evening', 'special']),
-    items: z.array(z.string()),
+    outfit_id: z.string(),
     notes: z.string().optional(),
-    reminder_enabled: z.boolean().optional().default(false),
   }))
-  .mutation(async ({ input }) => {
-    try {
+  .mutation(async ({ input, ctx }) => {
+    const userId = ctx.userId;
+
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
       const newPlan = {
         id: `plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        user_id: 'mock_user_id', // Replace with actual user ID from context
+        user_id: userId,
         date_ymd: input.date_ymd,
         outfit_id: input.outfit_id,
-        name: input.name,
-        category: input.category,
-        items: input.items,
+        name: 'Planned Outfit',
+        category: 'casual',
+        items: [],
         notes: input.notes,
-        reminder_enabled: input.reminder_enabled,
+        reminder_enabled: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-
       mockPlans.push(newPlan);
-      console.log('Added plan:', newPlan);
-      
-      return {
-        success: true,
-        plan: newPlan,
-      };
-    } catch (error) {
-      console.error('Error adding plan:', error);
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to add plan',
-      });
+      return newPlan;
     }
+
+    const planData: Inserts<'plans'> = {
+      user_id: userId,
+      date_ymd: input.date_ymd,
+      outfit_id: input.outfit_id,
+      notes: input.notes || null,
+    };
+
+    const { data, error } = await ctx.supabase
+      .from('plans')
+      .insert(planData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to add plan: ${error.message}`);
+    }
+
+    return data;
   });
 
 // Get plans for a specific date
@@ -65,23 +73,30 @@ export const getPlansByDateProcedure = protectedProcedure
   .input(z.object({
     date_ymd: z.string(),
   }))
-  .query(async ({ input }) => {
-    try {
+  .query(async ({ input, ctx }) => {
+    const userId = ctx.userId;
+
+    if (!ctx.supabase) {
+      // Fallback to mock data if no database connection
       const plans = mockPlans.filter(plan => 
-        plan.user_id === 'mock_user_id' && plan.date_ymd === input.date_ymd
+        plan.user_id === userId && plan.date_ymd === input.date_ymd
       );
-      
-      return {
-        success: true,
-        plans,
-      };
-    } catch (error) {
-      console.error('Error getting plans by date:', error);
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to get plans',
-      });
+      return plans;
     }
+
+    const { data, error } = await ctx.supabase
+      .from('plans')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date_ymd', input.date_ymd)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Database error:', error);
+      throw new Error(`Failed to get plans: ${error.message}`);
+    }
+
+    return data || [];
   });
 
 // Get plans for a date range (for calendar view)

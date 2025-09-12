@@ -1,11 +1,27 @@
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 // Context creation function
 export const createContext = async (opts: FetchCreateContextFnOptions) => {
+  // Extract user info from headers if available
+  const authHeader = opts.req.headers.get('authorization');
+  let userId: string | null = null;
+  
+  if (authHeader && supabaseAdmin) {
+    try {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      userId = user?.id || null;
+    } catch (error) {
+      console.warn('Failed to authenticate user:', error);
+    }
+  }
+  
   return {
     req: opts.req,
-    // You can add more context items here like database connections, auth, etc.
+    supabase: supabaseAdmin,
+    userId: userId || 'demo-user', // Fallback for demo
   };
 };
 
