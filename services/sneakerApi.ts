@@ -540,6 +540,20 @@ export async function searchSneakers(query: string, userId?: string): Promise<Sn
   }, userId);
 }
 
+// External sneaker database search (from your provided function)
+export async function searchExternalSneakers(q: string, brand?: string) {
+  let query = supabase
+    .from("sneakers")
+    .select("external_id, sku, brand, name, colorway, image_url, resell_url")
+    .ilike("name", `%${q}%`)
+    .limit(50);
+
+  if (brand) query = query.eq("brand", brand);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
 export async function getSneakersByBrand(brand: SneakerBrand, userId?: string): Promise<Sneaker[]> {
   return getSneakers({
     filters: { brand: [brand] }

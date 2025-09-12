@@ -10,6 +10,7 @@ import {
   toggleSneakerFavorite,
   getSneakerStats,
   searchSneakers,
+  searchExternalSneakers,
   getSneakersByBrand,
   getFavoriteSneakers
 } from '@/services/sneakerApi';
@@ -174,4 +175,14 @@ export const deleteSneakerProcedure = publicProcedure
   .mutation(async ({ input }) => {
     await deleteSneaker(input.id);
     return { success: true };
+  });
+
+// Search external sneaker database
+export const searchExternalSneakersProcedure = publicProcedure
+  .input(z.object({ 
+    query: z.string().min(1).max(100),
+    brand: z.string().optional()
+  }))
+  .query(async ({ input }) => {
+    return await searchExternalSneakers(input.query, input.brand);
   });
