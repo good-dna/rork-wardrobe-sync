@@ -304,8 +304,13 @@ export const getOutfitStatsProcedure = protectedProcedure
       topOccasions: Object.entries(occasions)
         .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 5)
-        .map(([occasion, count]) => ({ occasion, count })),
-      mostWornOutfits,
+        .map(([occasion, count]) => ({ occasion, count: Number(count) })),
+      mostWornOutfits: mostWornOutfits.map(outfit => ({
+        id: outfit.id,
+        name: outfit.name,
+        wear_count: Number(outfit.wear_count),
+        last_worn: outfit.last_worn || null
+      })),
     };
     
     console.log('Outfit stats result:', JSON.stringify(result, null, 2));

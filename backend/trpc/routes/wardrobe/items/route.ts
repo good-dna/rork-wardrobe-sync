@@ -254,11 +254,11 @@ export const getItemStatsProcedure = protectedProcedure
         topCategories: Object.entries(categories)
           .sort(([,a], [,b]) => (b as number) - (a as number))
           .slice(0, 5)
-          .map(([category, count]) => ({ category, count })),
+          .map(([category, count]) => ({ category, count: Number(count) })),
         topBrands: Object.entries(brands)
           .sort(([,a], [,b]) => (b as number) - (a as number))
           .slice(0, 5)
-          .map(([brand, count]) => ({ brand, count })),
+          .map(([brand, count]) => ({ brand, count: Number(count) })),
       };
       
       console.log('Item stats result:', JSON.stringify(result, null, 2));
@@ -296,11 +296,11 @@ export const getItemStatsProcedure = protectedProcedure
       topCategories: Object.entries(categories)
         .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 5)
-        .map(([category, count]) => ({ category, count })),
+        .map(([category, count]) => ({ category, count: Number(count) })),
       topBrands: Object.entries(brands)
         .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 5)
-        .map(([brand, count]) => ({ brand, count })),
+        .map(([brand, count]) => ({ brand, count: Number(count) })),
     };
     
     console.log('Item stats result:', JSON.stringify(result, null, 2));

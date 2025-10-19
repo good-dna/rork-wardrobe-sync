@@ -204,10 +204,10 @@ export const getCategoryBreakdownProcedure = protectedProcedure
 
     return Object.entries(categoryStats).map(([category, stats]) => ({
       category,
-      count: stats.count,
-      percentage: (stats.count / totalItems) * 100,
-      totalValue: stats.totalValue,
-      averageWearCount: stats.count > 0 ? stats.totalWears / stats.count : 0
+      count: Number(stats.count),
+      percentage: Number(((stats.count / totalItems) * 100).toFixed(2)),
+      totalValue: Number(stats.totalValue.toFixed(2)),
+      averageWearCount: Number((stats.count > 0 ? stats.totalWears / stats.count : 0).toFixed(2))
     })) as CategoryBreakdown[];
   });
 
@@ -233,8 +233,8 @@ export const getColorBreakdownProcedure = protectedProcedure
     return Object.entries(colorStats)
       .map(([color, count]) => ({
         color,
-        count,
-        percentage: (count / totalItems) * 100
+        count: Number(count),
+        percentage: Number(((count / totalItems) * 100).toFixed(2))
       }))
       .sort((a, b) => b.count - a.count) as ColorBreakdown[];
   });
@@ -270,10 +270,10 @@ export const getBrandBreakdownProcedure = protectedProcedure
     return Object.entries(brandStats)
       .map(([brand, stats]) => ({
         brand,
-        count: stats.count,
-        percentage: (stats.count / totalItems) * 100,
-        totalValue: stats.totalValue,
-        averageWearCount: stats.count > 0 ? stats.totalWears / stats.count : 0
+        count: Number(stats.count),
+        percentage: Number(((stats.count / totalItems) * 100).toFixed(2)),
+        totalValue: Number(stats.totalValue.toFixed(2)),
+        averageWearCount: Number((stats.count > 0 ? stats.totalWears / stats.count : 0).toFixed(2))
       }))
       .sort((a, b) => b.count - a.count) as BrandBreakdown[];
   });
@@ -316,8 +316,8 @@ export const getWearAnalyticsProcedure = protectedProcedure
         name: item.name,
         brand: item.brand,
         category: item.category,
-        wearCount: item.wear_count || 0,
-        lastWorn: item.last_worn || ''
+        wearCount: Number(item.wear_count || 0),
+        lastWorn: item.last_worn || null
       }));
 
     // Least worn items (but worn at least once)
@@ -330,8 +330,8 @@ export const getWearAnalyticsProcedure = protectedProcedure
         name: item.name,
         brand: item.brand,
         category: item.category,
-        wearCount: item.wear_count || 0,
-        lastWorn: item.last_worn || ''
+        wearCount: Number(item.wear_count || 0),
+        lastWorn: item.last_worn || null
       }));
 
     // Items not worn in specified timeframe
@@ -355,8 +355,8 @@ export const getWearAnalyticsProcedure = protectedProcedure
           name: item.name,
           brand: item.brand,
           category: item.category,
-          daysSinceLastWorn,
-          lastWorn: item.last_worn || ''
+          daysSinceLastWorn: Number(daysSinceLastWorn),
+          lastWorn: item.last_worn || null
         };
       });
 
@@ -403,8 +403,8 @@ export const getPurchaseAnalyticsProcedure = protectedProcedure
         name: item.name,
         brand: item.brand,
         category: item.category,
-        purchasePrice: item.purchase_price || 0,
-        purchaseDate: item.purchase_date || ''
+        purchasePrice: Number(item.purchase_price || 0),
+        purchaseDate: item.purchase_date || null
       }));
 
     // Monthly spending analysis
@@ -430,8 +430,8 @@ export const getPurchaseAnalyticsProcedure = protectedProcedure
     const monthlySpending = Object.entries(monthlyStats)
       .map(([month, stats]) => ({
         month,
-        totalSpent: stats.totalSpent,
-        itemCount: stats.itemCount
+        totalSpent: Number(stats.totalSpent.toFixed(2)),
+        itemCount: Number(stats.itemCount)
       }))
       .sort((a, b) => b.month.localeCompare(a.month))
       .slice(0, months);
@@ -453,9 +453,9 @@ export const getPurchaseAnalyticsProcedure = protectedProcedure
     const categorySpending = Object.entries(categoryStats)
       .map(([category, stats]) => ({
         category,
-        totalSpent: stats.totalSpent,
-        itemCount: stats.itemCount,
-        averagePrice: stats.itemCount > 0 ? stats.totalSpent / stats.itemCount : 0
+        totalSpent: Number(stats.totalSpent.toFixed(2)),
+        itemCount: Number(stats.itemCount),
+        averagePrice: Number((stats.itemCount > 0 ? stats.totalSpent / stats.itemCount : 0).toFixed(2))
       }))
       .sort((a, b) => b.totalSpent - a.totalSpent);
 
@@ -506,8 +506,8 @@ export const getSeasonalAnalyticsProcedure = protectedProcedure
 
     const seasonalWearPatterns = Object.entries(seasonalStats).map(([season, stats]) => ({
       season,
-      totalWears: stats.totalWears,
-      averageWears: stats.count > 0 ? stats.totalWears / stats.count : 0
+      totalWears: Number(stats.totalWears),
+      averageWears: Number((stats.count > 0 ? stats.totalWears / stats.count : 0).toFixed(2))
     }));
 
     return {
@@ -563,9 +563,9 @@ export const getMaintenanceAnalyticsProcedure = protectedProcedure
           itemId: item.id,
           name: item.name,
           brand: item.brand,
-          totalWashes,
-          daysBetweenWashes: Math.round(daysBetweenWashes),
-          lastWashed
+          totalWashes: Number(totalWashes),
+          daysBetweenWashes: Number(Math.round(daysBetweenWashes)),
+          lastWashed: lastWashed || null
         };
       })
       .sort((a, b) => b.totalWashes - a.totalWashes)
