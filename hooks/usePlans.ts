@@ -17,10 +17,10 @@ export const usePlans = (options: UsePlanOptions = {}) => {
   // Get plans for a specific date
   const plansForDateQuery = useQuery({
     queryKey: ['plans', 'date', options.date?.toLocaleDateString('en-CA'), options.date],
-    queryFn: () => {
+    queryFn: async () => {
       if (!options.date) return { success: true, plans: [] };
       const ymd = options.date.toLocaleDateString('en-CA');
-      return trpcClient.plans.getByDate.query({ date_ymd: ymd });
+      return await trpcClient.plans.getByDate.query({ date_ymd: ymd });
     },
     enabled: !!options.date,
   });
@@ -35,11 +35,11 @@ export const usePlans = (options: UsePlanOptions = {}) => {
       options.startDate,
       options.endDate
     ],
-    queryFn: () => {
+    queryFn: async () => {
       if (!options.startDate || !options.endDate) return { success: true, plans: [] };
       const startYmd = options.startDate.toLocaleDateString('en-CA');
       const endYmd = options.endDate.toLocaleDateString('en-CA');
-      return trpcClient.plans.getByDateRange.query({
+      return await trpcClient.plans.getByDateRange.query({
         start_date: startYmd,
         end_date: endYmd,
       });
@@ -66,7 +66,7 @@ export const usePlans = (options: UsePlanOptions = {}) => {
       
       return trpcClient.plans.add.mutate({
         date_ymd: ymd,
-        outfit_id: data.outfitId,
+        outfit_id: data.outfitId || '',
         name: data.name,
         category: data.category,
         items: data.items,
@@ -147,11 +147,11 @@ export const usePlans = (options: UsePlanOptions = {}) => {
   ): Promise<any[]> => {
     const ymd = selected.toLocaleDateString('en-CA'); // "2025-08-31" (safe ISO-like)
     
-    const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+    const response: any = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
     
-    if (response.success) {
+    if (response && Array.isArray(response)) {
       // Sort by created_at ascending to match the supabase query
-      const sortedPlans = response.plans.sort((a, b) => 
+      const sortedPlans = response.sort((a: any, b: any) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       
@@ -169,10 +169,10 @@ export const usePlans = (options: UsePlanOptions = {}) => {
     user: User
   ): Promise<{ data: any[] }> => {
     const ymd = selected.toLocaleDateString('en-CA');
-    const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+    const response: any = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
     
-    if (response.success) {
-      const data = response.plans.sort((a, b) => 
+    if (response && Array.isArray(response)) {
+      const data = response.sort((a: any, b: any) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       return { data };
@@ -183,9 +183,9 @@ export const usePlans = (options: UsePlanOptions = {}) => {
 
   return {
     // Queries
-    plansForDate: plansForDateQuery.data?.plans || [],
-    plansForRange: plansForRangeQuery.data?.plans || [],
-    allPlans: allPlansQuery.data?.plans || [],
+    plansForDate: (plansForDateQuery.data && 'plans' in plansForDateQuery.data) ? plansForDateQuery.data.plans : [],
+    plansForRange: (plansForRangeQuery.data && 'plans' in plansForRangeQuery.data) ? plansForRangeQuery.data.plans : [],
+    allPlans: (allPlansQuery.data && 'plans' in allPlansQuery.data) ? allPlansQuery.data.plans : [],
     
     // Loading states
     isLoadingPlansForDate: plansForDateQuery.isLoading,

@@ -4,7 +4,7 @@ import { Inserts } from '@/lib/supabase';
 import { TRPCError } from '@trpc/server';
 
 // Mock data store - replace with actual database
-const mockPlans: Array<{
+const mockPlans: {
   id: string;
   user_id: string;
   date_ymd: string;
@@ -16,14 +16,18 @@ const mockPlans: Array<{
   reminder_enabled?: boolean;
   created_at: string;
   updated_at: string;
-}> = [];
+}[] = [];
 
 // Add outfit plan to calendar
 export const addPlanProcedure = protectedProcedure
   .input(z.object({
     date_ymd: z.string(), // "2025-08-31" format
     outfit_id: z.string(),
+    name: z.string().optional(),
+    category: z.enum(['casual', 'formal', 'work', 'athletic', 'evening', 'special']).optional(),
+    items: z.array(z.string()).optional(),
     notes: z.string().optional(),
+    reminder_enabled: z.boolean().optional(),
   }))
   .mutation(async ({ input, ctx }) => {
     const userId = ctx.userId;
@@ -52,7 +56,7 @@ export const addPlanProcedure = protectedProcedure
       date_ymd: input.date_ymd,
       outfit_id: input.outfit_id,
       notes: input.notes || null,
-    };
+    } as any;
 
     const { data, error } = await ctx.supabase
       .from('plans')

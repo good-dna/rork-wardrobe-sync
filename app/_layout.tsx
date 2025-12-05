@@ -124,6 +124,41 @@ function RootLayoutNav() {
               presentation: "card",
             }} 
           />
+          <Stack.Screen 
+            name="weather-outfit" 
+            options={{ 
+              title: "Weather Outfit",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="ai-recommendations" 
+            options={{ 
+              title: "AI Recommendations",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="location-settings" 
+            options={{ 
+              title: "Location Settings",
+              presentation: "modal",
+            }} 
+          />
+          <Stack.Screen 
+            name="weather-api-demo" 
+            options={{ 
+              title: "Weather API Demo",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="weather-api-test" 
+            options={{ 
+              title: "Weather API Test",
+              presentation: "card",
+            }} 
+          />
         </Stack>
       </QueryClientProvider>
     </trpc.Provider>

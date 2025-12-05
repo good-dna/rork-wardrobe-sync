@@ -323,7 +323,7 @@ class DataAPI {
       // Invalidate cache
       await this.invalidateItemsCache(this.userId);
       
-      return updatedItem as WardrobeItem;
+      return updatedItem as unknown as WardrobeItem;
     } catch (error) {
       console.error('Failed to update item:', error);
       

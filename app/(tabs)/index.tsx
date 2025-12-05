@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+
 import { Scan, Sparkles, MapPin, Thermometer } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
 import Typography from '@/components/ui/Typography';
 import Card from '@/components/ui/Card';
-import TemperatureBadge from '@/components/ui/TemperatureBadge';
+
 import { 
   getCurrentWeatherRecommendations, 
   WeatherRecommendation 
@@ -53,7 +54,7 @@ const aiSuggestionOptions = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile, weatherCache } = useUserStore();
+  const { profile } = useUserStore();
   const [weatherRecommendations, setWeatherRecommendations] = useState<WeatherRecommendation[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
   const [homeFeedData, setHomeFeedData] = useState<any>(null);
@@ -64,12 +65,7 @@ export default function HomeScreen() {
   const units = profile?.locationPreferences?.units || 'metric';
   const location = profile?.locationPreferences?.location;
   
-  useEffect(() => {
-    loadWeatherRecommendations();
-    loadHomeFeed();
-  }, [profile?.locationPreferences]);
-  
-  const loadHomeFeed = async () => {
+  const loadHomeFeed = useCallback(async () => {
     setIsLoadingHomeFeed(true);
     try {
       const feedData = await dataApi.getHomeFeed('demo-user-1');
@@ -80,9 +76,9 @@ export default function HomeScreen() {
     } finally {
       setIsLoadingHomeFeed(false);
     }
-  };
+  }, []);
   
-  const loadWeatherRecommendations = async () => {
+  const loadWeatherRecommendations = useCallback(async () => {
     setIsLoadingRecommendations(true);
     try {
       const recommendations = await getCurrentWeatherRecommendations(
@@ -94,7 +90,12 @@ export default function HomeScreen() {
     } finally {
       setIsLoadingRecommendations(false);
     }
-  };
+  }, [profile?.locationPreferences]);
+  
+  useEffect(() => {
+    loadWeatherRecommendations();
+    loadHomeFeed();
+  }, [loadWeatherRecommendations, loadHomeFeed]);
   
   const handleScanPress = () => {
     router.push('/add-item');

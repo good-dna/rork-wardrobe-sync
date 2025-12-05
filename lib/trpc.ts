@@ -25,7 +25,7 @@ export const trpcClient = trpc.createClient({
       url: `${getBaseUrl()}/api/trpc`,
       fetch: async (url, options) => {
         try {
-          const response = await fetch(url, options);
+          const response = await fetch(url, options as RequestInit);
           return response;
         } catch (error) {
           console.warn('tRPC fetch failed:', error);

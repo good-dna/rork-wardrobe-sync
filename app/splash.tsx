@@ -156,7 +156,7 @@ export default function SplashScreen({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      router.replace(autoNavTo);
+      router.replace(autoNavTo as any);
     });
   }, [isNavigating, logoScale, pageOpacity, router, autoNavTo]);
 

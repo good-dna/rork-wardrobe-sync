@@ -36,12 +36,8 @@ export const savePlanToDatabase = async (
     await trpcClient.plans.add.mutate({
       date_ymd: ymd,
       outfit_id: outfitId,
-      name: planData.name,
-      category: planData.category,
-      items: planData.items,
       notes,
-      reminder_enabled: planData.reminderEnabled,
-    });
+    } as any);
     
     console.log(`Successfully saved plan for ${ymd}:`, {
       user_id: user.id,
@@ -78,12 +74,8 @@ export const saveOutfitPlan = async (
   await trpcClient.plans.add.mutate({
     date_ymd: ymd,
     outfit_id: outfitId,
-    name: additionalData.name,
-    category: additionalData.category,
-    items: additionalData.items,
     notes,
-    reminder_enabled: additionalData.reminderEnabled,
-  });
+  } as any);
 };
 
 /**
@@ -155,11 +147,11 @@ export const getPlansForSelectedDate = async (
   
   try {
     // Equivalent to: const { data } = await supabase.from('plans').select('*').eq('user_id', user.id).eq('date_ymd', ymd).order('created_at', { ascending: true });
-    const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+    const response: any = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
     
-    if (response.success) {
+    if (Array.isArray(response)) {
       // Sort by created_at ascending to match the supabase query
-      const sortedPlans = response.plans.sort((a, b) => 
+      const sortedPlans = response.sort((a: any, b: any) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       
@@ -184,11 +176,11 @@ export const fetchPlansForDate = async (
 ): Promise<{ data: any[] }> => {
   const ymd = selected.toLocaleDateString('en-CA');
   
-  const response = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
+  const response: any = await trpcClient.plans.getByDate.query({ date_ymd: ymd });
   
-  if (response.success) {
+  if (Array.isArray(response)) {
     // Sort by created_at ascending to match supabase order
-    const data = response.plans.sort((a, b) => 
+    const data = response.sort((a: any, b: any) => 
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
     

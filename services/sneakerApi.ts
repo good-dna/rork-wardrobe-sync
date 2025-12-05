@@ -478,42 +478,42 @@ export async function getSneakerStats(userId?: string): Promise<SneakerStats> {
     };
   }
 
-  const totalValue = sneakers.reduce((sum, sneaker) => sum + (sneaker.purchase_price || 0), 0);
+  const totalValue = sneakers.reduce((sum: number, sneaker: any) => sum + (sneaker.purchase_price || 0), 0);
   const averagePrice = totalValue / sneakers.length;
 
   // Find most worn sneaker
-  const mostWornSneaker = sneakers.reduce((prev, current) => 
+  const mostWornSneaker = sneakers.reduce((prev: any, current: any) => 
     (current.wear_count > prev.wear_count) ? current : prev
   );
 
   // Find newest and oldest sneakers
   const sortedByDate = sneakers
-    .filter(s => s.purchase_date)
-    .sort((a, b) => new Date(b.purchase_date!).getTime() - new Date(a.purchase_date!).getTime());
+    .filter((s: any) => s.purchase_date)
+    .sort((a: any, b: any) => new Date(b.purchase_date!).getTime() - new Date(a.purchase_date!).getTime());
   
   const newestSneaker = sortedByDate[0];
   const oldestSneaker = sortedByDate[sortedByDate.length - 1];
 
   // Calculate distributions
-  const brandDistribution = sneakers.reduce((acc, sneaker) => {
+  const brandDistribution = sneakers.reduce((acc: any, sneaker: any) => {
     acc[sneaker.brand as SneakerBrand] = (acc[sneaker.brand as SneakerBrand] || 0) + 1;
     return acc;
   }, {} as Record<SneakerBrand, number>);
 
-  const categoryDistribution = sneakers.reduce((acc, sneaker) => {
+  const categoryDistribution = sneakers.reduce((acc: any, sneaker: any) => {
     acc[sneaker.category as SneakerCategory] = (acc[sneaker.category as SneakerCategory] || 0) + 1;
     return acc;
   }, {} as Record<SneakerCategory, number>);
 
-  const conditionDistribution = sneakers.reduce((acc, sneaker) => {
+  const conditionDistribution = sneakers.reduce((acc: any, sneaker: any) => {
     acc[sneaker.condition as SneakerCondition] = (acc[sneaker.condition as SneakerCondition] || 0) + 1;
     return acc;
   }, {} as Record<SneakerCondition, number>);
 
   // Calculate monthly spending
   const monthlySpending = sneakers
-    .filter(s => s.purchase_date && s.purchase_price)
-    .reduce((acc, sneaker) => {
+    .filter((s: any) => s.purchase_date && s.purchase_price)
+    .reduce((acc: any, sneaker: any) => {
       const month = new Date(sneaker.purchase_date!).toISOString().slice(0, 7); // YYYY-MM
       acc[month] = (acc[month] || 0) + sneaker.purchase_price!;
       return acc;
