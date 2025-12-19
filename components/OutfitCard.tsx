@@ -45,11 +45,8 @@ export default function OutfitCard({ outfit }: OutfitCardProps) {
           <Text style={styles.itemsLabel}>Items:</Text>
           <View style={styles.itemsList}>
             <Text style={styles.itemText} numberOfLines={1}>
-              {outfitItems.slice(0, 3).map((item, index) => {
-                const isLast = index === Math.min(outfitItems.length, 3) - 1;
-                return item.name + (isLast ? '' : ', ');
-              }).join('')}
-              {outfitItems.length > 3 && ` +${outfitItems.length - 3} more`}
+              {outfitItems.slice(0, 3).map(item => item.name).join(', ')}
+              {outfitItems.length > 3 ? ` +${outfitItems.length - 3} more` : ''}
             </Text>
           </View>
         </View>
