@@ -4,17 +4,6 @@ import { mockItems } from '../../../../constants/mockData';
 import { Item } from '../../../../types/wardrobe';
 
 // Analytics data types
-interface WardrobeOverview {
-  totalItems: number;
-  totalValue: number;
-  averageWearCount: number;
-  averageItemValue: number;
-  costPerWear: number;
-  totalWashes: number;
-  avgWearsBetweenWashes: number;
-  itemsNeedingWash: number;
-}
-
 interface CategoryBreakdown {
   category: string;
   count: number;
@@ -38,52 +27,52 @@ interface BrandBreakdown {
 }
 
 interface WearAnalytics {
-  mostWornItems: Array<{
+  mostWornItems: {
     id: string;
     name: string;
     brand: string;
     category: string;
     wearCount: number;
     lastWorn: string;
-  }>;
-  leastWornItems: Array<{
+  }[];
+  leastWornItems: {
     id: string;
     name: string;
     brand: string;
     category: string;
     wearCount: number;
     lastWorn: string;
-  }>;
-  notWornItems: Array<{
+  }[];
+  notWornItems: {
     id: string;
     name: string;
     brand: string;
     category: string;
     daysSinceLastWorn: number;
     lastWorn: string;
-  }>;
+  }[];
 }
 
 interface PurchaseAnalytics {
-  recentPurchases: Array<{
+  recentPurchases: {
     id: string;
     name: string;
     brand: string;
     category: string;
     purchasePrice: number;
     purchaseDate: string;
-  }>;
-  monthlySpending: Array<{
+  }[];
+  monthlySpending: {
     month: string;
     totalSpent: number;
     itemCount: number;
-  }>;
-  categorySpending: Array<{
+  }[];
+  categorySpending: {
     category: string;
     totalSpent: number;
     itemCount: number;
     averagePrice: number;
-  }>;
+  }[];
 }
 
 interface SeasonalAnalytics {
@@ -92,33 +81,33 @@ interface SeasonalAnalytics {
   fallItems: number;
   winterItems: number;
   allSeasonItems: number;
-  seasonalWearPatterns: Array<{
+  seasonalWearPatterns: {
     season: string;
     totalWears: number;
     averageWears: number;
-  }>;
+  }[];
 }
 
 interface MaintenanceAnalytics {
   cleanItems: number;
   dirtyItems: number;
   needsRepairItems: number;
-  washFrequency: Array<{
+  washFrequency: {
     itemId: string;
     name: string;
     brand: string;
     totalWashes: number;
     daysBetweenWashes: number;
     lastWashed: string;
-  }>;
-  upcomingMaintenance: Array<{
+  }[];
+  upcomingMaintenance: {
     itemId: string;
     name: string;
     brand: string;
     maintenanceType: 'wash' | 'repair' | 'dry_clean';
     dueDate: string;
     priority: 'low' | 'medium' | 'high';
-  }>;
+  }[];
 }
 
 // Get wardrobe overview statistics
@@ -126,9 +115,7 @@ export const getWardrobeOverviewProcedure = protectedProcedure
   .input(z.object({
     timeFrame: z.enum(['7days', '30days', '90days', 'all']).optional().default('30days')
   }))
-  .query(async ({ ctx, input }) => {
-    const userId = 'demo-user'; // For demo purposes
-    const { timeFrame: _ } = input;
+  .query(async ({ input }) => {
 
     // Get all wardrobe items
     const items = mockItems as Item[];
@@ -154,20 +141,20 @@ export const getWardrobeOverviewProcedure = protectedProcedure
     const totalWashes = items.reduce((sum: number, item: Item) => sum + (item.washHistory?.length || 0), 0);
     const itemsNeedingWash = items.filter((item: Item) => item.cleaningStatus === 'dirty').length;
 
-    const averageWearCount = totalItems > 0 ? totalWears / totalItems : 0;
-    const averageItemValue = totalItems > 0 ? totalValue / totalItems : 0;
-    const costPerWear = totalWears > 0 ? totalValue / totalWears : 0;
-    const avgWearsBetweenWashes = totalWashes > 0 ? totalWears / totalWashes : 0;
+    const averageWearCount = Number((totalItems > 0 ? totalWears / totalItems : 0).toFixed(2));
+    const averageItemValue = Number((totalItems > 0 ? totalValue / totalItems : 0).toFixed(2));
+    const costPerWear = Number((totalWears > 0 ? totalValue / totalWears : 0).toFixed(2));
+    const avgWearsBetweenWashes = Number((totalWashes > 0 ? totalWears / totalWashes : 0).toFixed(2));
 
     const result = {
-      totalItems,
-      totalValue,
+      totalItems: Number(totalItems),
+      totalValue: Number(totalValue.toFixed(2)),
       averageWearCount,
       averageItemValue,
       costPerWear,
-      totalWashes,
+      totalWashes: Number(totalWashes),
       avgWearsBetweenWashes,
-      itemsNeedingWash
+      itemsNeedingWash: Number(itemsNeedingWash)
     };
     
     console.log('Wardrobe overview result:', JSON.stringify(result, null, 2));
@@ -176,8 +163,7 @@ export const getWardrobeOverviewProcedure = protectedProcedure
 
 // Get category breakdown analytics
 export const getCategoryBreakdownProcedure = protectedProcedure
-  .query(async ({ ctx }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async () => {
 
     const items = mockItems as Item[];
 
@@ -213,8 +199,7 @@ export const getCategoryBreakdownProcedure = protectedProcedure
 
 // Get color breakdown analytics
 export const getColorBreakdownProcedure = protectedProcedure
-  .query(async ({ ctx }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async () => {
 
     const items = mockItems as Item[];
 
@@ -241,8 +226,7 @@ export const getColorBreakdownProcedure = protectedProcedure
 
 // Get brand breakdown analytics
 export const getBrandBreakdownProcedure = protectedProcedure
-  .query(async ({ ctx }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async () => {
 
     const items = mockItems as Item[];
 
@@ -284,8 +268,7 @@ export const getWearAnalyticsProcedure = protectedProcedure
     timeFrame: z.enum(['7days', '30days', '90days', 'all']).optional().default('30days'),
     limit: z.number().min(1).max(50).optional().default(10)
   }))
-  .query(async ({ ctx, input }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async ({ input }) => {
     const { timeFrame, limit } = input;
 
     const items = mockItems
@@ -372,8 +355,7 @@ export const getPurchaseAnalyticsProcedure = protectedProcedure
   .input(z.object({
     months: z.number().min(1).max(24).optional().default(12)
   }))
-  .query(async ({ ctx, input }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async ({ input }) => {
     const { months } = input;
 
     const items = mockItems
@@ -468,8 +450,7 @@ export const getPurchaseAnalyticsProcedure = protectedProcedure
 
 // Get seasonal analytics
 export const getSeasonalAnalyticsProcedure = protectedProcedure
-  .query(async ({ ctx }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async () => {
 
     const items = mockItems as Item[];
 
@@ -522,8 +503,7 @@ export const getSeasonalAnalyticsProcedure = protectedProcedure
 
 // Get maintenance analytics
 export const getMaintenanceAnalyticsProcedure = protectedProcedure
-  .query(async ({ ctx }) => {
-    const userId = 'demo-user'; // For demo purposes
+  .query(async () => {
 
     const items = mockItems as Item[];
 
@@ -629,9 +609,7 @@ export const getAnalyticsDashboardProcedure = protectedProcedure
   .input(z.object({
     timeFrame: z.enum(['7days', '30days', '90days', 'all']).optional().default('30days')
   }))
-  .query(async ({ ctx, input }) => {
-    const { timeFrame: _ } = input;
-    const userId = 'demo-user';
+  .query(async () => {
 
     // Get all wardrobe items
     const items = mockItems as Item[];
@@ -728,8 +706,17 @@ export const getAnalyticsDashboardProcedure = protectedProcedure
       upcomingMaintenance: []
     };
 
-    return {
-      overview,
+    const sanitizedResult = {
+      overview: {
+        totalItems: Number(overview.totalItems),
+        totalValue: Number(overview.totalValue.toFixed(2)),
+        averageWearCount: Number(overview.averageWearCount.toFixed(2)),
+        averageItemValue: Number(overview.averageItemValue.toFixed(2)),
+        costPerWear: Number(overview.costPerWear.toFixed(2)),
+        totalWashes: Number(overview.totalWashes),
+        avgWearsBetweenWashes: Number(overview.avgWearsBetweenWashes.toFixed(2)),
+        itemsNeedingWash: Number(overview.itemsNeedingWash)
+      },
       categories,
       colors,
       brands,
@@ -739,4 +726,6 @@ export const getAnalyticsDashboardProcedure = protectedProcedure
       maintenance,
       generatedAt: new Date().toISOString()
     };
+    
+    return sanitizedResult;
   });
