@@ -4,8 +4,7 @@ import { useRouter } from 'expo-router';
 import { User, LogOut, Edit, Camera, MapPin, ChevronRight } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/colors';
-import { useUserStore } from '@/store/userStore';
-import { StylePreference, FavoriteCategory } from '@/store/userStore';
+import { useUserStore, StylePreference, FavoriteCategory } from '@/store/userStore';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -252,7 +251,9 @@ export default function ProfileScreen() {
       </View>
       
       <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <LogOut size={18} color={colors.error} style={{ marginRight: 8 }} />
+        <View style={styles.logoutIconContainer}>
+          <LogOut size={18} color={colors.error} />
+        </View>
         <Text style={styles.logoutButtonText}>Logout</Text>
       </Pressable>
     </ScrollView>
@@ -378,6 +379,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.error,
     borderRadius: 8,
+  },
+  logoutIconContainer: {
+    marginRight: 8,
   },
   logoutButtonText: {
     fontSize: 16,
