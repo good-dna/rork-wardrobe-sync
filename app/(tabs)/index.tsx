@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Scan, Sparkles, MapPin, Thermometer } from 'lucide-react-native';
@@ -115,16 +114,11 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[colors.background, colors.backgroundSecondary]}
-        style={styles.gradient}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <SafeAreaView style={styles.safeArea}>
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
             <View style={styles.header}>
               <View>
                 <Typography variant="h1" style={styles.greeting}>
@@ -328,9 +322,7 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-          </ScrollView>
-        </SafeAreaView>
-      </LinearGradient>
+      </ScrollView>
     </View>
   );
 }
@@ -338,12 +330,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -356,19 +343,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: tokens.spacing.xl,
+    marginBottom: tokens.spacing.lg,
+    paddingTop: tokens.spacing.md,
   },
   greeting: {
     marginBottom: tokens.spacing.xs,
   },
   scanButton: {
-    width: 48,
-    height: 48,
-    borderRadius: tokens.radius.xl,
+    width: 44,
+    height: 44,
+    borderRadius: tokens.radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...tokens.shadow.md,
+    ...tokens.shadow.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -389,6 +377,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     padding: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   quickActions: {
     flexDirection: 'row',
@@ -461,6 +451,8 @@ const styles = StyleSheet.create({
   weatherCard: {
     marginBottom: tokens.spacing.lg,
     padding: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   weatherHeader: {
     flexDirection: 'row',
@@ -511,6 +503,8 @@ const styles = StyleSheet.create({
   },
   recommendationCard: {
     padding: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   recommendationHeader: {
     flexDirection: 'row',

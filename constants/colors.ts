@@ -1,39 +1,39 @@
-// Premium Dark Theme Design Tokens
+// Clean Light Theme Design Tokens
 export const colors = {
-  // Primary gradient backgrounds
-  background: '#0B0B0D', // Pure black base
-  backgroundSecondary: '#141419', // Charcoal gradient end
+  // Primary backgrounds
+  background: '#FFFFFF', // Pure white base
+  backgroundSecondary: '#F8F9FA', // Light gray secondary
   
   // Surface colors
-  card: '#1C1C21', // Glass card surface
-  cardElevated: '#252529', // Elevated cards
-  cardPressed: '#2A2A2F', // Pressed state
+  card: '#FFFFFF', // White card surface
+  cardElevated: '#FFFFFF', // Elevated cards
+  cardPressed: '#F5F5F7', // Pressed state
   
   // Text hierarchy
-  text: '#FFFFFF', // Primary text
-  textSecondary: '#B8B8C0', // Secondary text
-  textTertiary: '#8A8A95', // Tertiary/disabled text
+  text: '#1C1C1E', // Primary text (near black)
+  textSecondary: '#6C6C70', // Secondary text
+  textTertiary: '#AEAEB2', // Tertiary/disabled text
   
   // Accent colors
-  primary: '#F5C85B', // Sun/accent gold
-  primaryLight: 'rgba(245, 200, 91, 0.1)', // Light primary background
-  secondary: '#8A8AFF', // Action purple
-  success: '#52D1A6', // Success green
-  error: '#FF6B6B', // Error red
-  warning: '#FFB84D', // Warning orange
-  info: '#5DADE2', // Info blue
+  primary: '#007AFF', // iOS blue
+  primaryLight: 'rgba(0, 122, 255, 0.1)', // Light primary background
+  secondary: '#5856D6', // iOS purple
+  success: '#34C759', // iOS green
+  error: '#FF3B30', // iOS red
+  warning: '#FF9500', // iOS orange
+  info: '#5AC8FA', // iOS cyan
   
   // Interactive states
-  border: '#2A2A2F',
-  borderActive: '#3A3A3F',
-  overlay: 'rgba(0, 0, 0, 0.8)',
-  glass: 'rgba(28, 28, 33, 0.8)',
+  border: '#E5E5EA',
+  borderActive: '#C6C6C8',
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  glass: 'rgba(255, 255, 255, 0.8)',
   
   // Legacy support
-  subtext: '#B8B8C0',
-  lightGray: '#3A3A3F',
-  mediumGray: '#8A8A95',
-  darkGray: '#5A5A5F',
+  subtext: '#6C6C70',
+  lightGray: '#F2F2F7',
+  mediumGray: '#AEAEB2',
+  darkGray: '#8E8E93',
 };
 
 // Design tokens
@@ -142,7 +142,7 @@ export const categoryColors = {
 };
 
 export default {
-  dark: {
+  light: {
     text: colors.text,
     background: colors.background,
     tint: colors.primary,

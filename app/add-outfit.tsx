@@ -8,26 +8,28 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  FlatList
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
-import { X, Check, Search } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
+import { X, Check, Search, Calendar as CalendarIcon } from 'lucide-react-native';
+import { colors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import { OutfitSuggestion, Season, Occasion } from '@/types/wardrobe';
+import { usePlans } from '@/hooks/usePlans';
 import ItemCard from '@/components/ItemCard';
-import OutfitGenerator from '@/components/OutfitGenerator';
 
 export default function AddOutfitScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const items = useWardrobeStore((state) => state.items);
   const addOutfit = useWardrobeStore((state) => state.addOutfit);
+  const { addPlanAsync } = usePlans({});
   
   const [name, setName] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [occasion, setOccasion] = useState<Occasion>('casual');
   const [season, setSeason] = useState<Season>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const selectedDate = params.date ? new Date(params.date as string) : null;
   
   const seasons: Season[] = ['spring', 'summer', 'fall', 'winter', 'all'];
   const occasions: Occasion[] = ['casual', 'formal', 'work', 'athletic', 'evening', 'special'];
@@ -42,9 +44,8 @@ export default function AddOutfitScreen() {
     router.back();
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || selectedItems.length === 0) {
-      // Show validation error
       alert('Please provide a name and select at least one item');
       return;
     }
@@ -59,6 +60,22 @@ export default function AddOutfitScreen() {
     };
     
     addOutfit(newOutfit);
+    
+    if (selectedDate && addPlanAsync) {
+      try {
+        await addPlanAsync({
+          selected: selectedDate,
+          outfitId: newOutfit.id,
+          name,
+          category: occasion,
+          items: selectedItems,
+          reminderEnabled: false,
+        });
+      } catch (error) {
+        console.error('Failed to schedule outfit:', error);
+      }
+    }
+    
     router.back();
   };
   
@@ -68,13 +85,6 @@ export default function AddOutfitScreen() {
     } else {
       setSelectedItems([...selectedItems, itemId]);
     }
-  };
-  
-  const handleGeneratedOutfit = (outfit: OutfitSuggestion) => {
-    setName(outfit.name);
-    setSelectedItems(outfit.items);
-    setOccasion(outfit.occasion);
-    setSeason(outfit.season);
   };
   
   return (
@@ -99,7 +109,18 @@ export default function AddOutfitScreen() {
       />
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <OutfitGenerator onSave={handleGeneratedOutfit} />
+        {selectedDate && (
+          <View style={styles.dateInfo}>
+            <CalendarIcon size={16} color={colors.primary} />
+            <Text style={styles.dateInfoText}>
+              Scheduling for {selectedDate.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </Text>
+          </View>
+        )}
         
         <View style={styles.formGroup}>
           <Text style={styles.label}>Outfit Name *</Text>
@@ -226,38 +247,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: tokens.spacing.lg,
+    paddingBottom: tokens.spacing.xxl,
+  },
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: tokens.radius.md,
+    padding: tokens.spacing.md,
+    marginBottom: tokens.spacing.lg,
+  },
+  dateInfoText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+    marginLeft: tokens.spacing.sm,
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: tokens.spacing.lg,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: tokens.spacing.sm,
   },
   input: {
     backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     fontSize: 16,
     color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   chipsContainer: {
-    paddingVertical: 4,
+    paddingVertical: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radius.full,
     backgroundColor: colors.lightGray,
-    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   selectedChip: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chipText: {
     fontSize: 14,
@@ -270,34 +310,35 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
+    backgroundColor: colors.lightGray,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.spacing.md,
+    marginBottom: tokens.spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: tokens.spacing.sm,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: tokens.spacing.sm,
     fontSize: 16,
     color: colors.text,
   },
   selectedCount: {
-    marginBottom: 12,
+    marginBottom: tokens.spacing.md,
   },
   selectedCountText: {
     fontSize: 14,
     color: colors.subtext,
   },
   itemsList: {
-    marginBottom: 16,
+    gap: tokens.spacing.sm,
   },
   itemCard: {
     position: 'relative',
-    marginBottom: 8,
-    borderRadius: 12,
+    borderRadius: tokens.radius.lg,
   },
   selectedItemCard: {
     borderWidth: 2,
@@ -305,13 +346,14 @@ const styles = StyleSheet.create({
   },
   selectedOverlay: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: tokens.spacing.sm,
+    right: tokens.spacing.sm,
     width: 32,
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...tokens.shadow.md,
   },
 });
