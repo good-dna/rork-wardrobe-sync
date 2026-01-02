@@ -14,7 +14,7 @@ export default function ItemCard({ item, compact = false }: ItemCardProps) {
   const router = useRouter();
   
   const handlePress = () => {
-    router.push(`/item/${item.id}`);
+    router.push(`/item/${item.id}` as any);
   };
   
   const categoryColor = categoryColors[item.category] || colors.lightGray;

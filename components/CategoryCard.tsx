@@ -14,7 +14,7 @@ export default function CategoryCard({ category, count }: CategoryCardProps) {
   const router = useRouter();
   
   const handlePress = () => {
-    router.push(`/category/${category}`);
+    router.push(`/category/${category}` as any);
   };
   
   const getCategoryIcon = () => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { DollarSign, ExternalLink, Tag, Calendar } from 'lucide-react-native';
+import { DollarSign, ExternalLink, Tag } from 'lucide-react-native';
 import { WishlistItem } from '@/types/wardrobe';
 import { colors, categoryColors } from '@/constants/colors';
 import * as Linking from 'expo-linking';
@@ -14,7 +14,7 @@ export default function WishlistCard({ item }: WishlistCardProps) {
   const router = useRouter();
   
   const handlePress = () => {
-    router.push(`/wishlist/${item.id}`);
+    router.push(`/wishlist/${item.id}` as any);
   };
   
   const handleUrlPress = (e: any) => {

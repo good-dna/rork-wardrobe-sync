@@ -12,11 +12,11 @@ export default function OutfitsScreen() {
   const { outfits } = useWardrobeStore();
   
   const handleAddOutfit = () => {
-    router.push('/add-outfit');
+    router.push('/add-outfit' as any);
   };
   
   const handleOutfitPress = (id: string) => {
-    router.push(`/outfit/${id}`);
+    router.push(`/outfit/${id}` as any);
   };
   
   return (

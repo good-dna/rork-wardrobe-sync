@@ -62,7 +62,7 @@ export default function WardrobeScreen() {
   }, [items, filters]);
   
   const handleAddItem = useCallback(() => {
-    router.push('/add-item');
+    router.push('/add-item' as any);
   }, [router]);
   
   const handleClearFilters = useCallback(() => {

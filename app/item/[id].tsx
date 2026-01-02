@@ -23,9 +23,7 @@ export default function ItemDetailScreen() {
   const router = useRouter();
   
   const items = useWardrobeStore((state) => state.items);
-  const updateItem = useWardrobeStore((state) => state.updateItem);
   const deleteItem = useWardrobeStore((state) => state.deleteItem);
-  const incrementWearCount = useWardrobeStore((state) => state.incrementWearCount);
   const updateCleaningStatus = useWardrobeStore((state) => state.updateCleaningStatus);
   const logItemWorn = useWardrobeStore((state) => state.logItemWorn);
   const logItemWashed = useWardrobeStore((state) => state.logItemWashed);
@@ -281,7 +279,7 @@ export default function ItemDetailScreen() {
               {item.wearHistory && item.wearHistory.length > 5 && (
                 <Pressable 
                   style={styles.viewMoreButton}
-                  onPress={() => router.push('/calendar')}
+                  onPress={() => router.push('/calendar' as any)}
                 >
                   <Text style={styles.viewMoreButtonText}>
                     View all {item.wearHistory.length} entries
@@ -310,7 +308,7 @@ export default function ItemDetailScreen() {
               {item.washHistory && item.washHistory.length > 5 && (
                 <Pressable 
                   style={styles.viewMoreButton}
-                  onPress={() => router.push('/calendar')}
+                  onPress={() => router.push('/calendar' as any)}
                 >
                   <Text style={styles.viewMoreButtonText}>
                     View all {item.washHistory.length} entries

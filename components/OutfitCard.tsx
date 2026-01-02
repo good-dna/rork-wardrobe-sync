@@ -15,7 +15,7 @@ export default function OutfitCard({ outfit }: OutfitCardProps) {
   const items = useWardrobeStore((state) => state.items);
   
   const handlePress = () => {
-    router.push(`/outfit/${outfit.id}`);
+    router.push(`/outfit/${outfit.id}` as any);
   };
   
   // Get the actual items from the store based on IDs

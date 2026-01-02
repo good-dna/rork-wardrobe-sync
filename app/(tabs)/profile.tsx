@@ -232,7 +232,7 @@ export default function ProfileScreen() {
         
         <Pressable 
           style={styles.settingsItem}
-          onPress={() => router.push('/location-settings')}
+          onPress={() => router.push('/location-settings' as any)}
         >
           <View style={styles.settingsItemContent}>
             <MapPin size={20} color={colors.primary} />

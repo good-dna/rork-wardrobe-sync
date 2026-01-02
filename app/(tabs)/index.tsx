@@ -33,19 +33,19 @@ export default function HomeScreen() {
   const totalItems = items.length;
   
   const handleItemPress = (id: string) => {
-    router.push(`/item/${id}`);
+    router.push(`/item/${id}` as any);
   };
   
   const handleAddItem = (category?: string) => {
-    router.push('/add-item');
+    router.push('/add-item' as any);
   };
   
   const handleProfilePress = () => {
-    router.push('/profile');
+    router.push('/profile' as any);
   };
   
   const handleCalendarPress = () => {
-    router.push('/calendar');
+    router.push('/calendar' as any);
   };
 
   return (
@@ -181,7 +181,7 @@ export default function HomeScreen() {
               <Typography variant="body" color={colors.textSecondary} style={styles.emptyText}>
                 Your outfits will appear here
               </Typography>
-              <Pressable style={styles.createOutfitButton} onPress={() => router.push('/add-outfit')}>
+              <Pressable style={styles.createOutfitButton} onPress={() => router.push('/add-outfit' as any)}>
                 <Typography variant="body" color={colors.primary} style={styles.createOutfitText}>
                   Create Your First Outfit
                 </Typography>

@@ -12,11 +12,11 @@ function FloatingTabBar() {
   const handleActionPress = (action: 'item' | 'outfit' | 'ootd') => {
     setShowActionSheet(false);
     if (action === 'item') {
-      router.push('/add-item');
+      router.push('/add-item' as any);
     } else if (action === 'outfit') {
-      router.push('/add-outfit');
+      router.push('/add-outfit' as any);
     } else if (action === 'ootd') {
-      router.push('/calendar');
+      router.push('/calendar' as any);
     }
   };
 

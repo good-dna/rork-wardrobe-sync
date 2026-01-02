@@ -12,7 +12,7 @@ export default function WishlistScreen() {
   const wishlist = useWardrobeStore((state) => state.wishlist);
   
   const handleAddWishlistItem = () => {
-    router.push('/add-wishlist');
+    router.push('/add-wishlist' as any);
   };
   
   const renderEmptyState = () => (
