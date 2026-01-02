@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, LogOut, Edit, Camera, MapPin, ChevronRight } from 'lucide-react-native';
+import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Key, Mail, Calendar } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/colors';
 import { useUserStore, StylePreference, FavoriteCategory } from '@/store/userStore';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile, logout } = useUserStore();
+  const { user, signOut } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
@@ -19,7 +21,7 @@ export default function ProfileScreen() {
   const stylePreferences: StylePreference[] = ['casual', 'business', 'athletic', 'formal', 'bohemian', 'minimalist'];
   const favoriteCategories: FavoriteCategory[] = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       "Logout",
       "Are you sure you want to log out?",
@@ -30,9 +32,9 @@ export default function ProfileScreen() {
         },
         { 
           text: "Logout", 
-          onPress: () => {
+          onPress: async () => {
+            await signOut();
             logout();
-            // In a real app, you might navigate to a login screen
             Alert.alert("Logged out successfully");
           }
         }
@@ -226,9 +228,80 @@ export default function ProfileScreen() {
         </View>
       </View>
       
+      {/* Authentication Info Section */}
+      {user && (
+        <View style={styles.authSection}>
+          <Text style={styles.sectionTitle}>Authentication Info</Text>
+          
+          <View style={styles.authCard}>
+            <View style={styles.authItem}>
+              <Mail size={18} color={colors.primary} />
+              <View style={styles.authItemContent}>
+                <Text style={styles.authLabel}>Login Email</Text>
+                <Text style={styles.authValue}>{user.email}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.separator} />
+            
+            <View style={styles.authItem}>
+              <Key size={18} color={colors.primary} />
+              <View style={styles.authItemContent}>
+                <Text style={styles.authLabel}>User ID</Text>
+                <Text style={styles.authValue} numberOfLines={1} selectable>
+                  {user.id}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.separator} />
+            
+            <View style={styles.authItem}>
+              <Calendar size={18} color={colors.primary} />
+              <View style={styles.authItemContent}>
+                <Text style={styles.authLabel}>Account Created</Text>
+                <Text style={styles.authValue}>
+                  {new Date(user.created_at).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+            
+            {user.last_sign_in_at && (
+              <>
+                <View style={styles.separator} />
+                <View style={styles.authItem}>
+                  <Calendar size={18} color={colors.primary} />
+                  <View style={styles.authItemContent}>
+                    <Text style={styles.authLabel}>Last Sign In</Text>
+                    <Text style={styles.authValue}>
+                      {new Date(user.last_sign_in_at).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+            
+            {user.email_confirmed_at && (
+              <>
+                <View style={styles.separator} />
+                <View style={styles.authItem}>
+                  <Calendar size={18} color={colors.primary} />
+                  <View style={styles.authItemContent}>
+                    <Text style={styles.authLabel}>Email Verified</Text>
+                    <Text style={styles.authValue}>
+                      {new Date(user.email_confirmed_at).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      )}
+      
       {/* Settings Section */}
       <View style={styles.settingsSection}>
-        <Text style={styles.settingsTitle}>Settings</Text>
+        <Text style={styles.sectionTitle}>Settings</Text>
         
         <Pressable 
           style={styles.settingsItem}
@@ -397,11 +470,43 @@ const styles = StyleSheet.create({
   settingsSection: {
     marginBottom: 24,
   },
-  settingsTitle: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
+  },
+  authSection: {
+    marginBottom: 24,
+  },
+  authCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  authItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+  },
+  authItemContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  authLabel: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginBottom: 4,
+  },
+  authValue: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.lightGray,
+    marginVertical: 8,
   },
   settingsItem: {
     backgroundColor: colors.card,
