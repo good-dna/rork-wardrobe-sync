@@ -159,6 +159,15 @@ function RootLayoutNav() {
               presentation: "card",
             }} 
           />
+          <Stack.Screen 
+            name="quick-actions" 
+            options={{ 
+              title: "",
+              presentation: "transparentModal",
+              headerShown: false,
+              animation: "fade",
+            }} 
+          />
         </Stack>
       </QueryClientProvider>
     </trpc.Provider>
