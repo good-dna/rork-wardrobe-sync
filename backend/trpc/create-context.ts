@@ -1,33 +1,38 @@
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Context creation function
 export const createContext = async (opts: FetchCreateContextFnOptions) => {
-  // Extract user info from headers if available
   const authHeader = opts.req.headers.get('authorization');
   let userId: string | null = null;
+  let isAuthenticated = false;
   
-  // Only try to authenticate if we have a real Supabase client
   if (authHeader && supabaseAdmin) {
     try {
       const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-      userId = user?.id || null;
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+      
+      if (!error && user) {
+        userId = user.id;
+        isAuthenticated = true;
+        console.log('User authenticated:', userId);
+      }
     } catch (error) {
       console.warn('Failed to authenticate user:', error);
     }
   }
   
-  // If no supabaseAdmin (demo mode), log it
   if (!supabaseAdmin) {
     console.log('Running in demo mode - no Supabase connection');
+    userId = 'demo-user';
+    isAuthenticated = true;
   }
   
   return {
     req: opts.req,
-    supabase: supabaseAdmin, // This will be null in demo mode
-    userId: userId || 'demo-user', // Fallback for demo
+    supabase: supabaseAdmin,
+    userId: userId || 'demo-user',
+    isAuthenticated,
   };
 };
 
@@ -39,13 +44,18 @@ const t = initTRPC.context<Context>().create();
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
-// Protected procedure that requires authentication
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  // Add authentication logic here if needed
+  if (!ctx.isAuthenticated && ctx.supabase) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in to access this resource',
+    });
+  }
+  
   return next({
     ctx: {
       ...ctx,
-      // Add authenticated user context
+      userId: ctx.userId!,
     },
   });
 });

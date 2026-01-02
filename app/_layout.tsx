@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { colors } from "@/constants/colors";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "@/providers/AuthProvider";
 
 export const unstable_settings = {
   initialRouteName: "splash",
@@ -46,6 +47,7 @@ function RootLayoutNav() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
+        <AuthProvider>
         <Stack
           screenOptions={{
             headerStyle: {
@@ -60,6 +62,8 @@ function RootLayoutNav() {
         >
           <Stack.Screen name="splash" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/sign-in" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/sign-up" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen 
             name="item/[id]" 
@@ -160,6 +164,7 @@ function RootLayoutNav() {
             }} 
           />
         </Stack>
+        </AuthProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

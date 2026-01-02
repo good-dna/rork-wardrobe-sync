@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://demo.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'demo_anon_key';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'demo_service_role_key';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Check if we're using demo/development credentials
-const isDemoMode = supabaseUrl === 'https://demo.supabase.co' || supabaseAnonKey === 'demo_anon_key' || !process.env.EXPO_PUBLIC_SUPABASE_URL || supabaseUrl.includes('demo') || supabaseAnonKey.includes('demo');
+const isDemoMode = !supabaseUrl || !supabaseAnonKey;
 
-// Always use demo mode if environment variables are missing
-if (!supabaseUrl || !supabaseAnonKey || isDemoMode) {
-  console.warn('Missing or demo Supabase environment variables, using demo mode');
+if (isDemoMode) {
+  console.warn('Supabase environment variables not configured. Running in demo mode.');
+  console.warn('To connect to Supabase, set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
 }
 
 // Create a mock client for demo mode
@@ -42,18 +42,18 @@ const createMockClient = () => {
   };
 };
 
-// Client for frontend use (with RLS)
 export const supabase = isDemoMode 
   ? createMockClient() as any
   : createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
+        storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
+        detectSessionInUrl: false,
       },
     });
 
-// Admin client for backend use (bypasses RLS)
-export const supabaseAdmin = isDemoMode || !supabaseServiceRoleKey || supabaseServiceRoleKey.includes('demo')
+export const supabaseAdmin = isDemoMode || !supabaseServiceRoleKey
   ? null
   : createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
@@ -61,6 +61,8 @@ export const supabaseAdmin = isDemoMode || !supabaseServiceRoleKey || supabaseSe
         persistSession: false,
       },
     });
+
+export const isSupabaseConfigured = !isDemoMode;
 
 // Database types
 export interface Database {
