@@ -1,99 +1,453 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Plus, ChevronLeft, ChevronRight, X, Cloud, Sun, CloudRain } from 'lucide-react-native';
-import { colors, tokens } from '@/constants/colors';
+import { StyleSheet, Text, View, ScrollView, Pressable, Modal, TextInput } from 'react-native';
+import { Calendar as CalendarIcon, Clock, Droplets, X, Check, Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
+import { Item, WearLogEntry, WashLogEntry } from '@/types/wardrobe';
+import ItemCard from '@/components/ItemCard';
+import ScheduleOutfitModal from '@/components/ScheduleOutfitModal';
 import { usePlans } from '@/hooks/usePlans';
-import { useUserStore } from '@/store/userStore';
-import { getMockWeatherData, convertTemperature, getTemperatureUnit } from '@/services/weatherService';
 
-type DayOfWeek = { date: Date; dateString: string; dayName: string; dayNumber: number };
+type CalendarView = 'month' | 'week' | 'list';
+type LogType = 'wear' | 'wash';
 
 export default function CalendarScreen() {
-  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<CalendarView>('month');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [logType, setLogType] = useState<LogType>('wear');
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [logNote, setLogNote] = useState('');
+  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+  const [editingOutfit, setEditingOutfit] = useState<any>(null);
+  
   const items = useWardrobeStore((state) => state.items);
-  const { profile } = useUserStore();
+
+  const logItemWorn = useWardrobeStore((state) => state.logItemWorn);
+  const logItemWashed = useWardrobeStore((state) => state.logItemWashed);
+  const setNextWashDue = useWardrobeStore((state) => state.setNextWashDue);
+  // Use tRPC for calendar plans
+  const { plansForDate, plansForRange } = usePlans({ 
+    date: selectedDate,
+    startDate: new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
+    endDate: new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
+  });
   
-  const { plansForDate } = usePlans({ date: selectedDate });
-  
-  const currentWeather = getMockWeatherData('sunny');
-  const units = profile?.locationPreferences?.units || 'metric';
-  
-  const weekDays = useMemo(() => {
-    const days: DayOfWeek[] = [];
-    const startOfWeek = new Date(selectedDate);
-    const day = startOfWeek.getDay();
-    startOfWeek.setDate(startOfWeek.getDate() - day);
+  // Generate calendar days for the current month
+  const calendarDays = useMemo(() => {
+    const days = [];
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
     
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
+    // Get first day of month
+    const firstDay = new Date(year, month, 1);
+    const startingDayOfWeek = firstDay.getDay();
+    
+    // Get days in month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Add empty days for start of month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push({ date: '', day: '', isCurrentMonth: false });
+    }
+    
+    // Add days of current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      const currentDate = new Date(year, month, i);
+      const dateString = currentDate.toLocaleDateString('en-CA');
       days.push({
-        date,
-        dateString: date.toLocaleDateString('en-CA'),
-        dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        dayNumber: date.getDate(),
+        date: dateString,
+        day: i.toString(),
+        isCurrentMonth: true,
+        isToday: dateString === new Date().toLocaleDateString('en-CA'),
       });
     }
     
     return days;
   }, [selectedDate]);
   
-  const selectedOutfits = useMemo(() => {
-    return (plansForDate as any[]) || [];
-  }, [plansForDate]);
+  // Get events for the selected date
+  const eventsForSelectedDate = useMemo(() => {
+    const selectedDateString = selectedDate.toLocaleDateString('en-CA');
+    const wearEvents: { item: Item; entry: WearLogEntry }[] = [];
+    const washEvents: { item: Item; entry: WashLogEntry }[] = [];
+    
+    items.forEach(item => {
+      // Check wear history
+      if (item.wearHistory) {
+        item.wearHistory.forEach(entry => {
+          if (entry.date === selectedDateString) {
+            wearEvents.push({ item, entry });
+          }
+        });
+      }
+      
+      // Check wash history
+      if (item.washHistory) {
+        item.washHistory.forEach(entry => {
+          if (entry.date === selectedDateString) {
+            washEvents.push({ item, entry });
+          }
+        });
+      }
+    });
+    
+    return { wearEvents, washEvents, scheduledOutfits: plansForDate };
+  }, [items, selectedDate, plansForDate]);
   
-  const selectedItems = useMemo(() => {
-    if (selectedOutfits.length === 0) return [];
-    const itemIds = selectedOutfits.flatMap((outfit: any) => outfit.items || []);
-    return items.filter(item => itemIds.includes(item.id));
-  }, [selectedOutfits, items]);
+  // Get items with wash due on selected date
+  const washDueItems = useMemo(() => {
+    const selectedDateString = selectedDate.toLocaleDateString('en-CA');
+    return items.filter(item => item.nextWashDue === selectedDateString);
+  }, [items, selectedDate]);
   
-  const handlePrevWeek = () => {
+  // Get all items for list view
+  const allItems = useMemo(() => {
+    return [...items].sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+  
+  const handleDateSelect = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    setSelectedDate(new Date(year, month - 1, day));
+  };
+  
+  const handlePrevMonth = () => {
     const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() - 7);
+    newDate.setMonth(newDate.getMonth() - 1);
     setSelectedDate(newDate);
   };
   
-  const handleNextWeek = () => {
+  const handleNextMonth = () => {
     const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + 7);
+    newDate.setMonth(newDate.getMonth() + 1);
     setSelectedDate(newDate);
   };
   
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
+  const openLogModal = (item: Item, type: LogType) => {
+    setSelectedItem(item);
+    setLogType(type);
+    setLogNote('');
+    setModalVisible(true);
   };
   
-  const handleRemoveItem = (itemId: string) => {
-    console.log('Remove item:', itemId);
+  const handleLogSubmit = () => {
+    if (!selectedItem) return;
+    
+    const selectedDateString = selectedDate.toLocaleDateString('en-CA');
+    
+    if (logType === 'wear') {
+      logItemWorn(selectedItem.id, {
+        date: selectedDateString,
+        notes: logNote
+      });
+    } else {
+      logItemWashed(selectedItem.id, {
+        date: selectedDateString,
+        notes: logNote
+      });
+      
+      // Set next wash due date (e.g., 7 days after washing)
+      const nextWashDate = new Date(selectedDate);
+      nextWashDate.setDate(nextWashDate.getDate() + 7);
+      setNextWashDue(selectedItem.id, nextWashDate.toLocaleDateString('en-CA'));
+    }
+    
+    setModalVisible(false);
+  };
+
+  const openScheduleModal = (outfit?: any) => {
+    setEditingOutfit(outfit || null);
+    setScheduleModalVisible(true);
+  };
+
+  const closeScheduleModal = () => {
+    setScheduleModalVisible(false);
+    setEditingOutfit(null);
   };
   
-  const handleAddOutfit = () => {
-    const dateString = selectedDate.toLocaleDateString('en-CA');
-    router.push(`/add-outfit?date=${dateString}`);
+  const renderCalendarHeader = () => {
+    const monthName = selectedDate.toLocaleString('default', { month: 'long' });
+    const year = selectedDate.getFullYear();
+    
+    return (
+      <View style={styles.calendarHeader}>
+        <Pressable onPress={handlePrevMonth} style={styles.calendarNavButton}>
+          <ChevronLeft size={20} color={colors.primary} />
+        </Pressable>
+        <Text style={styles.calendarTitle}>{monthName} {year}</Text>
+        <Pressable onPress={handleNextMonth} style={styles.calendarNavButton}>
+          <ChevronRight size={20} color={colors.primary} />
+        </Pressable>
+      </View>
+    );
   };
   
-  const getWeatherIcon = () => {
-    const temp = convertTemperature(currentWeather.temperature, units);
-    if (temp > 25) return <Sun size={20} color={colors.warning} />;
-    if (temp > 15) return <Cloud size={20} color={colors.info} />;
-    return <CloudRain size={20} color={colors.primary} />;
+  const renderCalendarDays = () => {
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    return (
+      <View style={styles.calendarDaysHeader}>
+        {weekdays.map((day, index) => (
+          <Text key={index} style={styles.calendarDayName}>
+            {day}
+          </Text>
+        ))}
+      </View>
+    );
   };
   
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toLocaleDateString('en-CA') === today.toLocaleDateString('en-CA');
+  const renderCalendarGrid = () => {
+    return (
+      <View style={styles.calendarGrid}>
+        {calendarDays.map((day, index) => {
+          if (!day.isCurrentMonth) {
+            return <View key={index} style={styles.calendarEmptyDay} />;
+          }
+          
+          // Check if there are events on this day
+          const hasWearEvents = items.some(item => 
+            item.wearHistory && item.wearHistory.some(entry => entry.date === day.date)
+          );
+          
+          const hasWashEvents = items.some(item => 
+            item.washHistory && item.washHistory.some(entry => entry.date === day.date)
+          );
+          
+          const hasWashDue = items.some(item => item.nextWashDue === day.date);
+          const hasScheduledOutfits = plansForRange.some(plan => plan.date_ymd === day.date);
+          
+          return (
+            <Pressable
+              key={index}
+              style={[
+                styles.calendarDay,
+                selectedDate.toLocaleDateString('en-CA') === day.date && styles.calendarSelectedDay,
+                day.isToday && styles.calendarToday
+              ]}
+              onPress={() => handleDateSelect(day.date)}
+            >
+              <Text 
+                style={[
+                  styles.calendarDayText,
+                  selectedDate.toLocaleDateString('en-CA') === day.date && styles.calendarSelectedDayText,
+                  day.isToday && styles.calendarTodayText
+                ]}
+              >
+                {day.day}
+              </Text>
+              <View style={styles.calendarDayIndicators}>
+                {hasScheduledOutfits && <View style={[styles.calendarDayIndicator, { backgroundColor: '#C8A45D' }]} />}
+                {hasWearEvents && <View style={[styles.calendarDayIndicator, { backgroundColor: colors.primary }]} />}
+                {hasWashEvents && <View style={[styles.calendarDayIndicator, { backgroundColor: colors.info }]} />}
+                {hasWashDue && <View style={[styles.calendarDayIndicator, { backgroundColor: colors.warning }]} />}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  };
+  
+  const renderSelectedDateEvents = () => {
+    const { wearEvents, washEvents, scheduledOutfits } = eventsForSelectedDate;
+    const formattedDate = selectedDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    return (
+      <View style={styles.eventsContainer}>
+        <View style={styles.eventsHeader}>
+          <Text style={styles.eventsDate}>{formattedDate}</Text>
+          <Pressable
+            style={styles.addOutfitButton}
+            onPress={() => openScheduleModal()}
+          >
+            <Plus size={16} color="white" />
+            <Text style={styles.addOutfitButtonText}>Add Outfit</Text>
+          </Pressable>
+        </View>
+
+        {/* Scheduled Outfits */}
+        {scheduledOutfits.length > 0 && (
+          <View style={styles.eventSection}>
+            <View style={styles.eventSectionHeader}>
+              <CalendarIcon size={16} color="#C8A45D" />
+              <Text style={styles.eventSectionTitle}>Scheduled Outfits</Text>
+            </View>
+            {scheduledOutfits.map((plan: any) => (
+              <View key={plan.id} style={styles.scheduledPlanCard}>
+                <Text style={styles.scheduledPlanName}>{plan.name}</Text>
+                <Text style={styles.scheduledPlanCategory}>{plan.category}</Text>
+                {plan.notes && (
+                  <Text style={styles.scheduledPlanNotes}>{plan.notes}</Text>
+                )}
+                <Pressable
+                  style={styles.editPlanButton}
+                  onPress={() => openScheduleModal(plan)}
+                >
+                  <Text style={styles.editPlanButtonText}>Edit</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
+        
+        {wearEvents.length > 0 && (
+          <View style={styles.eventSection}>
+            <View style={styles.eventSectionHeader}>
+              <Clock size={16} color={colors.primary} />
+              <Text style={styles.eventSectionTitle}>Worn Items</Text>
+            </View>
+            {wearEvents.map((event, index) => (
+              <View key={index} style={styles.eventItem}>
+                <ItemCard item={event.item} compact />
+                {event.entry.notes && (
+                  <Text style={styles.eventNote}>{event.entry.notes}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+        
+        {washEvents.length > 0 && (
+          <View style={styles.eventSection}>
+            <View style={styles.eventSectionHeader}>
+              <Droplets size={16} color={colors.info} />
+              <Text style={styles.eventSectionTitle}>Washed Items</Text>
+            </View>
+            {washEvents.map((event, index) => (
+              <View key={index} style={styles.eventItem}>
+                <ItemCard item={event.item} compact />
+                {event.entry.notes && (
+                  <Text style={styles.eventNote}>{event.entry.notes}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+        
+        {washDueItems.length > 0 && (
+          <View style={styles.eventSection}>
+            <View style={styles.eventSectionHeader}>
+              <Droplets size={16} color={colors.warning} />
+              <Text style={styles.eventSectionTitle}>Wash Due</Text>
+            </View>
+            {washDueItems.map((item, index) => (
+              <View key={index} style={styles.eventItem}>
+                <ItemCard item={item} compact />
+                <Pressable 
+                  style={styles.washButton}
+                  onPress={() => openLogModal(item, 'wash')}
+                >
+                  <Text style={styles.washButtonText}>Log Wash</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
+        
+        {wearEvents.length === 0 && washEvents.length === 0 && washDueItems.length === 0 && scheduledOutfits.length === 0 && (
+          <View style={styles.noEventsContainer}>
+            <Text style={styles.noEventsText}>No events for this day</Text>
+            <Pressable
+              style={styles.addFirstOutfitButton}
+              onPress={() => openScheduleModal()}
+            >
+              <Plus size={16} color={colors.primary} />
+              <Text style={styles.addFirstOutfitButtonText}>Schedule your first outfit</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    );
+  };
+  
+  const renderListView = () => {
+    return (
+      <View style={styles.listContainer}>
+        {allItems.map((item) => (
+          <View key={item.id} style={styles.listItem}>
+            <ItemCard item={item} />
+            <View style={styles.listItemActions}>
+              <Pressable 
+                style={[styles.listItemAction, { backgroundColor: colors.primary }]}
+                onPress={() => openLogModal(item, 'wear')}
+              >
+                <Clock size={16} color="white" />
+                <Text style={styles.listItemActionText}>Wore Today</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.listItemAction, { backgroundColor: colors.info }]}
+                onPress={() => openLogModal(item, 'wash')}
+              >
+                <Droplets size={16} color="white" />
+                <Text style={styles.listItemActionText}>Washed Today</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
   };
   
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Daily Outfits</Text>
-          <Text style={styles.subtitle}>Plan your style ahead</Text>
+        <Text style={styles.title}>Calendar</Text>
+        <View style={styles.viewToggle}>
+          <Pressable
+            style={[
+              styles.toggleButton,
+              calendarView === 'month' && styles.activeToggleButton
+            ]}
+            onPress={() => setCalendarView('month')}
+          >
+            <CalendarIcon size={16} color={calendarView === 'month' ? colors.primary : colors.subtext} />
+            <Text 
+              style={[
+                styles.toggleButtonText,
+                calendarView === 'month' && styles.activeToggleButtonText
+              ]}
+            >
+              Month
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.toggleButton,
+              calendarView === 'week' && styles.activeToggleButton
+            ]}
+            onPress={() => setCalendarView('week')}
+          >
+            <CalendarIcon size={16} color={calendarView === 'week' ? colors.primary : colors.subtext} />
+            <Text 
+              style={[
+                styles.toggleButtonText,
+                calendarView === 'week' && styles.activeToggleButtonText
+              ]}
+            >
+              Week
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.toggleButton,
+              calendarView === 'list' && styles.activeToggleButton
+            ]}
+            onPress={() => setCalendarView('list')}
+          >
+            <Clock size={16} color={calendarView === 'list' ? colors.primary : colors.subtext} />
+            <Text 
+              style={[
+                styles.toggleButtonText,
+                calendarView === 'list' && styles.activeToggleButtonText
+              ]}
+            >
+              Log
+            </Text>
+          </Pressable>
         </View>
       </View>
       
@@ -102,143 +456,87 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.weekSection}>
-          <View style={styles.weekHeader}>
-            <Pressable onPress={handlePrevWeek} style={styles.weekNav}>
-              <ChevronLeft size={20} color={colors.text} />
-            </Pressable>
-            <Text style={styles.monthYear}>
-              {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </Text>
-            <Pressable onPress={handleNextWeek} style={styles.weekNav}>
-              <ChevronRight size={20} color={colors.text} />
-            </Pressable>
-          </View>
-          
-          <View style={styles.weekDays}>
-            {weekDays.map((day) => {
-              const isSelected = day.dateString === selectedDate.toLocaleDateString('en-CA');
-              const isTodayDay = isToday(day.date);
-              
-              return (
-                <Pressable
-                  key={day.dateString}
-                  style={[
-                    styles.dayCard,
-                    isSelected && styles.dayCardSelected,
-                    isTodayDay && styles.dayCardToday,
-                  ]}
-                  onPress={() => handleDateSelect(day.date)}
-                >
-                  <Text style={[
-                    styles.dayName,
-                    isSelected && styles.dayNameSelected,
-                  ]}>
-                    {day.dayName}
-                  </Text>
-                  <Text style={[
-                    styles.dayNumber,
-                    isSelected && styles.dayNumberSelected,
-                  ]}>
-                    {day.dayNumber}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          
-          <View style={styles.weatherCard}>
-            <View style={styles.weatherInfo}>
-              {getWeatherIcon()}
-              <Text style={styles.weatherTemp}>
-                {convertTemperature(currentWeather.temperature, units)}{getTemperatureUnit(units)}
-              </Text>
-              <Text style={styles.weatherDesc}>{currentWeather.description}</Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.eventsSection}>
-          <Text style={styles.sectionTitle}>
-            {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
-          
-          {selectedOutfits.length > 0 && (
-            <View style={styles.eventsList}>
-              {selectedOutfits.map((outfit: any) => (
-                <View key={outfit.id} style={styles.eventCard}>
-                  <View style={styles.eventDot} />
-                  <View style={styles.eventContent}>
-                    <Text style={styles.eventName}>{outfit.name}</Text>
-                    <Text style={styles.eventCategory}>{outfit.category}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.outfitsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Selected Outfits</Text>
-            <Pressable onPress={handleAddOutfit} style={styles.addButton}>
-              <Plus size={16} color={colors.primary} />
-              <Text style={styles.addButtonText}>Add</Text>
-            </Pressable>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.outfitsGrid}
-          >
-            {selectedOutfits.map((outfit: any) => (
-              <View key={outfit.id} style={styles.outfitCard}>
-                <View style={styles.outfitImage}>
-                  <Text style={styles.outfitEmoji}>👔</Text>
-                </View>
-                <Text style={styles.outfitName}>{outfit.name}</Text>
-              </View>
-            ))}
-            
-            <Pressable style={styles.addNewCard} onPress={handleAddOutfit}>
-              <View style={styles.addNewIcon}>
-                <Plus size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.addNewText}>Add New</Text>
-            </Pressable>
-          </ScrollView>
-        </View>
-        
-        <View style={styles.itemsSection}>
-          <Text style={styles.sectionTitle}>Selected Items</Text>
-          
-          {selectedItems.length > 0 ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.itemsChips}
-            >
-              {selectedItems.map((item) => (
-                <View key={item.id} style={styles.itemChip}>
-                  <Text style={styles.itemChipText}>{item.name}</Text>
-                  <Pressable 
-                    onPress={() => handleRemoveItem(item.id)}
-                    style={styles.itemChipRemove}
-                  >
-                    <X size={14} color={colors.textSecondary} />
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No items selected for this day</Text>
-              <Text style={styles.emptyStateSubtext}>Add an outfit to get started</Text>
-            </View>
-          )}
-        </View>
+        {calendarView === 'month' ? (
+          <>
+            {renderCalendarHeader()}
+            {renderCalendarDays()}
+            {renderCalendarGrid()}
+            {renderSelectedDateEvents()}
+          </>
+        ) : calendarView === 'week' ? (
+          <>
+            {renderCalendarHeader()}
+            {renderCalendarDays()}
+            {renderCalendarGrid()}
+            {renderSelectedDateEvents()}
+          </>
+        ) : (
+          renderListView()
+        )}
       </ScrollView>
+      
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {logType === 'wear' ? 'Log Item Worn' : 'Log Item Washed'}
+              </Text>
+              <Pressable onPress={() => setModalVisible(false)}>
+                <X size={24} color={colors.text} />
+              </Pressable>
+            </View>
+            
+            {selectedItem && (
+              <View style={styles.modalItem}>
+                <ItemCard item={selectedItem} />
+              </View>
+            )}
+            
+            <View style={styles.modalForm}>
+              <Text style={styles.modalLabel}>Date</Text>
+              <Text style={styles.modalDate}>
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </Text>
+              
+              <Text style={styles.modalLabel}>Notes (Optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={logNote}
+                onChangeText={setLogNote}
+                placeholder="Add notes about this event..."
+                placeholderTextColor={colors.mediumGray}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+            
+            <Pressable style={styles.modalSubmitButton} onPress={handleLogSubmit}>
+              <Check size={18} color="white" />
+              <Text style={styles.modalSubmitButtonText}>
+                {logType === 'wear' ? 'Log Wear' : 'Log Wash'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      
+      <ScheduleOutfitModal
+        visible={scheduleModalVisible}
+        onClose={closeScheduleModal}
+        selectedDate={selectedDate}
+        editingOutfit={editingOutfit || undefined}
+      />
     </View>
   );
 }
@@ -249,260 +547,340 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: tokens.spacing.lg,
-    paddingTop: tokens.spacing.lg,
-    paddingBottom: tokens.spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    padding: 4,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  activeToggleButton: {
+    backgroundColor: colors.background,
+  },
+  toggleButtonText: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginLeft: 4,
+  },
+  activeToggleButtonText: {
+    color: colors.primary,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: tokens.spacing.xxl,
+    padding: 16,
+    paddingTop: 8,
   },
-  weekSection: {
-    paddingHorizontal: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xl,
-  },
-  weekHeader: {
+  calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: tokens.spacing.lg,
+    marginBottom: 16,
   },
-  weekNav: {
-    padding: tokens.spacing.sm,
-  },
-  monthYear: {
-    fontSize: 16,
+  calendarTitle: {
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
   },
-  weekDays: {
+  calendarNavButton: {
+    padding: 8,
+  },
+  calendarDaysHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: tokens.spacing.lg,
+    marginBottom: 8,
   },
-  dayCard: {
+  calendarDayName: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: tokens.spacing.md,
-    paddingHorizontal: 4,
-    borderRadius: tokens.radius.md,
-    marginHorizontal: 2,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dayCardSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayCardToday: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  dayName: {
+    textAlign: 'center',
     fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
+    color: colors.subtext,
     fontWeight: '500',
   },
-  dayNameSelected: {
-    color: colors.background,
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 24,
   },
-  dayNumber: {
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  calendarEmptyDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+  },
+  calendarSelectedDay: {
+    backgroundColor: '#C8A45D' + '20',
+    borderRadius: 8,
+  },
+  calendarToday: {
+    borderWidth: 2,
+    borderColor: '#C8A45D',
+    borderRadius: 8,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  calendarSelectedDayText: {
+    color: '#C8A45D',
+    fontWeight: '600',
+  },
+  calendarTodayText: {
+    color: '#C8A45D',
+    fontWeight: '600',
+  },
+  calendarDayIndicators: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  calendarDayIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 1,
+  },
+  eventsContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  eventsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  eventsDate: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
   },
-  dayNumberSelected: {
-    color: colors.background,
-  },
-  weatherCard: {
-    backgroundColor: colors.lightGray,
-    borderRadius: tokens.radius.lg,
-    padding: tokens.spacing.md,
-  },
-  weatherInfo: {
+  addOutfitButton: {
+    backgroundColor: '#C8A45D',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  weatherTemp: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: tokens.spacing.sm,
-  },
-  weatherDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: tokens.spacing.sm,
-  },
-  eventsSection: {
-    paddingHorizontal: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: tokens.spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: tokens.spacing.md,
-  },
-  eventsList: {
-    gap: tokens.spacing.sm,
-  },
-  eventCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: tokens.radius.md,
-    padding: tokens.spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  eventDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginRight: tokens.spacing.md,
-  },
-  eventContent: {
-    flex: 1,
-  },
-  eventName: {
-    fontSize: 15,
+  addOutfitButtonText: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: '500',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  eventCategory: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textTransform: 'capitalize',
-  },
-  outfitsSection: {
-    marginBottom: tokens.spacing.xl,
-  },
-  outfitsGrid: {
-    paddingHorizontal: tokens.spacing.lg,
-    gap: tokens.spacing.md,
-  },
-  outfitCard: {
-    width: 100,
-    alignItems: 'center',
-  },
-  outfitImage: {
-    width: 100,
-    height: 100,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: colors.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: tokens.spacing.sm,
-  },
-  outfitEmoji: {
-    fontSize: 32,
-  },
-  outfitName: {
-    fontSize: 13,
-    color: colors.text,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  addNewCard: {
-    width: 100,
-    alignItems: 'center',
-  },
-  addNewIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: colors.lightGray,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: tokens.spacing.sm,
-  },
-  addNewText: {
-    fontSize: 13,
-    color: colors.primary,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    backgroundColor: colors.primaryLight,
-    borderRadius: tokens.radius.md,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.primary,
     marginLeft: 4,
   },
-  itemsSection: {
-    paddingHorizontal: tokens.spacing.lg,
+  eventSection: {
+    marginBottom: 16,
   },
-  itemsChips: {
-    gap: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.sm,
-  },
-  itemChip: {
+  eventSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.lightGray,
-    borderRadius: tokens.radius.full,
-    paddingLeft: tokens.spacing.md,
-    paddingRight: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.sm,
+    marginBottom: 8,
+  },
+  eventSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 8,
+  },
+  eventItem: {
+    marginBottom: 8,
+  },
+  eventNote: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginTop: 4,
+    marginLeft: 8,
+    fontStyle: 'italic',
+  },
+  noEventsContainer: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  noEventsText: {
+    fontSize: 14,
+    color: colors.subtext,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  addFirstOutfitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  addFirstOutfitButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  washButton: {
+    backgroundColor: colors.info,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-end',
+    marginTop: -30,
+    marginRight: 8,
+  },
+  washButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
+  },
+  listContainer: {
+    marginBottom: 16,
+  },
+  listItem: {
+    marginBottom: 16,
+  },
+  listItemActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  listItemAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  listItemActionText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalItem: {
+    marginBottom: 16,
+  },
+  modalForm: {
+    marginBottom: 16,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  modalDate: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 80,
+  },
+  modalSubmitButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalSubmitButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  scheduledPlanCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  itemChipText: {
+  scheduledPlanName: {
     fontSize: 14,
+    fontWeight: '600',
     color: colors.text,
-    marginRight: tokens.spacing.sm,
-  },
-  itemChipRemove: {
-    padding: 2,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: tokens.spacing.xl,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: colors.textSecondary,
     marginBottom: 4,
   },
-  emptyStateSubtext: {
-    fontSize: 13,
-    color: colors.textTertiary,
+  scheduledPlanCategory: {
+    fontSize: 12,
+    color: colors.subtext,
+    textTransform: 'capitalize',
+    marginBottom: 4,
+  },
+  scheduledPlanNotes: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  editPlanButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  editPlanButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

@@ -6,171 +6,72 @@ import { BaseEntity, CacheStore } from '@/types/data';
 // IndexedDB implementation for web
 class IndexedDBCache implements CacheStore {
   private db: IDBPDatabase | null = null;
-  private dbPromise: Promise<IDBPDatabase> | null = null;
   private readonly dbName = 'WardrobeCache';
   private readonly version = 1;
 
   private async getDB(): Promise<IDBPDatabase> {
-    // If a connection is being established, wait for it
-    if (this.dbPromise) {
-      try {
-        const db = await this.dbPromise;
-        // Verify the connection is still valid
-        if (db && db.objectStoreNames.contains('entities')) {
-          return db;
-        }
-      } catch {
-        // Connection failed, reset and retry
-        this.db = null;
-        this.dbPromise = null;
-      }
-    }
+    if (this.db) return this.db;
 
-    // If we have an existing connection, try to use it
-    if (this.db) {
-      try {
-        // Test if connection is alive by checking object stores
-        if (this.db.objectStoreNames.contains('entities')) {
-          return this.db;
-        }
-      } catch {
-        // Connection is invalid, reset it
-        this.db = null;
-      }
-    }
-
-    // Create a new connection
-    this.dbPromise = openDB(this.dbName, this.version, {
+    this.db = await openDB(this.dbName, this.version, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('entities')) {
           db.createObjectStore('entities');
         }
       },
-      blocked() {
-        console.warn('IndexedDB blocked');
-      },
-      blocking() {
-        console.warn('IndexedDB blocking');
-      },
     });
 
+    return this.db;
+  }
+
+  async get<T extends BaseEntity>(key: string): Promise<T | null> {
     try {
-      this.db = await this.dbPromise;
-      return this.db;
+      const db = await this.getDB();
+      const result = await db.get('entities', key);
+      return result || null;
     } catch (error) {
-      this.db = null;
-      this.dbPromise = null;
+      console.error('IndexedDB get error:', error);
+      return null;
+    }
+  }
+
+  async set<T extends BaseEntity>(key: string, value: T): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('entities', value, key);
+    } catch (error) {
+      console.error('IndexedDB set error:', error);
       throw error;
     }
   }
 
-  async get<T extends BaseEntity>(key: string): Promise<T | null> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const db = await this.getDB();
-        const result = await db.get('entities', key);
-        return result || null;
-      } catch (error: any) {
-        console.error(`IndexedDB get error (attempt ${attempt + 1}):`, error);
-        
-        if (attempt === 0 && (error?.name === 'InvalidStateError' || error?.name === 'TransactionInactiveError')) {
-          // Reset connection and retry
-          this.db = null;
-          this.dbPromise = null;
-          await new Promise(resolve => setTimeout(resolve, 50));
-          continue;
-        }
-        
-        return null;
-      }
-    }
-    return null;
-  }
-
-  async set<T extends BaseEntity>(key: string, value: T): Promise<void> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const db = await this.getDB();
-        await db.put('entities', value, key);
-        return;
-      } catch (error: any) {
-        console.error(`IndexedDB set error (attempt ${attempt + 1}):`, error);
-        
-        if (attempt === 0 && (error?.name === 'InvalidStateError' || error?.name === 'TransactionInactiveError')) {
-          // Reset connection and retry
-          this.db = null;
-          this.dbPromise = null;
-          await new Promise(resolve => setTimeout(resolve, 50));
-          continue;
-        }
-        
-        // Don't throw on set errors to prevent breaking the app
-        return;
-      }
-    }
-  }
-
   async remove(key: string): Promise<void> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const db = await this.getDB();
-        await db.delete('entities', key);
-        return;
-      } catch (error: any) {
-        console.error(`IndexedDB remove error (attempt ${attempt + 1}):`, error);
-        
-        if (attempt === 0 && (error?.name === 'InvalidStateError' || error?.name === 'TransactionInactiveError')) {
-          this.db = null;
-          this.dbPromise = null;
-          await new Promise(resolve => setTimeout(resolve, 50));
-          continue;
-        }
-        
-        return;
-      }
+    try {
+      const db = await this.getDB();
+      await db.delete('entities', key);
+    } catch (error) {
+      console.error('IndexedDB remove error:', error);
+      throw error;
     }
   }
 
   async clear(): Promise<void> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const db = await this.getDB();
-        await db.clear('entities');
-        return;
-      } catch (error: any) {
-        console.error(`IndexedDB clear error (attempt ${attempt + 1}):`, error);
-        
-        if (attempt === 0 && (error?.name === 'InvalidStateError' || error?.name === 'TransactionInactiveError')) {
-          this.db = null;
-          this.dbPromise = null;
-          await new Promise(resolve => setTimeout(resolve, 50));
-          continue;
-        }
-        
-        return;
-      }
+    try {
+      const db = await this.getDB();
+      await db.clear('entities');
+    } catch (error) {
+      console.error('IndexedDB clear error:', error);
+      throw error;
     }
   }
 
   async keys(): Promise<string[]> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const db = await this.getDB();
-        return await db.getAllKeys('entities') as string[];
-      } catch (error: any) {
-        console.error(`IndexedDB keys error (attempt ${attempt + 1}):`, error);
-        
-        if (attempt === 0 && (error?.name === 'InvalidStateError' || error?.name === 'TransactionInactiveError')) {
-          this.db = null;
-          this.dbPromise = null;
-          await new Promise(resolve => setTimeout(resolve, 50));
-          continue;
-        }
-        
-        return [];
-      }
+    try {
+      const db = await this.getDB();
+      return await db.getAllKeys('entities') as string[];
+    } catch (error) {
+      console.error('IndexedDB keys error:', error);
+      return [];
     }
-    return [];
   }
 }
 

@@ -1,158 +1,181 @@
-import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, FlatList } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, ScrollView, Pressable, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, Star, Plus, X } from 'lucide-react-native';
-import { colors, tokens } from '@/constants/colors';
+import { Plus } from 'lucide-react-native';
+import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import { Category } from '@/types/wardrobe';
+import CategoryCard from '@/components/CategoryCard';
 import ItemCard from '@/components/ItemCard';
-
-const categories: { id: Category; label: string }[] = [
-  { id: 'shirts', label: 'Tops' },
-  { id: 'pants', label: 'Bottoms' },
-  { id: 'shoes', label: 'Shoes' },
-  { id: 'jackets', label: 'Outerwear' },
-  { id: 'accessories', label: 'Accessories' },
-];
+import FilterBar from '@/components/FilterBar';
+import EmptyState from '@/components/EmptyState';
 
 export default function WardrobeScreen() {
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<'categories' | 'all'>('categories');
   
   const items = useWardrobeStore((state) => state.items);
+  const filters = useWardrobeStore((state) => state.filters);
+  const clearFilters = useWardrobeStore((state) => state.clearFilters);
   
+  // Memoize the filtered items to prevent infinite loops
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+      // Apply category filter
+      if (filters.category && item.category !== filters.category) {
         return false;
       }
       
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      // Apply season filter
+      if (filters.season && !item.season.includes(filters.season)) {
+        return false;
+      }
+      
+      // Apply brand filter
+      if (filters.brand && item.brand.toLowerCase() !== filters.brand.toLowerCase()) {
+        return false;
+      }
+      
+      // Apply color filter
+      if (filters.color && !item.color.toLowerCase().includes(filters.color.toLowerCase())) {
+        return false;
+      }
+      
+      // Apply cleaning status filter
+      if (filters.cleaningStatus && item.cleaningStatus !== filters.cleaningStatus) {
+        return false;
+      }
+      
+      // Apply search query
+      if (filters.searchQuery) {
+        const query = filters.searchQuery.toLowerCase();
         return (
           item.name.toLowerCase().includes(query) ||
           item.brand.toLowerCase().includes(query) ||
-          item.color.toLowerCase().includes(query)
+          item.color.toLowerCase().includes(query) ||
+          item.tags.some((tag) => tag.toLowerCase().includes(query))
         );
       }
       
       return true;
     });
-  }, [items, selectedCategory, searchQuery]);
+  }, [items, filters]);
   
-  const handleAddItem = () => {
+  const handleAddItem = useCallback(() => {
     router.push('/add-item');
-  };
+  }, [router]);
   
-  const handleClearSearch = () => {
-    setSearchQuery('');
-  };
+  const handleClearFilters = useCallback(() => {
+    clearFilters();
+  }, [clearFilters]);
+  
+  // Count items by category - memoized to prevent recalculation on every render
+  const categoryCounts = useMemo(() => {
+    return items.reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + 1;
+      return acc;
+    }, {} as Record<Category, number>);
+  }, [items]);
+  
+  const categories: Category[] = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
+  
+  const renderEmptyState = () => (
+    <EmptyState
+      title="Your wardrobe is empty"
+      message="Start adding your clothing items to build your digital wardrobe."
+      actionLabel="Add First Item"
+      onAction={handleAddItem}
+    />
+  );
   
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Closet</Text>
-          <Text style={styles.subtitle}>{items.length} items in your collection</Text>
-        </View>
+        <Text style={styles.title}>My Wardrobe</Text>
         <Pressable style={styles.addButton} onPress={handleAddItem}>
-          <Plus size={20} color={colors.background} />
+          <Plus size={20} color="white" />
         </Pressable>
       </View>
       
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Search size={18} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search items..."
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={handleClearSearch} style={styles.clearButton}>
-              <X size={16} color={colors.textSecondary} />
+      {items.length > 0 ? (
+        <>
+          <View style={styles.viewToggle}>
+            <Pressable
+              style={[
+                styles.toggleButton,
+                viewMode === 'categories' && styles.activeToggleButton
+              ]}
+              onPress={() => setViewMode('categories')}
+            >
+              <Text 
+                style={[
+                  styles.toggleButtonText,
+                  viewMode === 'categories' && styles.activeToggleButtonText
+                ]}
+              >
+                Categories
+              </Text>
             </Pressable>
+            <Pressable
+              style={[
+                styles.toggleButton,
+                viewMode === 'all' && styles.activeToggleButton
+              ]}
+              onPress={() => setViewMode('all')}
+            >
+              <Text 
+                style={[
+                  styles.toggleButtonText,
+                  viewMode === 'all' && styles.activeToggleButtonText
+                ]}
+              >
+                All Items
+              </Text>
+            </Pressable>
+          </View>
+          
+          {viewMode === 'categories' ? (
+            <ScrollView 
+              style={styles.content}
+              contentContainerStyle={styles.categoriesContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {categories.map((category) => (
+                <CategoryCard 
+                  key={category} 
+                  category={category} 
+                  count={categoryCounts[category] || 0} 
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.listContainer}>
+              <FilterBar />
+              
+              {filteredItems.length > 0 ? (
+                <FlatList
+                  data={filteredItems}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => <ItemCard item={item} />}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.listContent}
+                />
+              ) : (
+                <View style={styles.noResultsContainer}>
+                  <Text style={styles.noResultsText}>No items match your filters</Text>
+                  <Pressable 
+                    style={styles.clearFiltersButton}
+                    onPress={handleClearFilters}
+                  >
+                    <Text style={styles.clearFiltersText}>Clear Filters</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
           )}
-        </View>
-        
-        <Pressable 
-          style={[styles.favoriteButton, favoritesOnly && styles.favoriteButtonActive]}
-          onPress={() => setFavoritesOnly(!favoritesOnly)}
-        >
-          <Star 
-            size={18} 
-            color={favoritesOnly ? colors.warning : colors.textSecondary}
-            fill={favoritesOnly ? colors.warning : 'none'}
-          />
-        </Pressable>
-      </View>
-      
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesScroll}
-      >
-        <Pressable
-          style={[
-            styles.categoryChip,
-            selectedCategory === 'all' && styles.categoryChipActive,
-          ]}
-          onPress={() => setSelectedCategory('all')}
-        >
-          <Text style={[
-            styles.categoryChipText,
-            selectedCategory === 'all' && styles.categoryChipTextActive,
-          ]}>
-            All
-          </Text>
-        </Pressable>
-        
-        {categories.map((category) => (
-          <Pressable
-            key={category.id}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category.id && styles.categoryChipActive,
-            ]}
-            onPress={() => setSelectedCategory(category.id)}
-          >
-            <Text style={[
-              styles.categoryChipText,
-              selectedCategory === category.id && styles.categoryChipTextActive,
-            ]}>
-              {category.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      
-      {filteredItems.length > 0 ? (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ItemCard item={item} />}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        />
+        </>
       ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>
-            {searchQuery 
-              ? 'No items match your search' 
-              : selectedCategory !== 'all'
-                ? `No ${selectedCategory} in your closet yet`
-                : 'Your closet is empty'
-            }
-          </Text>
-          <Pressable style={styles.addFirstButton} onPress={handleAddItem}>
-            <Plus size={16} color={colors.primary} />
-            <Text style={styles.addFirstButtonText}>Add Item</Text>
-          </Pressable>
-        </View>
+        renderEmptyState()
       )}
     </View>
   );
@@ -164,127 +187,87 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: tokens.spacing.lg,
-    paddingTop: tokens.spacing.lg,
-    paddingBottom: tokens.spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
   },
   addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: tokens.radius.full,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...tokens.shadow.sm,
   },
-  searchSection: {
+  viewToggle: {
     flexDirection: 'row',
-    paddingHorizontal: tokens.spacing.lg,
-    marginBottom: tokens.spacing.md,
-    gap: tokens.spacing.sm,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.lightGray,
-    borderRadius: tokens.radius.md,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: tokens.spacing.sm,
-    fontSize: 15,
-    color: colors.text,
-  },
-  clearButton: {
+    marginHorizontal: 16,
+    marginVertical: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
     padding: 4,
   },
-  favoriteButton: {
-    width: 44,
-    height: 44,
-    borderRadius: tokens.radius.md,
-    backgroundColor: colors.lightGray,
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 8,
   },
-  favoriteButtonActive: {
-    backgroundColor: colors.warning + '20',
-    borderColor: colors.warning,
+  activeToggleButton: {
+    backgroundColor: colors.background,
   },
-  categoriesScroll: {
-    paddingHorizontal: tokens.spacing.lg,
-    gap: tokens.spacing.sm,
-    marginBottom: tokens.spacing.lg,
-  },
-  categoryChip: {
-    paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radius.full,
-    backgroundColor: colors.lightGray,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  categoryChipText: {
+  toggleButtonText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
+    color: colors.subtext,
   },
-  categoryChipTextActive: {
-    color: colors.background,
+  activeToggleButtonText: {
+    color: colors.text,
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
+  },
+  categoriesContainer: {
+    padding: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   listContent: {
-    paddingHorizontal: tokens.spacing.lg,
-    paddingBottom: tokens.spacing.xxl,
+    paddingBottom: 16,
   },
-  emptyState: {
+  noResultsContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: tokens.spacing.xl,
+    padding: 24,
   },
-  emptyStateText: {
+  noResultsText: {
     fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: tokens.spacing.lg,
+    color: colors.subtext,
+    marginBottom: 12,
   },
-  addFirstButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.md,
-    backgroundColor: colors.primaryLight,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
+  clearFiltersButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
   },
-  addFirstButtonText: {
-    fontSize: 15,
+  clearFiltersText: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: '500',
-    color: colors.primary,
-    marginLeft: tokens.spacing.sm,
   },
 });
