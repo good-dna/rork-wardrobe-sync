@@ -6,13 +6,33 @@ import { BaseEntity, CacheStore } from '@/types/data';
 // IndexedDB implementation for web
 class IndexedDBCache implements CacheStore {
   private db: IDBPDatabase | null = null;
+  private dbPromise: Promise<IDBPDatabase> | null = null;
   private readonly dbName = 'WardrobeCache';
   private readonly version = 1;
 
   private async getDB(): Promise<IDBPDatabase> {
-    if (this.db) return this.db;
+    // If we already have a valid connection, return it
+    if (this.db) {
+      try {
+        // Check if the connection is still valid by checking the version
+        if (!this.db.version) {
+          throw new Error('Database connection invalid');
+        }
+        return this.db;
+      } catch {
+        // Connection is invalid, reset it
+        this.db = null;
+        this.dbPromise = null;
+      }
+    }
 
-    this.db = await openDB(this.dbName, this.version, {
+    // If a connection is being established, wait for it
+    if (this.dbPromise) {
+      return this.dbPromise;
+    }
+
+    // Create a new connection
+    this.dbPromise = openDB(this.dbName, this.version, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('entities')) {
           db.createObjectStore('entities');
@@ -20,7 +40,14 @@ class IndexedDBCache implements CacheStore {
       },
     });
 
-    return this.db;
+    try {
+      this.db = await this.dbPromise;
+      return this.db;
+    } catch (error) {
+      this.db = null;
+      this.dbPromise = null;
+      throw error;
+    }
   }
 
   async get<T extends BaseEntity>(key: string): Promise<T | null> {
@@ -28,7 +55,20 @@ class IndexedDBCache implements CacheStore {
       const db = await this.getDB();
       const result = await db.get('entities', key);
       return result || null;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'InvalidStateError') {
+        // Reset connection and retry once
+        this.db = null;
+        this.dbPromise = null;
+        try {
+          const db = await this.getDB();
+          const result = await db.get('entities', key);
+          return result || null;
+        } catch (retryError) {
+          console.error('IndexedDB get error (retry failed):', retryError);
+          return null;
+        }
+      }
       console.error('IndexedDB get error:', error);
       return null;
     }
@@ -38,9 +78,23 @@ class IndexedDBCache implements CacheStore {
     try {
       const db = await this.getDB();
       await db.put('entities', value, key);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'InvalidStateError') {
+        // Reset connection and retry once
+        this.db = null;
+        this.dbPromise = null;
+        try {
+          const db = await this.getDB();
+          await db.put('entities', value, key);
+          return;
+        } catch (retryError) {
+          console.error('IndexedDB set error (retry failed):', retryError);
+          // Don't throw on set errors to prevent breaking the app
+          return;
+        }
+      }
       console.error('IndexedDB set error:', error);
-      throw error;
+      // Don't throw to prevent breaking the app
     }
   }
 
@@ -48,9 +102,20 @@ class IndexedDBCache implements CacheStore {
     try {
       const db = await this.getDB();
       await db.delete('entities', key);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'InvalidStateError') {
+        this.db = null;
+        this.dbPromise = null;
+        try {
+          const db = await this.getDB();
+          await db.delete('entities', key);
+          return;
+        } catch (retryError) {
+          console.error('IndexedDB remove error (retry failed):', retryError);
+          return;
+        }
+      }
       console.error('IndexedDB remove error:', error);
-      throw error;
     }
   }
 
@@ -58,9 +123,20 @@ class IndexedDBCache implements CacheStore {
     try {
       const db = await this.getDB();
       await db.clear('entities');
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'InvalidStateError') {
+        this.db = null;
+        this.dbPromise = null;
+        try {
+          const db = await this.getDB();
+          await db.clear('entities');
+          return;
+        } catch (retryError) {
+          console.error('IndexedDB clear error (retry failed):', retryError);
+          return;
+        }
+      }
       console.error('IndexedDB clear error:', error);
-      throw error;
     }
   }
 
@@ -68,7 +144,18 @@ class IndexedDBCache implements CacheStore {
     try {
       const db = await this.getDB();
       return await db.getAllKeys('entities') as string[];
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'InvalidStateError') {
+        this.db = null;
+        this.dbPromise = null;
+        try {
+          const db = await this.getDB();
+          return await db.getAllKeys('entities') as string[];
+        } catch (retryError) {
+          console.error('IndexedDB keys error (retry failed):', retryError);
+          return [];
+        }
+      }
       console.error('IndexedDB keys error:', error);
       return [];
     }
