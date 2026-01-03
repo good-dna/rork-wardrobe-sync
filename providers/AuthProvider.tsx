@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isConfigured: boolean;
 }
@@ -53,12 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data.session) {
       setSession(data.session);
       setUser(data.user);
+      
+      await supabase
+        .from('profiles')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', data.user.id);
     }
 
     return { error };
   };
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     if (!isSupabaseConfigured) {
       return { error: new Error('Supabase not configured') };
     }
@@ -66,14 +71,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: metadata,
-      },
     });
 
-    if (!error && data.session) {
-      setSession(data.session);
-      setUser(data.user);
+    if (!error && data.user) {
+      const fullName = `${firstName} ${lastName}`.trim();
+      
+      await supabase
+        .from('profiles')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          full_name: fullName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', data.user.id);
+      
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
     }
 
     return { error };

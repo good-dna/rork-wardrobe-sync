@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 
 export const unstable_settings = {
-  initialRouteName: "auth/sign-in",
+  initialRouteName: "launch",
 };
 
 // Create a client
@@ -60,6 +60,7 @@ function RootLayoutNav() {
             headerShadowVisible: false,
           }}
         >
+          <Stack.Screen name="launch" options={{ headerShown: false }} />
           <Stack.Screen name="splash" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="auth/sign-in" options={{ headerShown: false }} />

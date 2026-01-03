@@ -31,10 +31,7 @@ export default function SignUpScreen() {
     }
 
     setLoading(true);
-    const { error } = await signUp(email, password, {
-      first_name: firstName,
-      last_name: lastName,
-    });
+    const { error } = await signUp(email, password, firstName, lastName);
     setLoading(false);
 
     if (error) {
