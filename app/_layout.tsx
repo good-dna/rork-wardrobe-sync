@@ -163,6 +163,20 @@ function RootLayoutNav() {
               presentation: "card",
             }} 
           />
+          <Stack.Screen 
+            name="profile-settings" 
+            options={{ 
+              title: "Profile Settings",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
+            name="closet-analytics" 
+            options={{ 
+              title: "Closet Analytics",
+              presentation: "card",
+            }} 
+          />
         </Stack>
         </AuthProvider>
       </QueryClientProvider>
