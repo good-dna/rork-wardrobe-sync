@@ -67,6 +67,13 @@ function RootLayoutNav() {
           <Stack.Screen name="auth/sign-up" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen 
+            name="closet-item/[id]" 
+            options={{ 
+              title: "Item Details",
+              presentation: "card",
+            }} 
+          />
+          <Stack.Screen 
             name="item/[id]" 
             options={{ 
               title: "Item Details",

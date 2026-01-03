@@ -1,334 +1,267 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Key, Mail, Calendar } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { colors } from '@/constants/colors';
-import { useUserStore, StylePreference, FavoriteCategory } from '@/store/userStore';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
+import { colors, tokens } from '@/constants/colors';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { User, Calendar, LogOut, Save } from 'lucide-react-native';
+
+interface ProfileFormData {
+  full_name: string;
+  age: string;
+  city: string;
+  state: string;
+  country: string;
+  favorite_category: string;
+}
+
+const categories = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories'];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, updateProfile, logout } = useUserStore();
   const { user, signOut } = useAuth();
-  
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [displayName, setDisplayName] = useState(profile?.displayName || '');
-  const [email, setEmail] = useState(profile?.email || '');
-  const [stylePreference, setStylePreference] = useState<StylePreference>(profile?.stylePreference || 'casual');
-  const [favoriteCategory, setFavoriteCategory] = useState<FavoriteCategory>(profile?.favoriteCategory || 'shirts');
-  
-  const stylePreferences: StylePreference[] = ['casual', 'business', 'athletic', 'formal', 'bohemian', 'minimalist'];
-  const favoriteCategories: FavoriteCategory[] = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
-  
-  const handleLogout = async () => {
+
+  const [formData, setFormData] = useState<ProfileFormData>({
+    full_name: '',
+    age: '',
+    city: '',
+    state: '',
+    country: '',
+    favorite_category: '',
+  });
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || '',
+        age: profile.age?.toString() || '',
+        city: profile.city || '',
+        state: profile.state || '',
+        country: profile.country || '',
+        favorite_category: profile.favorite_category || '',
+      });
+    }
+  }, [profile]);
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error('Not authenticated');
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.full_name || null,
+          age: formData.age ? parseInt(formData.age) : null,
+          city: formData.city || null,
+          state: formData.state || null,
+          country: formData.country || null,
+          favorite_category: formData.favorite_category || null,
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    },
+    onError: (error) => {
+      Alert.alert('Error', error.message);
+    },
+  });
+
+  const handleLogout = () => {
     Alert.alert(
-      "Logout",
-      "Are you sure you want to log out?",
+      'Log Out',
+      'Are you sure you want to log out?',
       [
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Cancel",
-          style: "cancel"
-        },
-        { 
-          text: "Logout", 
+          text: 'Log Out',
+          style: 'destructive',
           onPress: async () => {
             await signOut();
-            logout();
-            Alert.alert("Logged out successfully");
-          }
-        }
+            router.replace('/launch' as any);
+          },
+        },
       ]
     );
   };
-  
-  const handleSaveProfile = () => {
-    if (!displayName.trim()) {
-      Alert.alert("Error", "Display name cannot be empty");
-      return;
-    }
-    
-    updateProfile({
-      displayName,
-      email,
-      stylePreference,
-      favoriteCategory
-    });
-    
-    setIsEditing(false);
-    Alert.alert("Success", "Profile updated successfully");
-  };
-  
-  const handlePickAvatar = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      
-      if (!result.canceled) {
-        updateProfile({ avatar: result.assets[0].uri });
-      }
-    } catch (err) {
-      console.error('Error picking image:', err);
-      Alert.alert("Error", "Failed to pick image. Please try again.");
-    }
-  };
-  
-  if (!profile) {
+
+  if (isLoading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>User profile not found</Text>
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
-  
+
+  const memberSince = profile?.member_since
+    ? new Date(profile.member_since).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : 'Unknown';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>My Profile</Text>
-        {!isEditing ? (
-          <Pressable style={styles.editButton} onPress={() => setIsEditing(true)}>
-            <Edit size={20} color={colors.primary} />
-          </Pressable>
-        ) : (
-          <Pressable style={styles.saveButton} onPress={handleSaveProfile}>
-            <Text style={styles.saveButtonText}>Save</Text>
-          </Pressable>
-        )}
+        <View style={styles.avatarContainer}>
+          <User size={40} color={colors.primary} />
+        </View>
+        <Text style={styles.email}>{user?.email}</Text>
       </View>
-      
-      <View style={styles.avatarContainer}>
-        {profile.avatar ? (
-          <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <User size={40} color={colors.mediumGray} />
-          </View>
-        )}
-        
+
+      <View style={styles.memberSinceCard}>
+        <Calendar size={20} color={colors.primary} />
+        <View style={styles.memberSinceContent}>
+          <Text style={styles.memberSinceLabel}>Member Since</Text>
+          <Text style={styles.memberSinceValue}>{memberSince}</Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Profile Information</Text>
+          {!isEditing ? (
+            <Pressable onPress={() => setIsEditing(true)} style={styles.editButton}>
+              <Text style={styles.editButtonText}>Edit</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => setIsEditing(false)} style={styles.cancelButton}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={styles.form}>
+          <Text style={styles.label}>Full Name</Text>
+          <TextInput
+            style={[styles.input, !isEditing && styles.inputDisabled]}
+            value={formData.full_name}
+            onChangeText={text => setFormData({ ...formData, full_name: text })}
+            placeholder="Enter your full name"
+            placeholderTextColor={colors.textSecondary}
+            editable={isEditing}
+          />
+
+          <Text style={styles.label}>Age</Text>
+          <TextInput
+            style={[styles.input, !isEditing && styles.inputDisabled]}
+            value={formData.age}
+            onChangeText={text => setFormData({ ...formData, age: text })}
+            placeholder="Enter your age"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="number-pad"
+            editable={isEditing}
+          />
+
+          <Text style={styles.label}>City</Text>
+          <TextInput
+            style={[styles.input, !isEditing && styles.inputDisabled]}
+            value={formData.city}
+            onChangeText={text => setFormData({ ...formData, city: text })}
+            placeholder="Enter your city"
+            placeholderTextColor={colors.textSecondary}
+            editable={isEditing}
+          />
+
+          <Text style={styles.label}>State</Text>
+          <TextInput
+            style={[styles.input, !isEditing && styles.inputDisabled]}
+            value={formData.state}
+            onChangeText={text => setFormData({ ...formData, state: text })}
+            placeholder="Enter your state"
+            placeholderTextColor={colors.textSecondary}
+            editable={isEditing}
+          />
+
+          <Text style={styles.label}>Country</Text>
+          <TextInput
+            style={[styles.input, !isEditing && styles.inputDisabled]}
+            value={formData.country}
+            onChangeText={text => setFormData({ ...formData, country: text })}
+            placeholder="Enter your country"
+            placeholderTextColor={colors.textSecondary}
+            editable={isEditing}
+          />
+
+          <Text style={styles.label}>Favorite Category</Text>
+          {isEditing ? (
+            <View style={styles.chipContainer}>
+              {categories.map(cat => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.chip,
+                    formData.favorite_category === cat && styles.chipActive,
+                  ]}
+                  onPress={() => setFormData({ ...formData, favorite_category: cat })}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      formData.favorite_category === cat && styles.chipTextActive,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <TextInput
+              style={[styles.input, styles.inputDisabled]}
+              value={formData.favorite_category}
+              editable={false}
+              placeholder="Not set"
+              placeholderTextColor={colors.textSecondary}
+            />
+          )}
+        </View>
+
         {isEditing && (
-          <Pressable style={styles.changeAvatarButton} onPress={handlePickAvatar}>
-            <Camera size={16} color="white" />
-            <Text style={styles.changeAvatarText}>Change</Text>
+          <Pressable
+            style={styles.saveButton}
+            onPress={() => updateMutation.mutate()}
+            disabled={updateMutation.isPending}
+          >
+            <Save size={20} color={colors.background} />
+            <Text style={styles.saveButtonText}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Profile'}
+            </Text>
           </Pressable>
         )}
       </View>
-      
-      <View style={styles.profileInfo}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Display Name</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Your name"
-              placeholderTextColor={colors.mediumGray}
-            />
-          ) : (
-            <Text style={styles.infoValue}>{profile.displayName}</Text>
-          )}
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Email</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Your email"
-              placeholderTextColor={colors.mediumGray}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          ) : (
-            <Text style={styles.infoValue}>{profile.email}</Text>
-          )}
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Style Preference</Text>
-          {isEditing ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.optionsContainer}
-            >
-              {stylePreferences.map((style) => (
-                <Pressable
-                  key={style}
-                  style={[
-                    styles.optionChip,
-                    stylePreference === style && styles.selectedOptionChip
-                  ]}
-                  onPress={() => setStylePreference(style)}
-                >
-                  <Text 
-                    style={[
-                      styles.optionChipText,
-                      stylePreference === style && styles.selectedOptionChipText
-                    ]}
-                  >
-                    {style.charAt(0).toUpperCase() + style.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : (
-            <Text style={styles.infoValue}>
-              {profile.stylePreference.charAt(0).toUpperCase() + profile.stylePreference.slice(1)}
-            </Text>
-          )}
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Favorite Category</Text>
-          {isEditing ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.optionsContainer}
-            >
-              {favoriteCategories.map((category) => (
-                <Pressable
-                  key={category}
-                  style={[
-                    styles.optionChip,
-                    favoriteCategory === category && styles.selectedOptionChip
-                  ]}
-                  onPress={() => setFavoriteCategory(category)}
-                >
-                  <Text 
-                    style={[
-                      styles.optionChipText,
-                      favoriteCategory === category && styles.selectedOptionChipText
-                    ]}
-                  >
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : (
-            <Text style={styles.infoValue}>
-              {profile.favoriteCategory.charAt(0).toUpperCase() + profile.favoriteCategory.slice(1)}
-            </Text>
-          )}
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Member Since</Text>
-          <Text style={styles.infoValue}>
-            {new Date(profile.joinDate).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-      
-      {/* Authentication Info Section */}
-      {user && (
-        <View style={styles.authSection}>
-          <Text style={styles.sectionTitle}>Authentication Info</Text>
-          
-          <View style={styles.authCard}>
-            <View style={styles.authItem}>
-              <Mail size={18} color={colors.primary} />
-              <View style={styles.authItemContent}>
-                <Text style={styles.authLabel}>Login Email</Text>
-                <Text style={styles.authValue}>{user.email}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.separator} />
-            
-            <View style={styles.authItem}>
-              <Key size={18} color={colors.primary} />
-              <View style={styles.authItemContent}>
-                <Text style={styles.authLabel}>User ID</Text>
-                <Text style={styles.authValue} numberOfLines={1} selectable>
-                  {user.id}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.separator} />
-            
-            <View style={styles.authItem}>
-              <Calendar size={18} color={colors.primary} />
-              <View style={styles.authItemContent}>
-                <Text style={styles.authLabel}>Account Created</Text>
-                <Text style={styles.authValue}>
-                  {new Date(user.created_at).toLocaleString()}
-                </Text>
-              </View>
-            </View>
-            
-            {user.last_sign_in_at && (
-              <>
-                <View style={styles.separator} />
-                <View style={styles.authItem}>
-                  <Calendar size={18} color={colors.primary} />
-                  <View style={styles.authItemContent}>
-                    <Text style={styles.authLabel}>Last Sign In</Text>
-                    <Text style={styles.authValue}>
-                      {new Date(user.last_sign_in_at).toLocaleString()}
-                    </Text>
-                  </View>
-                </View>
-              </>
-            )}
-            
-            {user.email_confirmed_at && (
-              <>
-                <View style={styles.separator} />
-                <View style={styles.authItem}>
-                  <Calendar size={18} color={colors.primary} />
-                  <View style={styles.authItemContent}>
-                    <Text style={styles.authLabel}>Email Verified</Text>
-                    <Text style={styles.authValue}>
-                      {new Date(user.email_confirmed_at).toLocaleString()}
-                    </Text>
-                  </View>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      )}
-      
-      {/* Settings Section */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-        
-        <Pressable 
-          style={styles.settingsItem}
-          onPress={() => router.push('/location-settings' as any)}
-        >
-          <View style={styles.settingsItemContent}>
-            <MapPin size={20} color={colors.primary} />
-            <View style={styles.settingsItemText}>
-              <Text style={styles.settingsItemTitle}>Location & Weather</Text>
-              <Text style={styles.settingsItemSubtitle}>
-                {profile.locationPreferences?.location 
-                  ? `${profile.locationPreferences.location.city}, ${profile.locationPreferences.location.region}`
-                  : 'Set your location for weather-based recommendations'
-                }
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.subtext} />
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <LogOut size={20} color={colors.error} />
+          <Text style={styles.logoutButtonText}>Log Out</Text>
         </Pressable>
       </View>
-      
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <View style={styles.logoutIconContainer}>
-          <LogOut size={18} color={colors.error} />
-        </View>
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -338,201 +271,164 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
   content: {
-    padding: 16,
+    padding: tokens.spacing.md,
+    paddingBottom: 40,
   },
   header: {
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xl,
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.spacing.md,
+  },
+  email: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  memberSinceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: tokens.radius.md,
+    padding: tokens.spacing.md,
+    marginBottom: tokens.spacing.xl,
+  },
+  memberSinceContent: {
+    marginLeft: tokens.spacing.md,
+  },
+  memberSinceLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  memberSinceValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  section: {
+    marginBottom: tokens.spacing.xl,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  editButton: {
-    padding: 8,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-    position: 'relative',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  changeAvatarButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: '35%',
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  changeAvatarText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  profileInfo: {
-    marginBottom: 24,
-  },
-  infoItem: {
-    marginBottom: 16,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.subtext,
-    marginBottom: 4,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.text,
-  },
-  optionsContainer: {
-    paddingVertical: 4,
-  },
-  optionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.lightGray,
-    marginRight: 8,
-  },
-  selectedOptionChip: {
-    backgroundColor: colors.primary,
-  },
-  optionChipText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  selectedOptionChipText: {
-    color: 'white',
-    fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: 8,
-  },
-  logoutIconContainer: {
-    marginRight: 8,
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    color: colors.error,
-    fontWeight: '500',
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.error,
-    textAlign: 'center',
-    marginTop: 24,
-  },
-  settingsSection: {
-    marginBottom: 24,
+    marginBottom: tokens.spacing.md,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 12,
   },
-  authSection: {
-    marginBottom: 24,
+  editButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: tokens.radius.md,
+    backgroundColor: colors.primary,
   },
-  authCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-  },
-  authItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-  },
-  authItemContent: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  authLabel: {
+  editButtonText: {
     fontSize: 14,
-    color: colors.subtext,
-    marginBottom: 4,
+    fontWeight: '600',
+    color: colors.background,
   },
-  authValue: {
-    fontSize: 15,
+  cancelButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: tokens.radius.md,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.text,
-    fontWeight: '500',
   },
-  separator: {
-    height: 1,
-    backgroundColor: colors.lightGray,
-    marginVertical: 8,
+  form: {
+    marginBottom: tokens.spacing.md,
   },
-  settingsItem: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    marginTop: tokens.spacing.md,
   },
-  settingsItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingsItemText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  settingsItemTitle: {
+  input: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: tokens.radius.md,
+    padding: tokens.spacing.md,
     fontSize: 16,
-    fontWeight: '500',
     color: colors.text,
   },
-  settingsItemSubtitle: {
+  inputDisabled: {
+    opacity: 0.6,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: tokens.radius.full,
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
     fontSize: 14,
-    color: colors.subtext,
-    marginTop: 2,
+    color: colors.text,
+  },
+  chipTextActive: {
+    color: colors.background,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+    padding: tokens.spacing.md,
+    borderRadius: tokens.radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: tokens.spacing.md,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.background,
+  },
+  logoutButton: {
+    backgroundColor: colors.backgroundSecondary,
+    padding: tokens.spacing.md,
+    borderRadius: tokens.radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.error,
   },
 });
