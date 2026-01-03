@@ -73,12 +73,6 @@ export interface Database {
           id: string;
           email: string;
           full_name: string | null;
-          age: number | null;
-          city: string | null;
-          state: string | null;
-          country: string | null;
-          favorite_category: string | null;
-          member_since: string | null;
           avatar_url: string | null;
           created_at: string;
           updated_at: string;
@@ -87,11 +81,6 @@ export interface Database {
           id: string;
           email: string;
           full_name?: string | null;
-          age?: number | null;
-          city?: string | null;
-          state?: string | null;
-          country?: string | null;
-          favorite_category?: string | null;
           avatar_url?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -100,85 +89,8 @@ export interface Database {
           id?: string;
           email?: string;
           full_name?: string | null;
-          age?: number | null;
-          city?: string | null;
-          state?: string | null;
-          country?: string | null;
-          favorite_category?: string | null;
           avatar_url?: string | null;
           updated_at?: string;
-        };
-      };
-      items: {
-        Row: {
-          id: string;
-          user_id: string;
-          name: string;
-          category: string;
-          brand: string | null;
-          colors: string[];
-          size: string | null;
-          condition: string | null;
-          purchase_price: number | null;
-          estimated_value: number | null;
-          times_worn: number;
-          last_worn_at: string | null;
-          image_url: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          name: string;
-          category: string;
-          brand?: string | null;
-          colors?: string[];
-          size?: string | null;
-          condition?: string | null;
-          purchase_price?: number | null;
-          estimated_value?: number | null;
-          times_worn?: number;
-          last_worn_at?: string | null;
-          image_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          name?: string;
-          category?: string;
-          brand?: string | null;
-          colors?: string[];
-          size?: string | null;
-          condition?: string | null;
-          purchase_price?: number | null;
-          estimated_value?: number | null;
-          image_url?: string | null;
-          updated_at?: string;
-        };
-      };
-      wear_logs: {
-        Row: {
-          id: string;
-          user_id: string;
-          item_id: string;
-          worn_at: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          item_id: string;
-          worn_at?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          item_id?: string;
-          worn_at?: string;
         };
       };
       wardrobe_items: {

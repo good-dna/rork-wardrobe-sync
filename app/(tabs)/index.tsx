@@ -1,154 +1,196 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, SafeAreaView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/providers/AuthProvider';
+import { MapPin, Bookmark, Plus } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
-import { useQuery } from '@tanstack/react-query';
-import { Shirt, TrendingUp, User as UserIcon, LogOut } from 'lucide-react-native';
+import { useUserStore } from '@/store/userStore';
+import { useWardrobeStore } from '@/store/wardrobeStore';
+import Typography from '@/components/ui/Typography';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import ForecastCard from '@/components/ui/ForecastCard';
+import ClosetSectionRow from '@/components/ui/ClosetSectionRow';
+
+
+const mockForecastData = [
+  { day: 'Fri', date: 'April 30', temperature: '30°C', weatherType: 'sunny' as const },
+  { day: 'Sat', date: 'May 1', temperature: '28°C', weatherType: 'cloudy' as const },
+  { day: 'Sun', date: 'May 2', temperature: '32°C', weatherType: 'sunny' as const },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
-
-  const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ['profile', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: itemsCount, isLoading: itemsLoading } = useQuery({
-    queryKey: ['items-count', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-      const { count, error } = await supabase
-        .from('items')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: !!user?.id,
-  });
-
-  const handleLogout = async () => {
-    await signOut();
-    router.replace('/launch' as any);
+  const { profile } = useUserStore();
+  const { items, getItemsByCategory } = useWardrobeStore();
+  const [selectedTab, setSelectedTab] = useState(0);
+  
+  const location = profile?.locationPreferences?.location;
+  const displayName = profile?.displayName || 'User';
+  const firstName = displayName.split(' ')[0];
+  
+  const topsItems = getItemsByCategory('shirts');
+  const pantsItems = getItemsByCategory('pants');
+  const shoesItems = getItemsByCategory('shoes');
+  const totalItems = items.length;
+  
+  const handleItemPress = (id: string) => {
+    router.push(`/item/${id}` as any);
+  };
+  
+  const handleAddItem = (category?: string) => {
+    router.push('/add-item' as any);
+  };
+  
+  const handleProfilePress = () => {
+    router.push('/profile' as any);
+  };
+  
+  const handleCalendarPress = () => {
+    router.push('/calendar' as any);
   };
 
-  if (profileLoading || itemsLoading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  const memberSince = profile?.member_since
-    ? new Date(profile.member_since).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : 'Recently';
-
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>Welcome back</Text>
-          <Text style={styles.nameText}>
-            {profile?.full_name || user?.email?.split('@')[0] || 'User'}
-          </Text>
-        </View>
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <LogOut size={20} color={colors.textSecondary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={styles.statIcon}>
-            <Shirt size={24} color={colors.primary} />
-          </View>
-          <Text style={styles.statValue}>{itemsCount}</Text>
-          <Text style={styles.statLabel}>Items</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <View style={styles.statIcon}>
-            <UserIcon size={24} color={colors.secondary} />
-          </View>
-          <Text style={styles.statValue}>{memberSince}</Text>
-          <Text style={styles.statLabel}>Member Since</Text>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        
-        <Pressable
-          style={styles.actionCard}
-          onPress={() => router.push('/closet-item/new' as any)}
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.actionIcon}>
-            <Shirt size={24} color={colors.primary} />
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.avatarContainer}>
+                {profile?.avatar ? (
+                  <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Typography variant="h3" color={colors.background}>
+                      {firstName.charAt(0)}
+                    </Typography>
+                  </View>
+                )}
+              </View>
+              <View style={styles.greetingContainer}>
+                <Typography variant="h2" style={styles.greeting}>
+                  Welcome {displayName}
+                </Typography>
+                <Pressable onPress={handleProfilePress}>
+                  <Typography variant="small" color={colors.primary} style={styles.profileLink}>
+                    See your profile
+                  </Typography>
+                </Pressable>
+              </View>
+            </View>
+            <Pressable style={styles.bookmarkButton}>
+              <Bookmark size={24} color={colors.text} />
+            </Pressable>
           </View>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Add New Item</Text>
-            <Text style={styles.actionSubtitle}>Add clothing to your closet</Text>
-          </View>
-        </Pressable>
 
-        <Pressable
-          style={styles.actionCard}
-          onPress={() => router.push('/(tabs)/analytics' as any)}
-        >
-          <View style={styles.actionIcon}>
-            <TrendingUp size={24} color={colors.secondary} />
+          <View style={styles.locationRow}>
+            <View style={styles.locationLeft}>
+              <MapPin size={16} color={colors.textSecondary} />
+              <Typography variant="body" style={styles.locationText}>
+                {location?.city || 'Comilla'}
+              </Typography>
+            </View>
+            <Pressable onPress={handleCalendarPress}>
+              <Typography variant="caption" color={colors.primary} style={styles.calendarLink}>
+                OOTD Calendar
+              </Typography>
+            </Pressable>
           </View>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>View Analytics</Text>
-            <Text style={styles.actionSubtitle}>See your closet statistics</Text>
-          </View>
-        </Pressable>
-      </View>
 
-      {profile && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile Info</Text>
-          <View style={styles.infoCard}>
-            {profile.city && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Location:</Text>
-                <Text style={styles.infoValue}>
-                  {[profile.city, profile.state, profile.country].filter(Boolean).join(', ')}
-                </Text>
-              </View>
-            )}
-            {profile.age && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Age:</Text>
-                <Text style={styles.infoValue}>{profile.age}</Text>
-              </View>
-            )}
-            {profile.favorite_category && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Favorite Category:</Text>
-                <Text style={styles.infoValue}>{profile.favorite_category}</Text>
-              </View>
-            )}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.forecastContainer}
+            contentContainerStyle={styles.forecastContent}
+          >
+            {mockForecastData.map((forecast, index) => (
+              <ForecastCard
+                key={index}
+                day={forecast.day}
+                date={forecast.date}
+                temperature={forecast.temperature}
+                weatherType={forecast.weatherType}
+              />
+            ))}
+          </ScrollView>
+
+          <View style={styles.segmentContainer}>
+            <SegmentedControl
+              options={['Closet', 'Outfit']}
+              selectedIndex={selectedTab}
+              onSelectIndex={setSelectedTab}
+            />
           </View>
-        </View>
-      )}
-    </ScrollView>
+
+          {selectedTab === 0 ? (
+            <>
+              <View style={styles.closetHeader}>
+                <View>
+                  <Typography variant="h2" style={styles.closetTitle}>
+                    Your Closet
+                  </Typography>
+                  <Typography variant="small" color={colors.textSecondary}>
+                    {totalItems} items
+                  </Typography>
+                </View>
+                <Pressable style={styles.addButton} onPress={() => handleAddItem()}>
+                  <Plus size={20} color={colors.background} strokeWidth={2.5} />
+                </Pressable>
+              </View>
+
+              <ClosetSectionRow
+                title="Tops"
+                items={topsItems.map(item => ({
+                  id: item.id,
+                  title: item.name,
+                  imageUrl: item.imageUrl,
+                  wornCount: item.wearCount,
+                }))}
+                onItemPress={handleItemPress}
+                onAddPress={() => handleAddItem('shirts')}
+              />
+
+              <ClosetSectionRow
+                title="Pants"
+                items={pantsItems.map(item => ({
+                  id: item.id,
+                  title: item.name,
+                  imageUrl: item.imageUrl,
+                  wornCount: item.wearCount,
+                }))}
+                onItemPress={handleItemPress}
+                onAddPress={() => handleAddItem('pants')}
+              />
+
+              <ClosetSectionRow
+                title="Shoes"
+                items={shoesItems.map(item => ({
+                  id: item.id,
+                  title: item.name,
+                  imageUrl: item.imageUrl,
+                  wornCount: item.wearCount,
+                }))}
+                onItemPress={handleItemPress}
+                onAddPress={() => handleAddItem('shoes')}
+              />
+            </>
+          ) : (
+            <View style={styles.emptyOutfitContainer}>
+              <Typography variant="body" color={colors.textSecondary} style={styles.emptyText}>
+                Your outfits will appear here
+              </Typography>
+              <Pressable style={styles.createOutfitButton} onPress={() => router.push('/add-outfit' as any)}>
+                <Typography variant="body" color={colors.primary} style={styles.createOutfitText}>
+                  Create Your First Outfit
+                </Typography>
+              </Pressable>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -157,123 +199,121 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  centerContainer: {
+  safeArea: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    padding: tokens.spacing.md,
+    paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: tokens.spacing.xl,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.md,
+    marginBottom: tokens.spacing.lg,
   },
-  welcomeText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  nameText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  logoutButton: {
-    padding: 8,
-  },
-  statsGrid: {
+  headerLeft: {
     flexDirection: 'row',
-    gap: tokens.spacing.md,
-    marginBottom: tokens.spacing.xl,
-  },
-  statCard: {
+    alignItems: 'center',
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: tokens.radius.lg,
-    padding: tokens.spacing.md,
-    alignItems: 'center',
   },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: tokens.radius.md,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: tokens.spacing.sm,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  section: {
-    marginBottom: tokens.spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: tokens.spacing.md,
-  },
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: tokens.radius.md,
-    padding: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: tokens.radius.md,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarContainer: {
     marginRight: tokens.spacing.md,
   },
-  actionContent: {
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  greetingContainer: {
     flex: 1,
   },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
+  greeting: {
+    fontWeight: '700',
     marginBottom: 2,
   },
-  actionSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  profileLink: {
+    fontSize: 12,
   },
-  infoCard: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: tokens.radius.md,
-    padding: tokens.spacing.md,
+  bookmarkButton: {
+    padding: tokens.spacing.xs,
   },
-  infoRow: {
+  locationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: tokens.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    alignItems: 'center',
+    paddingHorizontal: tokens.spacing.lg,
+    marginBottom: tokens.spacing.lg,
   },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  locationLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  infoValue: {
-    fontSize: 14,
+  locationText: {
+    marginLeft: tokens.spacing.xs,
+    fontWeight: '500',
+  },
+  calendarLink: {
     fontWeight: '600',
-    color: colors.text,
+    letterSpacing: 0.5,
+  },
+  forecastContainer: {
+    marginBottom: tokens.spacing.lg,
+  },
+  forecastContent: {
+    paddingHorizontal: tokens.spacing.lg,
+  },
+  segmentContainer: {
+    paddingHorizontal: tokens.spacing.lg,
+    marginBottom: tokens.spacing.lg,
+  },
+  closetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: tokens.spacing.lg,
+    marginBottom: tokens.spacing.lg,
+  },
+  closetTitle: {
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyOutfitContainer: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.xxl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    marginBottom: tokens.spacing.md,
+    textAlign: 'center',
+  },
+  createOutfitButton: {
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    backgroundColor: colors.primaryLight,
+    borderRadius: tokens.radius.lg,
+  },
+  createOutfitText: {
+    fontWeight: '600',
   },
 });
