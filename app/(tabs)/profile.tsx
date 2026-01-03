@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, LogOut, Edit, Camera, MapPin, ChevronRight } from 'lucide-react-native';
+import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/colors';
 import { useUserStore, StylePreference, FavoriteCategory } from '@/store/userStore';
@@ -32,7 +32,6 @@ export default function ProfileScreen() {
           text: "Logout", 
           onPress: () => {
             logout();
-            // In a real app, you might navigate to a login screen
             Alert.alert("Logged out successfully");
           }
         }
@@ -226,16 +225,47 @@ export default function ProfileScreen() {
         </View>
       </View>
       
-      {/* Settings Section */}
       <View style={styles.settingsSection}>
         <Text style={styles.settingsTitle}>Settings</Text>
         
         <Pressable 
           style={styles.settingsItem}
-          onPress={() => router.push('/location-settings' as any)}
+          onPress={() => router.push('/profile-settings')}
         >
           <View style={styles.settingsItemContent}>
-            <MapPin size={20} color={colors.primary} />
+            <Settings size={20} color={colors.primary} />
+            <View style={styles.settingsItemText}>
+              <Text style={styles.settingsItemTitle}>Profile Settings</Text>
+              <Text style={styles.settingsItemSubtitle}>
+                Update your personal information and preferences
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={20} color={colors.subtext} />
+        </Pressable>
+        
+        <Pressable 
+          style={[styles.settingsItem, styles.settingsItemSpacing]}
+          onPress={() => router.push('/closet-analytics')}
+        >
+          <View style={styles.settingsItemContent}>
+            <BarChart3 size={20} color={colors.success} />
+            <View style={styles.settingsItemText}>
+              <Text style={styles.settingsItemTitle}>Closet Analytics</Text>
+              <Text style={styles.settingsItemSubtitle}>
+                View valuation and usage insights
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={20} color={colors.subtext} />
+        </Pressable>
+        
+        <Pressable 
+          style={[styles.settingsItem, styles.settingsItemSpacing]}
+          onPress={() => router.push('/location-settings')}
+        >
+          <View style={styles.settingsItemContent}>
+            <MapPin size={20} color={colors.info} />
             <View style={styles.settingsItemText}>
               <Text style={styles.settingsItemTitle}>Location & Weather</Text>
               <Text style={styles.settingsItemSubtitle}>
@@ -410,6 +440,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  settingsItemSpacing: {
+    marginTop: 12,
   },
   settingsItemContent: {
     flexDirection: 'row',

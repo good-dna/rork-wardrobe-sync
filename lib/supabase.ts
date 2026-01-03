@@ -73,7 +73,20 @@ export interface Database {
           id: string;
           email: string;
           full_name: string | null;
+          first_name: string | null;
+          last_name: string | null;
           avatar_url: string | null;
+          location: string | null;
+          city: string | null;
+          state: string | null;
+          country: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          temperature_unit: string;
+          style_preferences: string[];
+          age: number | null;
+          favorite_category: string | null;
+          member_since: string;
           created_at: string;
           updated_at: string;
         };
@@ -81,7 +94,20 @@ export interface Database {
           id: string;
           email: string;
           full_name?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
           avatar_url?: string | null;
+          location?: string | null;
+          city?: string | null;
+          state?: string | null;
+          country?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          temperature_unit?: string;
+          style_preferences?: string[];
+          age?: number | null;
+          favorite_category?: string | null;
+          member_since?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -89,7 +115,19 @@ export interface Database {
           id?: string;
           email?: string;
           full_name?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
           avatar_url?: string | null;
+          location?: string | null;
+          city?: string | null;
+          state?: string | null;
+          country?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          temperature_unit?: string;
+          style_preferences?: string[];
+          age?: number | null;
+          favorite_category?: string | null;
           updated_at?: string;
         };
       };
@@ -101,6 +139,7 @@ export interface Database {
           brand: string | null;
           category: string;
           color: string | null;
+          colors: string[] | null;
           size: string | null;
           material: string | null;
           season: string[] | null;
@@ -110,6 +149,8 @@ export interface Database {
           sku: string | null;
           source: string;
           price: number | null;
+          purchase_price: number | null;
+          estimated_value: number | null;
           purchase_date: string | null;
           tags: string[] | null;
           notes: string | null;
@@ -118,6 +159,10 @@ export interface Database {
           breathability: number | null;
           fragrance_family: string | null;
           strap_type: string | null;
+          worn_count: number;
+          times_worn: number;
+          last_worn: string | null;
+          last_worn_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -128,6 +173,7 @@ export interface Database {
           brand?: string | null;
           category: string;
           color?: string | null;
+          colors?: string[] | null;
           size?: string | null;
           material?: string | null;
           season?: string[] | null;
@@ -137,6 +183,8 @@ export interface Database {
           sku?: string | null;
           source: string;
           price?: number | null;
+          purchase_price?: number | null;
+          estimated_value?: number | null;
           purchase_date?: string | null;
           tags?: string[] | null;
           notes?: string | null;
@@ -145,6 +193,10 @@ export interface Database {
           breathability?: number | null;
           fragrance_family?: string | null;
           strap_type?: string | null;
+          worn_count?: number;
+          times_worn?: number;
+          last_worn?: string | null;
+          last_worn_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -155,6 +207,7 @@ export interface Database {
           brand?: string | null;
           category?: string;
           color?: string | null;
+          colors?: string[] | null;
           size?: string | null;
           material?: string | null;
           season?: string[] | null;
@@ -164,6 +217,8 @@ export interface Database {
           sku?: string | null;
           source?: string;
           price?: number | null;
+          purchase_price?: number | null;
+          estimated_value?: number | null;
           purchase_date?: string | null;
           tags?: string[] | null;
           notes?: string | null;
@@ -172,7 +227,39 @@ export interface Database {
           breathability?: number | null;
           fragrance_family?: string | null;
           strap_type?: string | null;
+          worn_count?: number;
+          times_worn?: number;
+          last_worn?: string | null;
+          last_worn_at?: string | null;
           updated_at?: string;
+        };
+      };
+      wear_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_id: string;
+          worn_at: string;
+          source: string;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_id: string;
+          worn_at?: string;
+          source?: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          item_id?: string;
+          worn_at?: string;
+          source?: string;
+          notes?: string | null;
         };
       };
       outfits: {
