@@ -53,7 +53,38 @@ export default function ProfileScreen() {
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, creating new profile...');
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email || '',
+            })
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            const errorMessage = insertError.message || insertError.hint || 'Failed to create profile';
+            Alert.alert('Error', `Error creating profile: ${errorMessage}`);
+            return;
+          }
+          
+          if (newProfile) {
+            setProfile(newProfile);
+            setFullName(newProfile.full_name || '');
+            setAge(newProfile.age?.toString() || '');
+            setCity(newProfile.city || '');
+            setState(newProfile.state || '');
+            setCountry(newProfile.country || '');
+            setFavoriteCategory(newProfile.favorite_category || '');
+          }
+          return;
+        }
+        throw error;
+      }
 
       if (data) {
         setProfile(data);
@@ -66,6 +97,8 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      Alert.alert('Error', `Error fetching profile: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
