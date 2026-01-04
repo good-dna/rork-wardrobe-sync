@@ -5,8 +5,7 @@ import { MapPin, Bookmark, Plus } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { trpc } from '@/lib/trpc';
-import { getCurrentLocation, getWeatherIcon, formatTemperature, formatDate, WeatherKitForecastDay } from '@/services/weatherKitService';
+import { getCurrentLocation, getWeatherIcon, formatTemperature, formatDate, WeatherKitForecastDay, fetchWeatherKit } from '@/services/weatherKitService';
 import Typography from '@/components/ui/Typography';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import ForecastCard from '@/components/ui/ForecastCard';
@@ -20,13 +19,9 @@ export default function HomeScreen() {
   const { profile } = useUserStore();
   const { items, getItemsByCategory } = useWardrobeStore();
   const [selectedTab, setSelectedTab] = useState(0);
-  const [weatherLocation, setWeatherLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
   const [forecastData, setForecastData] = useState<{ day: string; date: string; temperature: string; weatherType: 'sunny' | 'cloudy' | 'rainy' }[]>([]);
-  
-  const weatherQuery = trpc.weather.weatherkit.useQuery(
-    { latitude: weatherLocation?.latitude || 0, longitude: weatherLocation?.longitude || 0, language: 'en' },
-    { enabled: !!weatherLocation }
-  );
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   
   const location = profile?.locationPreferences?.location;
   const displayName = profile?.displayName || 'User';
@@ -54,35 +49,45 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    const fetchLocation = async () => {
+    const fetchLocationAndWeather = async () => {
       const coords = await getCurrentLocation();
-      if (coords) {
-        setWeatherLocation(coords);
-      } else if (profile?.locationPreferences?.location) {
-        setWeatherLocation({ 
-          latitude: profile.locationPreferences.location.latitude, 
-          longitude: profile.locationPreferences.location.longitude 
-        });
+      const locationToUse = coords || 
+        (profile?.locationPreferences?.location ? {
+          latitude: profile.locationPreferences.location.latitude,
+          longitude: profile.locationPreferences.location.longitude
+        } : null);
+
+      if (locationToUse) {
+        setIsLoadingWeather(true);
+        try {
+          const weatherData = await fetchWeatherKit(
+            locationToUse.latitude,
+            locationToUse.longitude,
+            'en'
+          );
+          
+          if (weatherData?.forecastDaily?.days) {
+            const days = weatherData.forecastDaily.days.slice(0, 3);
+            const formatted = days.map((day: WeatherKitForecastDay) => {
+              const { day: dayName, date } = formatDate(day.forecastStart);
+              return {
+                day: dayName,
+                date,
+                temperature: formatTemperature(day.temperatureMax),
+                weatherType: getWeatherIcon(day.conditionCode),
+              };
+            });
+            setForecastData(formatted);
+          }
+        } catch (error) {
+          console.error('Error fetching weather:', error);
+        } finally {
+          setIsLoadingWeather(false);
+        }
       }
     };
-    fetchLocation();
+    fetchLocationAndWeather();
   }, [profile]);
-
-  useEffect(() => {
-    if (weatherQuery.data?.forecastDaily?.days) {
-      const days = weatherQuery.data.forecastDaily.days.slice(0, 3);
-      const formatted = days.map((day: WeatherKitForecastDay) => {
-        const { day: dayName, date } = formatDate(day.forecastStart);
-        return {
-          day: dayName,
-          date,
-          temperature: formatTemperature(day.temperatureMax),
-          weatherType: getWeatherIcon(day.conditionCode),
-        };
-      });
-      setForecastData(formatted);
-    }
-  }, [weatherQuery.data]);
 
   return (
     <View style={styles.container}>
@@ -141,7 +146,7 @@ export default function HomeScreen() {
             style={styles.forecastContainer}
             contentContainerStyle={styles.forecastContent}
           >
-            {weatherQuery.isLoading ? (
+            {isLoadingWeather ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>

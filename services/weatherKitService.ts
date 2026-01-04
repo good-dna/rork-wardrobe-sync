@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { supabase } from '@/lib/supabase';
 
 export interface WeatherKitCurrentWeather {
   name: string;
@@ -156,4 +157,30 @@ export function formatDate(dateString: string): { day: string; date: string } {
     day: dayNames[date.getDay()],
     date: `${monthNames[date.getMonth()]} ${date.getDate()}`,
   };
+}
+
+export async function fetchWeatherKit(
+  latitude: number,
+  longitude: number,
+  language: string = 'en'
+): Promise<WeatherKitResponse> {
+  try {
+    const { data, error } = await supabase.functions.invoke('weatherkit', {
+      body: { latitude, longitude, language },
+    });
+
+    if (error) {
+      console.error('Error calling weatherkit edge function:', error);
+      throw new Error(error.message || 'Failed to fetch weather data');
+    }
+
+    if (!data) {
+      throw new Error('No data returned from weatherkit function');
+    }
+
+    return data as WeatherKitResponse;
+  } catch (error) {
+    console.error('Error fetching WeatherKit data:', error);
+    throw error;
+  }
 }
