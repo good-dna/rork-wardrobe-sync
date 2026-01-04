@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { useRouter, useSegments } from 'expo-router';
 
 interface AuthContextType {
   session: Session | null;
@@ -18,6 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -53,6 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data.session) {
       setSession(data.session);
       setUser(data.user);
+
+      await supabase
+        .from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', data.user.id);
     }
 
     return { error };
@@ -71,9 +79,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    if (!error && data.session) {
-      setSession(data.session);
-      setUser(data.user);
+    if (!error && data.user) {
+      const firstName = metadata?.first_name || '';
+      const lastName = metadata?.last_name || '';
+      
+      const profileData = {
+        id: data.user.id,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        full_name: `${firstName} ${lastName}`.trim(),
+        location: 'Comilla',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      await supabase
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' });
+
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
     }
 
     return { error };
@@ -88,6 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUser(null);
   };
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    if (!session && !inAuthGroup) {
+      router.replace('/auth/sign-in' as any);
+    } else if (session && inAuthGroup) {
+      router.replace('/(tabs)' as any);
+    }
+  }, [session, segments, loading, router]);
 
   return (
     <AuthContext.Provider

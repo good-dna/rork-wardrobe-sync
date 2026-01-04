@@ -1,23 +1,79 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/colors';
-import { useUserStore, StylePreference, FavoriteCategory } from '@/store/userStore';
+import { useAuth } from '@/providers/AuthProvider';
+import { supabase } from '@/lib/supabase';
+
+interface Profile {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  location: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  age: number | null;
+  favorite_category: string | null;
+  member_since: string;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, updateProfile, logout } = useUserStore();
+  const { user, signOut } = useAuth();
   
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [displayName, setDisplayName] = useState(profile?.displayName || '');
-  const [email, setEmail] = useState(profile?.email || '');
-  const [stylePreference, setStylePreference] = useState<StylePreference>(profile?.stylePreference || 'casual');
-  const [favoriteCategory, setFavoriteCategory] = useState<FavoriteCategory>(profile?.favoriteCategory || 'shirts');
+  const [fullName, setFullName] = useState('');
+  const [age, setAge] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('');
+  const [favoriteCategory, setFavoriteCategory] = useState('');
   
-  const stylePreferences: StylePreference[] = ['casual', 'business', 'athletic', 'formal', 'bohemian', 'minimalist'];
-  const favoriteCategories: FavoriteCategory[] = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
+  const fetchProfile = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setProfile(data);
+        setFullName(data.full_name || '');
+        setAge(data.age?.toString() || '');
+        setCity(data.city || '');
+        setState(data.state || '');
+        setCountry(data.country || '');
+        setFavoriteCategory(data.favorite_category || '');
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+  
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
   
   const handleLogout = () => {
     Alert.alert(
@@ -30,30 +86,51 @@ export default function ProfileScreen() {
         },
         { 
           text: "Logout", 
-          onPress: () => {
-            logout();
-            Alert.alert("Logged out successfully");
+          onPress: async () => {
+            await signOut();
           }
         }
       ]
     );
   };
   
-  const handleSaveProfile = () => {
-    if (!displayName.trim()) {
-      Alert.alert("Error", "Display name cannot be empty");
+  const handleSaveProfile = async () => {
+    if (!fullName.trim()) {
+      Alert.alert("Error", "Full name cannot be empty");
       return;
     }
-    
-    updateProfile({
-      displayName,
-      email,
-      stylePreference,
-      favoriteCategory
-    });
-    
-    setIsEditing(false);
-    Alert.alert("Success", "Profile updated successfully");
+
+    if (!user) return;
+
+    try {
+      const ageNum = age ? parseInt(age, 10) : null;
+      if (age && (isNaN(ageNum!) || ageNum! < 0 || ageNum! > 120)) {
+        Alert.alert("Error", "Please enter a valid age (0-120)");
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          age: ageNum,
+          city: city || null,
+          state: state || null,
+          country: country || null,
+          favorite_category: favoriteCategory || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await fetchProfile();
+      setIsEditing(false);
+      Alert.alert("Success", "Profile updated successfully");
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert("Error", "Failed to update profile");
+    }
   };
   
   const handlePickAvatar = async () => {
@@ -65,19 +142,28 @@ export default function ProfileScreen() {
         quality: 0.8,
       });
       
-      if (!result.canceled) {
-        updateProfile({ avatar: result.assets[0].uri });
+      if (!result.canceled && user) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ avatar_url: result.assets[0].uri })
+          .eq('id', user.id);
+
+        if (error) throw error;
+        await fetchProfile();
       }
     } catch (err) {
       console.error('Error picking image:', err);
-      Alert.alert("Error", "Failed to pick image. Please try again.");
+      Alert.alert("Error", "Failed to update avatar. Please try again.");
     }
   };
   
-  if (!profile) {
+  if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>User profile not found</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
       </View>
     );
   }
@@ -98,8 +184,8 @@ export default function ProfileScreen() {
       </View>
       
       <View style={styles.avatarContainer}>
-        {profile.avatar ? (
-          <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <User size={40} color={colors.mediumGray} />
@@ -116,111 +202,105 @@ export default function ProfileScreen() {
       
       <View style={styles.profileInfo}>
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Display Name</Text>
+          <Text style={styles.infoLabel}>Full Name</Text>
           {isEditing ? (
             <TextInput
               style={styles.input}
-              value={displayName}
-              onChangeText={setDisplayName}
+              value={fullName}
+              onChangeText={setFullName}
               placeholder="Your name"
               placeholderTextColor={colors.mediumGray}
             />
           ) : (
-            <Text style={styles.infoValue}>{profile.displayName}</Text>
+            <Text style={styles.infoValue}>{profile?.full_name || 'Not set'}</Text>
           )}
         </View>
         
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Email</Text>
+          <Text style={styles.infoValue}>{profile?.email}</Text>
+        </View>
+        
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Age</Text>
           {isEditing ? (
             <TextInput
               style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Your email"
+              value={age}
+              onChangeText={setAge}
+              placeholder="Your age"
               placeholderTextColor={colors.mediumGray}
-              keyboardType="email-address"
-              autoCapitalize="none"
+              keyboardType="number-pad"
             />
           ) : (
-            <Text style={styles.infoValue}>{profile.email}</Text>
+            <Text style={styles.infoValue}>{profile?.age || 'Not set'}</Text>
           )}
         </View>
         
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Style Preference</Text>
+          <Text style={styles.infoLabel}>City</Text>
           {isEditing ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.optionsContainer}
-            >
-              {stylePreferences.map((style) => (
-                <Pressable
-                  key={style}
-                  style={[
-                    styles.optionChip,
-                    stylePreference === style && styles.selectedOptionChip
-                  ]}
-                  onPress={() => setStylePreference(style)}
-                >
-                  <Text 
-                    style={[
-                      styles.optionChipText,
-                      stylePreference === style && styles.selectedOptionChipText
-                    ]}
-                  >
-                    {style.charAt(0).toUpperCase() + style.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <TextInput
+              style={styles.input}
+              value={city}
+              onChangeText={setCity}
+              placeholder="Your city"
+              placeholderTextColor={colors.mediumGray}
+            />
           ) : (
-            <Text style={styles.infoValue}>
-              {profile.stylePreference.charAt(0).toUpperCase() + profile.stylePreference.slice(1)}
-            </Text>
+            <Text style={styles.infoValue}>{profile?.city || 'Not set'}</Text>
+          )}
+        </View>
+        
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>State/Region</Text>
+          {isEditing ? (
+            <TextInput
+              style={styles.input}
+              value={state}
+              onChangeText={setState}
+              placeholder="Your state"
+              placeholderTextColor={colors.mediumGray}
+            />
+          ) : (
+            <Text style={styles.infoValue}>{profile?.state || 'Not set'}</Text>
+          )}
+        </View>
+        
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Country</Text>
+          {isEditing ? (
+            <TextInput
+              style={styles.input}
+              value={country}
+              onChangeText={setCountry}
+              placeholder="Your country"
+              placeholderTextColor={colors.mediumGray}
+            />
+          ) : (
+            <Text style={styles.infoValue}>{profile?.country || 'Not set'}</Text>
           )}
         </View>
         
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Favorite Category</Text>
           {isEditing ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.optionsContainer}
-            >
-              {favoriteCategories.map((category) => (
-                <Pressable
-                  key={category}
-                  style={[
-                    styles.optionChip,
-                    favoriteCategory === category && styles.selectedOptionChip
-                  ]}
-                  onPress={() => setFavoriteCategory(category)}
-                >
-                  <Text 
-                    style={[
-                      styles.optionChipText,
-                      favoriteCategory === category && styles.selectedOptionChipText
-                    ]}
-                  >
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <TextInput
+              style={styles.input}
+              value={favoriteCategory}
+              onChangeText={setFavoriteCategory}
+              placeholder="e.g., shirts, shoes"
+              placeholderTextColor={colors.mediumGray}
+            />
           ) : (
-            <Text style={styles.infoValue}>
-              {profile.favoriteCategory.charAt(0).toUpperCase() + profile.favoriteCategory.slice(1)}
-            </Text>
+            <Text style={styles.infoValue}>{profile?.favorite_category || 'Not set'}</Text>
           )}
         </View>
         
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Member Since</Text>
           <Text style={styles.infoValue}>
-            {new Date(profile.joinDate).toLocaleDateString()}
+            {new Date(profile?.member_since || profile?.created_at || '').toLocaleDateString()}
           </Text>
         </View>
       </View>
@@ -269,8 +349,10 @@ export default function ProfileScreen() {
             <View style={styles.settingsItemText}>
               <Text style={styles.settingsItemTitle}>Location & Weather</Text>
               <Text style={styles.settingsItemSubtitle}>
-                {profile.locationPreferences?.location 
-                  ? `${profile.locationPreferences.location.city}, ${profile.locationPreferences.location.region}`
+                {profile?.city && profile?.state 
+                  ? `${profile.city}, ${profile.state}`
+                  : profile?.location
+                  ? profile.location
                   : 'Set your location for weather-based recommendations'
                 }
               </Text>
@@ -423,6 +505,16 @@ const styles = StyleSheet.create({
     color: colors.error,
     textAlign: 'center',
     marginTop: 24,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.text,
   },
   settingsSection: {
     marginBottom: 24,

@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ImageBackground, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
-
 import { LinearGradient } from 'expo-linear-gradient';
-import { Shirt, Sparkles } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+
+const KLOTHO_IMAGE = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/a5fym4li5d1ezbeejkfgq';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, isConfigured } = useAuth();
   const router = useRouter();
@@ -19,43 +22,48 @@ export default function SignInScreen() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
 
     if (error) {
       Alert.alert('Sign In Failed', error.message);
-    } else {
-      router.replace('/(tabs)');
     }
   };
 
   if (!isConfigured) {
     return (
       <View style={styles.container}>
-        <LinearGradient
-          colors={['#2C3E50', '#3498DB', '#5DADE2']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientBackground}
+        <ImageBackground
+          source={{ uri: KLOTHO_IMAGE }}
+          style={styles.background}
+          resizeMode="cover"
         >
-          <View style={styles.demoNotice}>
-            <View style={styles.iconContainer}>
-              <Shirt size={64} color="#FFF" strokeWidth={1.5} />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.8)']}
+            style={styles.overlay}
+          >
+            <View style={styles.demoNotice}>
+              <Text style={styles.klothoTitle}>KLOTHO</Text>
+              <Text style={styles.demoTitle}>Demo Mode</Text>
+              <Text style={styles.demoText}>
+                Authentication is not configured. Continue to explore the app with demo data.
+              </Text>
+              <TouchableOpacity
+                style={styles.demoContinueButton}
+                onPress={() => router.replace('/(tabs)')}
+              >
+                <Text style={styles.demoContinueButtonText}>Explore App</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.appName}>StyleVault</Text>
-            <Text style={styles.demoTitle}>Demo Mode</Text>
-            <Text style={styles.demoText}>
-              Authentication is not configured. Continue to explore the app with demo data.
-            </Text>
-            <TouchableOpacity
-              style={styles.demoContinueButton}
-              onPress={() => router.replace('/(tabs)')}
-            >
-              <Text style={styles.demoContinueButtonText}>Explore App</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+          </LinearGradient>
+        </ImageBackground>
       </View>
     );
   }
@@ -65,275 +73,231 @@ export default function SignInScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <ImageBackground
+        source={{ uri: KLOTHO_IMAGE }}
+        style={styles.background}
+        resizeMode="cover"
       >
-        <View style={styles.heroSection}>
-          <LinearGradient
-            colors={['#2C3E50', '#34495E', '#5D6D7E']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroGradient}
-          >
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
-                <Shirt size={48} color="#FFF" strokeWidth={1.5} />
-              </View>
-              <Text style={styles.appTitle}>StyleVault</Text>
-              <Text style={styles.appTagline}>Your Personal Wardrobe Assistant</Text>
-            </View>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.formContainer}>
-          <View style={styles.formCard}>
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.welcomeSubtext}>Sign in to continue organizing your style</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="your.email@example.com"
-                placeholderTextColor="#BDC3C7"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-              />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.75)']}
+          style={styles.overlay}
+        >
+          <View style={styles.content}>
+            <View style={styles.logoSection}>
+              <Text style={styles.klothoTitle}>KLOTHO</Text>
+              <Text style={styles.tagline}>Your AI-Powered Wardrobe</Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor="#BDC3C7"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-              />
+            <View style={styles.cardContainer}>
+              {Platform.OS === 'ios' ? (
+                <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+                  <View style={styles.cardContent}>
+                    {renderForm()}
+                  </View>
+                </BlurView>
+              ) : (
+                <View style={styles.androidCard}>
+                  {renderForm()}
+                </View>
+              )}
             </View>
-
-            <TouchableOpacity
-              style={[styles.signInButton, loading && styles.buttonDisabled]}
-              onPress={handleSignIn}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={loading ? ['#95A5A6', '#7F8C8D'] : ['#2C3E50', '#34495E']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.buttonGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.signInButtonText}>Sign In</Text>
-                    <Sparkles size={20} color="#FFF" strokeWidth={2} />
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={styles.signUpButton}
-              onPress={() => router.push('/auth/sign-up' as any)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.signUpButtonText}>
-                Don&apos;t have an account? <Text style={styles.signUpButtonTextBold}>Create One</Text>
-              </Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
+        </LinearGradient>
+      </ImageBackground>
     </KeyboardAvoidingView>
   );
+
+  function renderForm() {
+    return (
+      <>
+        <Text style={styles.welcomeText}>Welcome Back</Text>
+        <Text style={styles.welcomeSubtext}>Sign in to continue</Text>
+
+        <View style={styles.inputGroup}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="rgba(255,255,255,0.5)"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={!loading}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password"
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              editable={!loading}
+            />
+            <Pressable
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff size={20} color="rgba(255,255,255,0.6)" />
+              ) : (
+                <Eye size={20} color="rgba(255,255,255,0.6)" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.signInButton, loading && styles.buttonDisabled]}
+          onPress={handleSignIn}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator color="#000" size="small" />
+          ) : (
+            <Text style={styles.signInButtonText}>Log In</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.signUpLink}
+          onPress={() => router.push('/auth/sign-up' as any)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.signUpLinkText}>Create account</Text>
+        </TouchableOpacity>
+      </>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ECF0F1',
   },
-  scrollContent: {
-    flexGrow: 1,
+  background: {
+    flex: 1,
   },
-  heroSection: {
-    height: 280,
-    overflow: 'hidden',
+  overlay: {
+    flex: 1,
   },
-  heroGradient: {
+  content: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
   },
-  logoContainer: {
+  logoSection: {
     alignItems: 'center',
+    marginBottom: 48,
   },
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  appTitle: {
-    fontSize: 36,
+  klothoTitle: {
+    fontSize: 56,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 8,
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  appTagline: {
-    fontSize: 15,
+  tagline: {
+    fontSize: 16,
     color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '400',
+    letterSpacing: 1,
   },
-  formContainer: {
-    flex: 1,
-    marginTop: -30,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+  cardContainer: {
+    width: '100%',
   },
-  formCard: {
-    backgroundColor: '#FFFFFF',
+  glassCard: {
     borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  androidCard: {
+    backgroundColor: 'rgba(30, 30, 30, 0.85)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cardContent: {
     padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
   },
   welcomeText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2C3E50',
+    color: '#FFFFFF',
     marginBottom: 8,
+    textAlign: 'center',
   },
   welcomeSubtext: {
     fontSize: 15,
-    color: '#7F8C8D',
+    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 32,
+    textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3E50',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   input: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#2C3E50',
+    color: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E8EAED',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  eyeButton: {
+    padding: 16,
   },
   signInButton: {
     marginTop: 12,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#2C3E50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonGradient: {
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   signInButtonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 17,
     fontWeight: '700',
   },
-  divider: {
-    flexDirection: 'row',
+  signUpLink: {
+    marginTop: 20,
     alignItems: 'center',
-    marginVertical: 28,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E8EAED',
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: '#95A5A6',
-    fontWeight: '500',
-  },
-  signUpButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  signUpButtonText: {
+  signUpLinkText: {
     fontSize: 15,
-    color: '#7F8C8D',
-  },
-  signUpButtonTextBold: {
-    color: '#2C3E50',
-    fontWeight: '700',
-  },
-  gradientBackground: {
-    flex: 1,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textDecorationLine: 'underline',
   },
   demoNotice: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-  },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  appName: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 32,
-    letterSpacing: 0.5,
   },
   demoTitle: {
     fontSize: 22,

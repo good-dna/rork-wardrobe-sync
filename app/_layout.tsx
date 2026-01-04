@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 
 export const unstable_settings = {
-  initialRouteName: "splash",
+  initialRouteName: "auth/sign-in",
 };
 
 // Create a client
