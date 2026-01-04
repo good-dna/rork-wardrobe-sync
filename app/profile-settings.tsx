@@ -58,18 +58,20 @@ export default function ProfileSettingsScreen() {
             .single();
           
           if (insertError) {
-            console.error('Error creating profile:', JSON.stringify(insertError, null, 2));
+            console.error('Error creating profile:', insertError);
             const errorMessage = insertError.message || insertError.hint || insertError.details || 'Failed to create profile';
-            Alert.alert('Error creating profile', errorMessage);
+            console.error('Full error:', errorMessage);
+            Alert.alert('Error', `Failed to create profile: ${errorMessage}`);
             return;
           }
           
           setProfile(newProfile);
           initializeFormFields(newProfile);
         } else {
-          console.error('Error loading profile:', JSON.stringify(error, null, 2));
+          console.error('Error loading profile:', error);
           const errorMessage = error.message || error.hint || error.details || 'Failed to load profile';
-          Alert.alert('Error loading profile', errorMessage);
+          console.error('Full error:', errorMessage);
+          Alert.alert('Error', `Failed to load profile: ${errorMessage}`);
         }
         return;
       }
@@ -77,9 +79,10 @@ export default function ProfileSettingsScreen() {
       setProfile(data);
       initializeFormFields(data);
     } catch (err: any) {
-      console.error('Error in loadProfile:', JSON.stringify(err, null, 2));
-      const errorMessage = err?.message || err?.hint || err?.details || (err instanceof Error ? err.message : 'An unexpected error occurred');
-      Alert.alert('Error loading profile', errorMessage);
+      console.error('Error in loadProfile:', err);
+      const errorMessage = err?.message || (err instanceof Error ? err.message : String(err) || 'An unexpected error occurred');
+      console.error('Caught error message:', errorMessage);
+      Alert.alert('Error', `Failed to load profile: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -130,18 +133,20 @@ export default function ProfileSettingsScreen() {
         });
       
       if (error) {
-        console.error('Error saving profile:', JSON.stringify(error, null, 2));
+        console.error('Error saving profile:', error);
         const errorMessage = error.message || error.hint || error.details || 'Failed to save profile';
-        Alert.alert('Error saving profile', errorMessage);
+        console.error('Save error message:', errorMessage);
+        Alert.alert('Error', `Failed to save profile: ${errorMessage}`);
         return;
       }
       
       Alert.alert('Success', 'Profile updated successfully');
       router.back();
     } catch (err: any) {
-      console.error('Error in handleSave:', JSON.stringify(err, null, 2));
-      const errorMessage = err?.message || err?.hint || err?.details || (err instanceof Error ? err.message : 'An unexpected error occurred');
-      Alert.alert('Error saving profile', errorMessage);
+      console.error('Error in handleSave:', err);
+      const errorMessage = err?.message || (err instanceof Error ? err.message : String(err) || 'An unexpected error occurred');
+      console.error('Save caught error:', errorMessage);
+      Alert.alert('Error', `Failed to save profile: ${errorMessage}`);
     } finally {
       setSaving(false);
     }

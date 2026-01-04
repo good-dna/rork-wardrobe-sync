@@ -99,8 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .upsert(profileData, { onConflict: 'id' });
 
       if (profileError) {
-        console.error('Profile creation error:', JSON.stringify(profileError, null, 2));
-        return { error: new Error(profileError.message || profileError.hint || 'Failed to create profile') };
+        console.error('Profile creation error:', profileError);
+        const errorMsg = profileError.message || profileError.hint || profileError.details || 'Failed to create profile';
+        console.error('Profile creation error message:', errorMsg);
+        return { error: new Error(errorMsg) };
       }
 
       if (data.session) {

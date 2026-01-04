@@ -86,7 +86,9 @@ export interface Database {
           style_preferences: string[];
           age: number | null;
           favorite_category: string | null;
+          date_of_birth: string | null;
           member_since: string;
+          last_login_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -107,7 +109,9 @@ export interface Database {
           style_preferences?: string[];
           age?: number | null;
           favorite_category?: string | null;
+          date_of_birth?: string | null;
           member_since?: string;
+          last_login_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -128,6 +132,8 @@ export interface Database {
           style_preferences?: string[];
           age?: number | null;
           favorite_category?: string | null;
+          date_of_birth?: string | null;
+          last_login_at?: string | null;
           updated_at?: string;
         };
       };
