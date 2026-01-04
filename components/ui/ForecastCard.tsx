@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Calendar, Cloud, Sun } from 'lucide-react-native';
+import { Calendar, Cloud, Sun, CloudRain } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import Typography from './Typography';
 
@@ -13,7 +13,7 @@ interface ForecastCardProps {
 }
 
 export default function ForecastCard({ day, date, temperature, weatherType, onPress }: ForecastCardProps) {
-  const WeatherIcon = weatherType === 'sunny' ? Sun : Cloud;
+  const WeatherIcon = weatherType === 'sunny' ? Sun : weatherType === 'rainy' ? CloudRain : Cloud;
   
   return (
     <Pressable style={styles.container} onPress={onPress}>
