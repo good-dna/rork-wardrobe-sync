@@ -57,12 +57,68 @@ export default function ClosetAnalyticsScreen() {
         .rpc('get_closet_analytics');
       
       if (analyticsError) {
-        console.error('Error loading analytics:', analyticsError);
-        Alert.alert('Error', 'Failed to load analytics data');
+        console.error('Error loading analytics:', JSON.stringify(analyticsError, null, 2));
+        Alert.alert('Error', `Failed to load analytics: ${analyticsError.message || 'Unknown error'}`);
         return;
       }
       
-      setAnalytics(analyticsData);
+      console.log('Analytics data received:', JSON.stringify(analyticsData, null, 2));
+      
+      if (analyticsData && typeof analyticsData === 'object') {
+        const defaultAnalytics: AnalyticsData = {
+          valuation: {
+            total_items: 0,
+            total_estimated_value: 0,
+            total_purchase_value: 0,
+            total_wears: 0,
+          },
+          top_brand: {
+            brand: null,
+            wears: null,
+          },
+          top_color: {
+            color: null,
+            wears: null,
+          },
+          top_category: {
+            category: null,
+            wears: null,
+          },
+        };
+        
+        setAnalytics({
+          ...defaultAnalytics,
+          ...analyticsData,
+          valuation: {
+            ...defaultAnalytics.valuation,
+            ...(analyticsData.valuation || {}),
+          },
+          top_brand: {
+            ...defaultAnalytics.top_brand,
+            ...(analyticsData.top_brand || {}),
+          },
+          top_color: {
+            ...defaultAnalytics.top_color,
+            ...(analyticsData.top_color || {}),
+          },
+          top_category: {
+            ...defaultAnalytics.top_category,
+            ...(analyticsData.top_category || {}),
+          },
+        });
+      } else {
+        setAnalytics({
+          valuation: {
+            total_items: 0,
+            total_estimated_value: 0,
+            total_purchase_value: 0,
+            total_wears: 0,
+          },
+          top_brand: { brand: null, wears: null },
+          top_color: { color: null, wears: null },
+          top_category: { category: null, wears: null },
+        });
+      }
       
       const { data: topItems, error: topItemsError } = await supabase
         .from('wardrobe_items')
@@ -72,13 +128,15 @@ export default function ClosetAnalyticsScreen() {
         .limit(10);
       
       if (topItemsError) {
-        console.error('Error loading top items:', topItemsError);
+        console.error('Error loading top items:', JSON.stringify(topItemsError, null, 2));
+        Alert.alert('Top Items Error', `Could not load top items: ${topItemsError.message || 'Unknown error'}`);
       } else {
         setTopWornItems(topItems || []);
       }
     } catch (err) {
       console.error('Error in loadAnalytics:', err);
-      Alert.alert('Error', 'An unexpected error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -120,7 +178,7 @@ export default function ClosetAnalyticsScreen() {
     );
   }
   
-  const hasItems = analytics.valuation.total_items > 0;
+  const hasItems = analytics?.valuation?.total_items ? analytics.valuation.total_items > 0 : false;
   
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -148,26 +206,26 @@ export default function ClosetAnalyticsScreen() {
         <View style={styles.cardsGrid}>
           <View style={[styles.statCard, styles.primaryCard]}>
             <Text style={styles.statLabel}>Total Items</Text>
-            <Text style={styles.statValue}>{analytics.valuation.total_items}</Text>
+            <Text style={styles.statValue}>{analytics?.valuation?.total_items ?? 0}</Text>
           </View>
           
           <View style={[styles.statCard, styles.successCard]}>
             <Text style={styles.statLabel}>Estimated Value</Text>
             <Text style={styles.statValue}>
-              {formatCurrency(analytics.valuation.total_estimated_value)}
+              {formatCurrency(analytics?.valuation?.total_estimated_value ?? 0)}
             </Text>
           </View>
           
           <View style={[styles.statCard, styles.warningCard]}>
             <Text style={styles.statLabel}>Purchase Value</Text>
             <Text style={styles.statValue}>
-              {formatCurrency(analytics.valuation.total_purchase_value)}
+              {formatCurrency(analytics?.valuation?.total_purchase_value ?? 0)}
             </Text>
           </View>
           
           <View style={[styles.statCard, styles.infoCard]}>
             <Text style={styles.statLabel}>Total Wears</Text>
-            <Text style={styles.statValue}>{analytics.valuation.total_wears}</Text>
+            <Text style={styles.statValue}>{analytics?.valuation?.total_wears ?? 0}</Text>
           </View>
         </View>
       </View>
@@ -185,11 +243,11 @@ export default function ClosetAnalyticsScreen() {
                 <Award size={20} color={colors.primary} />
                 <Text style={styles.insightTitle}>Most Used Brand</Text>
               </View>
-              {analytics.top_brand.brand ? (
+              {analytics?.top_brand?.brand ? (
                 <>
                   <Text style={styles.insightValue}>{analytics.top_brand.brand}</Text>
                   <Text style={styles.insightSubtext}>
-                    {analytics.top_brand.wears} {analytics.top_brand.wears === 1 ? 'wear' : 'wears'}
+                    {analytics.top_brand.wears ?? 0} {analytics.top_brand.wears === 1 ? 'wear' : 'wears'}
                   </Text>
                 </>
               ) : (
@@ -202,13 +260,13 @@ export default function ClosetAnalyticsScreen() {
                 <Award size={20} color={colors.secondary} />
                 <Text style={styles.insightTitle}>Most Used Color</Text>
               </View>
-              {analytics.top_color.color ? (
+              {analytics?.top_color?.color ? (
                 <>
                   <Text style={styles.insightValue}>
                     {analytics.top_color.color.charAt(0).toUpperCase() + analytics.top_color.color.slice(1)}
                   </Text>
                   <Text style={styles.insightSubtext}>
-                    {analytics.top_color.wears} {analytics.top_color.wears === 1 ? 'wear' : 'wears'}
+                    {analytics.top_color.wears ?? 0} {analytics.top_color.wears === 1 ? 'wear' : 'wears'}
                   </Text>
                 </>
               ) : (
@@ -221,13 +279,13 @@ export default function ClosetAnalyticsScreen() {
                 <Award size={20} color={colors.success} />
                 <Text style={styles.insightTitle}>Most Used Category</Text>
               </View>
-              {analytics.top_category.category ? (
+              {analytics?.top_category?.category ? (
                 <>
                   <Text style={styles.insightValue}>
                     {analytics.top_category.category.charAt(0).toUpperCase() + analytics.top_category.category.slice(1)}
                   </Text>
                   <Text style={styles.insightSubtext}>
-                    {analytics.top_category.wears} {analytics.top_category.wears === 1 ? 'wear' : 'wears'}
+                    {analytics.top_category.wears ?? 0} {analytics.top_category.wears === 1 ? 'wear' : 'wears'}
                   </Text>
                 </>
               ) : (
