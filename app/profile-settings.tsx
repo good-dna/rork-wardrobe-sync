@@ -59,7 +59,8 @@ export default function ProfileSettingsScreen() {
           
           if (insertError) {
             console.error('Error creating profile:', insertError);
-            Alert.alert('Error', 'Failed to create profile');
+            const errorMessage = insertError.message || insertError.hint || 'Failed to create profile';
+            Alert.alert('Error', errorMessage);
             return;
           }
           
@@ -67,7 +68,8 @@ export default function ProfileSettingsScreen() {
           initializeFormFields(newProfile);
         } else {
           console.error('Error loading profile:', error);
-          Alert.alert('Error', 'Failed to load profile');
+          const errorMessage = error.message || error.hint || 'Failed to load profile';
+          Alert.alert('Error', errorMessage);
         }
         return;
       }
@@ -76,7 +78,8 @@ export default function ProfileSettingsScreen() {
       initializeFormFields(data);
     } catch (err) {
       console.error('Error in loadProfile:', err);
-      Alert.alert('Error', 'An unexpected error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -128,7 +131,8 @@ export default function ProfileSettingsScreen() {
       
       if (error) {
         console.error('Error saving profile:', error);
-        Alert.alert('Error', 'Failed to save profile');
+        const errorMessage = error.message || error.hint || 'Failed to save profile';
+        Alert.alert('Error', errorMessage);
         return;
       }
       
@@ -136,7 +140,8 @@ export default function ProfileSettingsScreen() {
       router.back();
     } catch (err) {
       console.error('Error in handleSave:', err);
-      Alert.alert('Error', 'An unexpected error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      Alert.alert('Error', errorMessage);
     } finally {
       setSaving(false);
     }
