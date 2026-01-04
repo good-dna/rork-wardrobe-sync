@@ -66,9 +66,9 @@ export default function ProfileScreen() {
             .single();
           
           if (insertError) {
-            console.error('Error creating profile:', insertError);
-            const errorMessage = insertError.message || insertError.hint || 'Failed to create profile';
-            Alert.alert('Error', `Error creating profile: ${errorMessage}`);
+            console.error('Error creating profile:', JSON.stringify(insertError, null, 2));
+            const errorMessage = insertError.message || insertError.hint || insertError.details || 'Failed to create profile';
+            Alert.alert('Error creating profile', errorMessage);
             return;
           }
           
@@ -95,10 +95,10 @@ export default function ProfileScreen() {
         setCountry(data.country || '');
         setFavoriteCategory(data.favorite_category || '');
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-      Alert.alert('Error', `Error fetching profile: ${errorMessage}`);
+    } catch (error: any) {
+      console.error('Error fetching profile:', JSON.stringify(error, null, 2));
+      const errorMessage = error?.message || error?.hint || error?.details || (error instanceof Error ? error.message : 'Failed to load profile');
+      Alert.alert('Error fetching profile', errorMessage);
     } finally {
       setLoading(false);
     }

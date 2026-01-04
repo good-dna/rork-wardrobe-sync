@@ -94,9 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
       };
 
-      await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert(profileData, { onConflict: 'id' });
+
+      if (profileError) {
+        console.error('Profile creation error:', JSON.stringify(profileError, null, 2));
+        return { error: new Error(profileError.message || profileError.hint || 'Failed to create profile') };
+      }
 
       if (data.session) {
         setSession(data.session);
