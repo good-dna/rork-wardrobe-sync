@@ -137,7 +137,8 @@ export default function TabLayout() {
         <Tabs.Screen
           name="wardrobe"
           options={{
-            href: null,
+            title: "Wardrobe",
+            tabBarIcon: ({ color }) => <Shirt size={24} color={color} />,
           }}
         />
         <Tabs.Screen
