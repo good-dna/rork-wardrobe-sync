@@ -86,13 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profileData = {
         id: data.user.id,
         email: email,
-        first_name: firstName,
-        last_name: lastName,
-        full_name: `${firstName} ${lastName}`.trim(),
-        location: 'Comilla',
+        display_name: `${firstName} ${lastName}`.trim() || email.split('@')[0],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      };
+  };
 
       const { error: profileError } = await supabase
         .from('profiles')
