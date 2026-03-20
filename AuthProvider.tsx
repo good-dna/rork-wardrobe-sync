@@ -83,13 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firstName = metadata?.first_name || '';
       const lastName = metadata?.last_name || '';
 
-      // FIX: Removed hardcoded location: 'Comilla' — location is set by the user after onboarding
+      // FIX: Only insert columns that actually exist in the profiles table:
+      // id, email, display_name, created_at, updated_at
       const profileData = {
         id: data.user.id,
         email: email,
-        first_name: firstName,
-        last_name: lastName,
-        full_name: `${firstName} ${lastName}`.trim(),
+        display_name: `${firstName} ${lastName}`.trim() || email.split('@')[0],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
