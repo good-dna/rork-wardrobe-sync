@@ -272,31 +272,22 @@ export default function ProfileScreen() {
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Age</Text>
           {isEditing ? (
-            <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.ageScrollContent}
-              >
-                {AGES.map((a) => (
-                  <Pressable
-                    key={a}
-                    style={[styles.ageChip, age === a && styles.ageChipSelected]}
-                    onPress={() => setAge(age === a ? null : a)}
-                  >
-                    <Text style={[styles.ageChipText, age === a && styles.ageChipTextSelected]}>
-                      {a}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              {age !== null && (
-                <Text style={styles.helperText}>Selected: {age} years old</Text>
-              )}
-            </>
-          ) : (
-            <Text style={styles.infoValue}>{profile?.age || 'Not set'}</Text>
-          )}
+  <TextInput
+    style={styles.input}
+    value={age !== null ? age.toString() : ''}
+    onChangeText={(val) => {
+      if (val === '') { setAge(null); return; }
+      const num = parseInt(val, 10);
+      if (!isNaN(num) && num >= 1 && num <= 120) setAge(num);
+    }}
+    placeholder="Enter your age"
+    placeholderTextColor={colors.mediumGray}
+    keyboardType="number-pad"
+    maxLength={3}
+  />
+) : (
+  <Text style={styles.infoValue}>{profile?.age || 'Not set'}</Text>
+      )} 
         </View>
 
         {/* Location */}
