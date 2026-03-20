@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { View, StyleSheet, Pressable, Modal } from "react-native";
-import { Shirt, Calendar, User, Plus, Sparkles } from "lucide-react-native";
+import { Shirt, Sparkles, Calendar, User, Plus, ShoppingBag } from 'lucide-react-native';
 import { colors, tokens } from "@/constants/colors";
 import Typography from "@/components/ui/Typography";
 
@@ -98,9 +98,12 @@ export default function TabLayout() {
             backgroundColor: colors.background,
             borderTopColor: colors.border,
             borderTopWidth: 1,
-            height: 60,
-            paddingBottom: 8,
-            paddingTop: 8,
+            height: 56,
+            paddingBottom: 6,
+            paddingTop: 6,
+          },
+          tabBarLabelStyle: {
+            fontSize: 10,
           },
           headerShown: false,
         }}
@@ -108,51 +111,40 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "Closet",
-            tabBarIcon: ({ color }) => <Shirt size={24} color={color} />,
+            title: "Home",
+            tabBarIcon: ({ color }) => <Shirt size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="wardrobe"
+          options={{
+            title: "Wardrobe",
+            tabBarIcon: ({ color }) => <ShoppingBag size={22} color={color} />,
           }}
         />
         <Tabs.Screen
           name="outfits"
           options={{
-            title: "Outfit",
-            tabBarIcon: ({ color }) => <Sparkles size={24} color={color} />,
+            title: "Outfits",
+            tabBarIcon: ({ color }) => <Sparkles size={22} color={color} />,
           }}
         />
         <Tabs.Screen
           name="calendar"
           options={{
             title: "Calendar",
-            tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+            tabBarIcon: ({ color }) => <Calendar size={22} color={color} />,
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
             title: "Profile",
-            tabBarIcon: ({ color }) => <User size={24} color={color} />,
+            tabBarIcon: ({ color }) => <User size={22} color={color} />,
           }}
         />
-        
-        <Tabs.Screen
-          name="wardrobe"
-          options={{
-            title: "Wardrobe",
-            tabBarIcon: ({ color }) => <Shirt size={24} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="wishlist"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="analytics"
-          options={{
-            href: null,
-          }}
-        />
+        <Tabs.Screen name="wishlist" options={{ href: null }} />
+        <Tabs.Screen name="analytics" options={{ href: null }} />
       </Tabs>
       <FloatingTabBar />
     </>
