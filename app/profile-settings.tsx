@@ -3,163 +3,133 @@ import { StyleSheet, Text, View, ScrollView, TextInput, Pressable, Alert, Activi
 import { Stack, useRouter } from 'expo-router';
 import { Save, User } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
-import { supabase, Tables } from '@/lib/supabase';
-
-type Profile = Tables<'profiles'>;
-
-const CATEGORIES = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileSettingsScreen() {
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  
-  const [fullName, setFullName] = useState('');
+
+  // FIX: Only track fields that exist in the profiles table
+  const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [country, setCountry] = useState('');
-  const [favoriteCategory, setFavoriteCategory] = useState('');
-  
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [timezone, setTimezone] = useState('');
+  const [units, setUnits] = useState<'imperial' | 'metric'>('imperial');
+
   useEffect(() => {
     loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   const loadProfile = async () => {
     try {
       setLoading(true);
-      
+
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         Alert.alert('Error', 'Not authenticated. Please sign in.');
         router.back();
         return;
       }
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-      
+
       if (error) {
         if (error.code === 'PGRST116') {
+          // Profile doesn't exist yet — create it
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
             .insert({
               id: user.id,
               email: user.email || '',
+              display_name: user.email?.split('@')[0] || '',
             })
             .select()
             .single();
-          
+
           if (insertError) {
-            console.error('Error creating profile:', insertError);
-            const errorMessage = insertError.message || insertError.hint || insertError.details || 'Failed to create profile';
-            console.error('Full error:', errorMessage);
-            Alert.alert('Error', `Failed to create profile: ${errorMessage}`);
+            Alert.alert('Error', `Failed to create profile: ${insertError.message}`);
             return;
           }
-          
-          setProfile(newProfile);
           initializeFormFields(newProfile);
         } else {
-          console.error('Error loading profile:', error);
-          const errorMessage = error.message || error.hint || error.details || 'Failed to load profile';
-          console.error('Full error:', errorMessage);
-          Alert.alert('Error', `Failed to load profile: ${errorMessage}`);
+          Alert.alert('Error', `Failed to load profile: ${error.message}`);
         }
         return;
       }
-      
-      setProfile(data);
+
       initializeFormFields(data);
     } catch (err: any) {
-      console.error('Error in loadProfile:', err);
-      const errorMessage = err?.message || (err instanceof Error ? err.message : String(err) || 'An unexpected error occurred');
-      console.error('Caught error message:', errorMessage);
-      Alert.alert('Error', `Failed to load profile: ${errorMessage}`);
+      Alert.alert('Error', `Failed to load profile: ${err?.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
-  
-  const initializeFormFields = (profileData: Profile) => {
-    setFullName(profileData.full_name || '');
+
+  const initializeFormFields = (profileData: any) => {
+    setDisplayName(profileData.display_name || '');
     setAge(profileData.age?.toString() || '');
-    setCity(profileData.city || '');
-    setState(profileData.state || '');
-    setCountry(profileData.country || '');
-    setFavoriteCategory(profileData.favorite_category || '');
+    setDateOfBirth(profileData.date_of_birth || '');
+    setTimezone(profileData.timezone || '');
+    setUnits(profileData.units === 'metric' ? 'metric' : 'imperial');
   };
-  
+
   const handleSave = async () => {
-    if (!fullName.trim()) {
-      Alert.alert('Validation Error', 'Full name is required');
+    if (!displayName.trim()) {
+      Alert.alert('Validation Error', 'Display name is required');
       return;
     }
-    
+
     const ageNum = age ? parseInt(age, 10) : null;
     if (age && (isNaN(ageNum as number) || (ageNum as number) < 0 || (ageNum as number) > 120)) {
       Alert.alert('Validation Error', 'Age must be between 0 and 120');
       return;
     }
-    
+
     try {
       setSaving(true);
-      
+
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         Alert.alert('Error', 'Not authenticated');
         return;
       }
-      
+
+      // FIX: Only update columns that actually exist in the profiles table
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           email: user.email || '',
-          full_name: fullName.trim(),
+          display_name: displayName.trim(),
           age: ageNum,
-          city: city.trim() || null,
-          state: state.trim() || null,
-          country: country.trim() || null,
-          favorite_category: favoriteCategory || null,
+          date_of_birth: dateOfBirth || null,
+          timezone: timezone.trim() || null,
+          units: units,
+          updated_at: new Date().toISOString(),
         });
-      
+
       if (error) {
-        console.error('Error saving profile:', error);
-        const errorMessage = error.message || error.hint || error.details || 'Failed to save profile';
-        console.error('Save error message:', errorMessage);
-        Alert.alert('Error', `Failed to save profile: ${errorMessage}`);
+        Alert.alert('Error', `Failed to save profile: ${error.message}`);
         return;
       }
-      
+
       Alert.alert('Success', 'Profile updated successfully');
       router.back();
     } catch (err: any) {
-      console.error('Error in handleSave:', err);
-      const errorMessage = err?.message || (err instanceof Error ? err.message : String(err) || 'An unexpected error occurred');
-      console.error('Save caught error:', errorMessage);
-      Alert.alert('Error', `Failed to save profile: ${errorMessage}`);
+      Alert.alert('Error', `Failed to save profile: ${err?.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
   };
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-  
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -169,10 +139,10 @@ export default function ProfileSettingsScreen() {
       </View>
     );
   }
-  
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Stack.Screen 
+      <Stack.Screen
         options={{
           title: 'Profile Settings',
           headerRight: () => (
@@ -186,24 +156,24 @@ export default function ProfileSettingsScreen() {
           ),
         }}
       />
-      
+
       <View style={styles.section}>
         <View style={styles.iconHeader}>
           <User size={24} color={colors.primary} />
           <Text style={styles.sectionTitle}>Personal Information</Text>
         </View>
-        
+
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Full Name *</Text>
+          <Text style={styles.label}>Display Name *</Text>
           <TextInput
             style={styles.input}
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Enter your full name"
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Enter your display name"
             placeholderTextColor={colors.mediumGray}
           />
         </View>
-        
+
         <View style={styles.formGroup}>
           <Text style={styles.label}>Age</Text>
           <TextInput
@@ -215,83 +185,58 @@ export default function ProfileSettingsScreen() {
             keyboardType="number-pad"
           />
         </View>
-        
+
         <View style={styles.formGroup}>
-          <Text style={styles.label}>City</Text>
+          <Text style={styles.label}>Date of Birth (YYYY-MM-DD)</Text>
           <TextInput
             style={styles.input}
-            value={city}
-            onChangeText={setCity}
-            placeholder="Enter your city"
+            value={dateOfBirth}
+            onChangeText={setDateOfBirth}
+            placeholder="e.g. 1990-01-15"
             placeholderTextColor={colors.mediumGray}
           />
         </View>
-        
+
         <View style={styles.formGroup}>
-          <Text style={styles.label}>State / Province</Text>
+          <Text style={styles.label}>Timezone</Text>
           <TextInput
             style={styles.input}
-            value={state}
-            onChangeText={setState}
-            placeholder="Enter your state"
-            placeholderTextColor={colors.mediumGray}
-          />
-        </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Country</Text>
-          <TextInput
-            style={styles.input}
-            value={country}
-            onChangeText={setCountry}
-            placeholder="Enter your country"
+            value={timezone}
+            onChangeText={setTimezone}
+            placeholder="e.g. America/New_York"
             placeholderTextColor={colors.mediumGray}
           />
         </View>
       </View>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Preferences</Text>
-        
+
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Favorite Category</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {CATEGORIES.map((category) => (
-              <Pressable
-                key={category}
-                style={[
-                  styles.categoryChip,
-                  favoriteCategory === category && styles.selectedCategoryChip
-                ]}
-                onPress={() => setFavoriteCategory(category)}
-              >
-                <Text 
-                  style={[
-                    styles.categoryChipText,
-                    favoriteCategory === category && styles.selectedCategoryChipText
-                  ]}
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <Text style={styles.label}>Temperature Units</Text>
+          <View style={styles.unitsContainer}>
+            <Pressable
+              style={[styles.unitChip, units === 'imperial' && styles.selectedUnitChip]}
+              onPress={() => setUnits('imperial')}
+            >
+              <Text style={[styles.unitChipText, units === 'imperial' && styles.selectedUnitChipText]}>
+                °F Imperial
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.unitChip, units === 'metric' && styles.selectedUnitChip]}
+              onPress={() => setUnits('metric')}
+            >
+              <Text style={[styles.unitChipText, units === 'metric' && styles.selectedUnitChipText]}>
+                °C Metric
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
-      
-      {profile?.member_since && (
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Member Since</Text>
-          <Text style={styles.infoValue}>{formatDate(profile.member_since)}</Text>
-        </View>
-      )}
-      
-      <Pressable 
-        style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+
+      <Pressable
+        style={[styles.saveButton, saving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={saving}
       >
@@ -315,6 +260,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -325,7 +271,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: colors.subtext,
+    color: colors.textSecondary,
   },
   headerButton: {
     padding: 8,
@@ -343,6 +289,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginLeft: 8,
+    marginBottom: 16,
   },
   formGroup: {
     marginBottom: 16,
@@ -363,47 +310,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  categoriesContainer: {
-    paddingVertical: 4,
+  unitsContainer: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.lightGray,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  selectedCategoryChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  selectedCategoryChipText: {
-    color: 'white',
-    fontWeight: '500',
-  },
-  infoCard: {
+  unitChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.subtext,
-    marginBottom: 4,
+  selectedUnitChip: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
+  unitChipText: {
+    fontSize: 14,
     color: colors.text,
+    fontWeight: '500',
+  },
+  selectedUnitChipText: {
+    color: '#000000',
+    fontWeight: '600',
   },
   saveButton: {
     flexDirection: 'row',

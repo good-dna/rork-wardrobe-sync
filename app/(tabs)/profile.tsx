@@ -1,45 +1,54 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, TextInput, Image, Alert, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet, Text, View, ScrollView, Pressable,
+  TextInput, Image, Alert, ActivityIndicator
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3 } from 'lucide-react-native';
+import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors } from '@/constants/colors';
+import { colors, tokens } from '@/constants/colors';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabase } from '@/lib/supabase';
 
+const CATEGORIES = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
+const AGES = Array.from({ length: 100 }, (_, i) => i + 1);
+
 interface Profile {
   id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  full_name: string | null;
+  email: string | null;
+  display_name: string | null;
   avatar_url: string | null;
-  location: string | null;
+  age: number | null;
+  date_of_birth: string | null;
+  timezone: string | null;
+  units: string | null;
+  favorite_category: string | null;
+  zip_code: string | null;
   city: string | null;
   state: string | null;
   country: string | null;
-  age: number | null;
-  favorite_category: string | null;
-  member_since: string;
   created_at: string;
   updated_at: string;
-  last_login_at: string | null;
 }
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [fullName, setFullName] = useState('');
-  const [age, setAge] = useState('');
+  const [zipLookingUp, setZipLookingUp] = useState(false);
+
+  // Editable fields
+  const [displayName, setDisplayName] = useState('');
+  const [age, setAge] = useState<number | null>(null);
+  const [favoriteCategory, setFavoriteCategory] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [country, setCountry] = useState('');
-  const [favoriteCategory, setFavoriteCategory] = useState('');
-  
+
   const fetchProfile = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -55,31 +64,23 @@ export default function ProfileScreen() {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log('Profile not found, creating new profile...');
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
             .insert({
               id: user.id,
               email: user.email || '',
+              display_name: user.email?.split('@')[0] || '',
             })
             .select()
             .single();
-          
+
           if (insertError) {
-            console.error('Error creating profile:', JSON.stringify(insertError, null, 2));
-            const errorMessage = insertError.message || insertError.hint || insertError.details || 'Failed to create profile';
-            Alert.alert('Error creating profile', errorMessage);
+            Alert.alert('Error', `Failed to create profile: ${insertError.message}`);
             return;
           }
-          
           if (newProfile) {
             setProfile(newProfile);
-            setFullName(newProfile.full_name || '');
-            setAge(newProfile.age?.toString() || '');
-            setCity(newProfile.city || '');
-            setState(newProfile.state || '');
-            setCountry(newProfile.country || '');
-            setFavoriteCategory(newProfile.favorite_category || '');
+            initFormFields(newProfile);
           }
           return;
         }
@@ -88,69 +89,71 @@ export default function ProfileScreen() {
 
       if (data) {
         setProfile(data);
-        setFullName(data.full_name || '');
-        setAge(data.age?.toString() || '');
-        setCity(data.city || '');
-        setState(data.state || '');
-        setCountry(data.country || '');
-        setFavoriteCategory(data.favorite_category || '');
+        initFormFields(data);
       }
-    } catch (error: any) {
-      console.error('Error fetching profile:', JSON.stringify(error, null, 2));
-      const errorMessage = error?.message || error?.hint || error?.details || (error instanceof Error ? error.message : 'Failed to load profile');
-      Alert.alert('Error fetching profile', errorMessage);
+    } catch (err: any) {
+      Alert.alert('Error', `Failed to load profile: ${err?.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   }, [user]);
-  
+
+  const initFormFields = (p: any) => {
+    setDisplayName(p.display_name || '');
+    setAge(p.age || null);
+    setFavoriteCategory(p.favorite_category || '');
+    setZipCode(p.zip_code || '');
+    setCity(p.city || '');
+    setState(p.state || '');
+    setCountry(p.country || '');
+  };
+
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-  
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to log out?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        { 
-          text: "Logout", 
-          onPress: async () => {
-            await signOut();
-          }
+
+  // ZIP autofill using free zippopotam.us API
+  const handleZipChange = useCallback(async (zip: string) => {
+    setZipCode(zip);
+    if (zip.length !== 5 || !/^\d+$/.test(zip)) return;
+
+    setZipLookingUp(true);
+    try {
+      const response = await fetch(`https://api.zippopotam.us/us/${zip}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.places?.length > 0) {
+          setCity(data.places[0]['place name']);
+          setState(data.places[0]['state abbreviation']);
+          setCountry('United States');
         }
-      ]
-    );
-  };
-  
+      }
+    } catch (err) {
+      console.warn('ZIP lookup failed:', err);
+    } finally {
+      setZipLookingUp(false);
+    }
+  }, []);
+
   const handleSaveProfile = async () => {
-    if (!fullName.trim()) {
-      Alert.alert("Error", "Full name cannot be empty");
+    if (!displayName.trim()) {
+      Alert.alert('Error', 'Display name cannot be empty');
       return;
     }
 
     if (!user) return;
 
     try {
-      const ageNum = age ? parseInt(age, 10) : null;
-      if (age && (isNaN(ageNum!) || ageNum! < 0 || ageNum! > 120)) {
-        Alert.alert("Error", "Please enter a valid age (0-120)");
-        return;
-      }
-
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: fullName,
-          age: ageNum,
-          city: city || null,
-          state: state || null,
-          country: country || null,
+          display_name: displayName.trim(),
+          age: age,
           favorite_category: favoriteCategory || null,
+          zip_code: zipCode || null,
+          city: city.trim() || null,
+          state: state.trim() || null,
+          country: country.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -159,13 +162,19 @@ export default function ProfileScreen() {
 
       await fetchProfile();
       setIsEditing(false);
-      Alert.alert("Success", "Profile updated successfully");
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      Alert.alert("Error", "Failed to update profile");
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (err: any) {
+      Alert.alert('Error', `Failed to update profile: ${err?.message || 'Unknown error'}`);
     }
   };
-  
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: async () => await signOut() },
+    ]);
+  };
+
   const handlePickAvatar = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -174,7 +183,7 @@ export default function ProfileScreen() {
         aspect: [1, 1],
         quality: 0.8,
       });
-      
+
       if (!result.canceled && user) {
         const { error } = await supabase
           .from('profiles')
@@ -185,11 +194,10 @@ export default function ProfileScreen() {
         await fetchProfile();
       }
     } catch (err) {
-      console.error('Error picking image:', err);
-      Alert.alert("Error", "Failed to update avatar. Please try again.");
+      Alert.alert('Error', 'Failed to update avatar. Please try again.');
     }
   };
-  
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -200,9 +208,10 @@ export default function ProfileScreen() {
       </View>
     );
   }
-  
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>My Profile</Text>
         {!isEditing ? (
@@ -210,21 +219,22 @@ export default function ProfileScreen() {
             <Edit size={20} color={colors.primary} />
           </Pressable>
         ) : (
-          <Pressable style={styles.saveButton} onPress={handleSaveProfile}>
-            <Text style={styles.saveButtonText}>Save</Text>
+          <Pressable style={styles.saveHeaderButton} onPress={handleSaveProfile}>
+            <Save size={16} color="#000" />
+            <Text style={styles.saveHeaderButtonText}>Save</Text>
           </Pressable>
         )}
       </View>
-      
+
+      {/* Avatar */}
       <View style={styles.avatarContainer}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+        {profile?.avatar_url ? (
+          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <User size={40} color={colors.mediumGray} />
           </View>
         )}
-        
         {isEditing && (
           <Pressable style={styles.changeAvatarButton} onPress={handlePickAvatar}>
             <Camera size={16} color="white" />
@@ -232,116 +242,153 @@ export default function ProfileScreen() {
           </Pressable>
         )}
       </View>
-      
+
+      {/* Profile Info */}
       <View style={styles.profileInfo}>
+
+        {/* Display Name */}
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Full Name</Text>
+          <Text style={styles.infoLabel}>Display Name</Text>
           {isEditing ? (
             <TextInput
               style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
+              value={displayName}
+              onChangeText={setDisplayName}
               placeholder="Your name"
               placeholderTextColor={colors.mediumGray}
             />
           ) : (
-            <Text style={styles.infoValue}>{profile?.full_name || 'Not set'}</Text>
+            <Text style={styles.infoValue}>{profile?.display_name || 'Not set'}</Text>
           )}
         </View>
-        
+
+        {/* Email (read-only) */}
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{profile?.email}</Text>
+          <Text style={styles.infoValue}>{profile?.email || user?.email}</Text>
         </View>
-        
+
+        {/* Age */}
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Age</Text>
           {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              placeholder="Your age"
-              placeholderTextColor={colors.mediumGray}
-              keyboardType="number-pad"
-            />
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.ageScrollContent}
+              >
+                {AGES.map((a) => (
+                  <Pressable
+                    key={a}
+                    style={[styles.ageChip, age === a && styles.ageChipSelected]}
+                    onPress={() => setAge(age === a ? null : a)}
+                  >
+                    <Text style={[styles.ageChipText, age === a && styles.ageChipTextSelected]}>
+                      {a}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {age !== null && (
+                <Text style={styles.helperText}>Selected: {age} years old</Text>
+              )}
+            </>
           ) : (
             <Text style={styles.infoValue}>{profile?.age || 'Not set'}</Text>
           )}
         </View>
-        
+
+        {/* Location */}
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>City</Text>
+          <Text style={styles.infoLabel}>Location</Text>
           {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={city}
-              onChangeText={setCity}
-              placeholder="Your city"
-              placeholderTextColor={colors.mediumGray}
-            />
+            <>
+              <View style={styles.zipRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  value={zipCode}
+                  onChangeText={handleZipChange}
+                  placeholder="ZIP code (autofills city/state)"
+                  placeholderTextColor={colors.mediumGray}
+                  keyboardType="number-pad"
+                  maxLength={10}
+                />
+                {zipLookingUp && (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+                )}
+              </View>
+              <View style={styles.locationRow}>
+                <TextInput
+                  style={[styles.input, styles.locationHalf]}
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="City"
+                  placeholderTextColor={colors.mediumGray}
+                />
+                <TextInput
+                  style={[styles.input, styles.locationHalf]}
+                  value={state}
+                  onChangeText={setState}
+                  placeholder="State"
+                  placeholderTextColor={colors.mediumGray}
+                />
+              </View>
+              <TextInput
+                style={[styles.input, { marginTop: 8 }]}
+                value={country}
+                onChangeText={setCountry}
+                placeholder="Country"
+                placeholderTextColor={colors.mediumGray}
+              />
+            </>
           ) : (
-            <Text style={styles.infoValue}>{profile?.city || 'Not set'}</Text>
+            <Text style={styles.infoValue}>
+              {[profile?.city, profile?.state, profile?.country].filter(Boolean).join(', ') || 'Not set'}
+            </Text>
           )}
         </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>State/Region</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={state}
-              onChangeText={setState}
-              placeholder="Your state"
-              placeholderTextColor={colors.mediumGray}
-            />
-          ) : (
-            <Text style={styles.infoValue}>{profile?.state || 'Not set'}</Text>
-          )}
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Country</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={country}
-              onChangeText={setCountry}
-              placeholder="Your country"
-              placeholderTextColor={colors.mediumGray}
-            />
-          ) : (
-            <Text style={styles.infoValue}>{profile?.country || 'Not set'}</Text>
-          )}
-        </View>
-        
+
+        {/* Favorite Category */}
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Favorite Category</Text>
           {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={favoriteCategory}
-              onChangeText={setFavoriteCategory}
-              placeholder="e.g., shirts, shoes"
-              placeholderTextColor={colors.mediumGray}
-            />
+            <View style={styles.chipGrid}>
+              {CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[styles.categoryChip, favoriteCategory === cat && styles.categoryChipSelected]}
+                  onPress={() => setFavoriteCategory(favoriteCategory === cat ? '' : cat)}
+                >
+                  <Text style={[styles.categoryChipText, favoriteCategory === cat && styles.categoryChipTextSelected]}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           ) : (
-            <Text style={styles.infoValue}>{profile?.favorite_category || 'Not set'}</Text>
+            <Text style={styles.infoValue}>
+              {profile?.favorite_category
+                ? profile.favorite_category.charAt(0).toUpperCase() + profile.favorite_category.slice(1)
+                : 'Not set'}
+            </Text>
           )}
         </View>
-        
+
+        {/* Member Since */}
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Member Since</Text>
           <Text style={styles.infoValue}>
-            {new Date(profile?.member_since || profile?.created_at || '').toLocaleDateString()}
+            {new Date(profile?.created_at || '').toLocaleDateString()}
           </Text>
         </View>
       </View>
-      
+
+      {/* Settings Section */}
       <View style={styles.settingsSection}>
         <Text style={styles.settingsTitle}>Settings</Text>
-        
-        <Pressable 
+
+        <Pressable
           style={styles.settingsItem}
           onPress={() => router.push('/profile-settings')}
         >
@@ -349,15 +396,13 @@ export default function ProfileScreen() {
             <Settings size={20} color={colors.primary} />
             <View style={styles.settingsItemText}>
               <Text style={styles.settingsItemTitle}>Profile Settings</Text>
-              <Text style={styles.settingsItemSubtitle}>
-                Update your personal information and preferences
-              </Text>
+              <Text style={styles.settingsItemSubtitle}>Update your personal information and preferences</Text>
             </View>
           </View>
-          <ChevronRight size={20} color={colors.subtext} />
+          <ChevronRight size={20} color={colors.textSecondary} />
         </Pressable>
-        
-        <Pressable 
+
+        <Pressable
           style={[styles.settingsItem, styles.settingsItemSpacing]}
           onPress={() => router.push('/closet-analytics')}
         >
@@ -365,15 +410,13 @@ export default function ProfileScreen() {
             <BarChart3 size={20} color={colors.success} />
             <View style={styles.settingsItemText}>
               <Text style={styles.settingsItemTitle}>Closet Analytics</Text>
-              <Text style={styles.settingsItemSubtitle}>
-                View valuation and usage insights
-              </Text>
+              <Text style={styles.settingsItemSubtitle}>View valuation and usage insights</Text>
             </View>
           </View>
-          <ChevronRight size={20} color={colors.subtext} />
+          <ChevronRight size={20} color={colors.textSecondary} />
         </Pressable>
-        
-        <Pressable 
+
+        <Pressable
           style={[styles.settingsItem, styles.settingsItemSpacing]}
           onPress={() => router.push('/location-settings')}
         >
@@ -382,23 +425,19 @@ export default function ProfileScreen() {
             <View style={styles.settingsItemText}>
               <Text style={styles.settingsItemTitle}>Location & Weather</Text>
               <Text style={styles.settingsItemSubtitle}>
-                {profile?.city && profile?.state 
+                {profile?.city && profile?.state
                   ? `${profile.city}, ${profile.state}`
-                  : profile?.location
-                  ? profile.location
-                  : 'Set your location for weather-based recommendations'
-                }
+                  : 'Set your location for weather-based recommendations'}
               </Text>
             </View>
           </View>
-          <ChevronRight size={20} color={colors.subtext} />
+          <ChevronRight size={20} color={colors.textSecondary} />
         </Pressable>
       </View>
-      
+
+      {/* Logout */}
       <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <View style={styles.logoutIconContainer}>
-          <LogOut size={18} color={colors.error} />
-        </View>
+        <LogOut size={18} color={colors.error} />
         <Text style={styles.logoutButtonText}>Logout</Text>
       </Pressable>
     </ScrollView>
@@ -411,133 +450,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  editButton: {
-    padding: 8,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-    position: 'relative',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  changeAvatarButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: '35%',
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  changeAvatarText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  profileInfo: {
-    marginBottom: 24,
-  },
-  infoItem: {
-    marginBottom: 16,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.subtext,
-    marginBottom: 4,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.text,
-  },
-  optionsContainer: {
-    paddingVertical: 4,
-  },
-  optionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.lightGray,
-    marginRight: 8,
-  },
-  selectedOptionChip: {
-    backgroundColor: colors.primary,
-  },
-  optionChipText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  selectedOptionChipText: {
-    color: 'white',
-    fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: 8,
-  },
-  logoutIconContainer: {
-    marginRight: 8,
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    color: colors.error,
-    fontWeight: '500',
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.error,
-    textAlign: 'center',
-    marginTop: 24,
+    padding: tokens.spacing.lg,
+    paddingBottom: 60,
   },
   loadingContainer: {
     flex: 1,
@@ -549,8 +463,180 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.lg,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  editButton: {
+    padding: 8,
+  },
+  saveHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: tokens.radius.md,
+    gap: 6,
+  },
+  saveHeaderButtonText: {
+    color: '#000',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: tokens.spacing.lg,
+    position: 'relative',
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  changeAvatarButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: '35%',
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  changeAvatarText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  profileInfo: {
+    marginBottom: tokens.spacing.lg,
+  },
+  infoItem: {
+    marginBottom: tokens.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: tokens.spacing.md,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  input: {
+    backgroundColor: colors.card,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  helperText: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 4,
+  },
+  // Age chips
+  ageScrollContent: {
+    paddingVertical: 4,
+    flexDirection: 'row',
+  },
+  ageChip: {
+    width: 44,
+    height: 44,
+    borderRadius: tokens.radius.md,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 6,
+  },
+  ageChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  ageChipText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  ageChipTextSelected: {
+    color: '#000000',
+    fontWeight: '700',
+  },
+  // Location
+  zipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  locationHalf: {
+    flex: 1,
+  },
+  // Category chips
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: tokens.radius.full,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  categoryChipTextSelected: {
+    color: '#000000',
+    fontWeight: '600',
+  },
+  // Settings
   settingsSection: {
-    marginBottom: 24,
+    marginBottom: tokens.spacing.lg,
   },
   settingsTitle: {
     fontSize: 18,
@@ -560,7 +646,7 @@ const styles = StyleSheet.create({
   },
   settingsItem: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: tokens.radius.lg,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -584,8 +670,25 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   settingsItemSubtitle: {
-    fontSize: 14,
-    color: colors.subtext,
+    fontSize: 13,
+    color: colors.textSecondary,
     marginTop: 2,
+  },
+  // Logout
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: tokens.radius.md,
+    gap: 8,
+    marginBottom: 24,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    color: colors.error,
+    fontWeight: '500',
   },
 });
