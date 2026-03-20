@@ -199,23 +199,25 @@ export default function WardrobeScreen() {
       </View>
 
       {/* Category filter chips */}
-      <FlatList
-        horizontal
-        data={filterChips}
-        keyExtractor={(item) => item}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterChips}
-        renderItem={({ item: cat }) => (
-          <Pressable
-            style={[styles.filterChip, activeCategory === cat && styles.filterChipActive]}
-            onPress={() => setActiveCategory(cat)}
-          >
-            <Text style={[styles.filterChipText, activeCategory === cat && styles.filterChipTextActive]}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </Text>
-          </Pressable>
-        )}
-      />
+      <View style={styles.filterChipsWrapper}>
+        <FlatList
+          horizontal
+          data={filterChips}
+          keyExtractor={(item) => item}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterChips}
+          renderItem={({ item: cat }) => (
+            <Pressable
+              style={[styles.filterChip, activeCategory === cat && styles.filterChipActive]}
+              onPress={() => setActiveCategory(cat)}
+            >
+              <Text style={[styles.filterChipText, activeCategory === cat && styles.filterChipTextActive]}>
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </Text>
+            </Pressable>
+          )}
+        />
+      </View>
 
       {/* Items count */}
       <Text style={styles.itemCount}>
@@ -313,10 +315,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
+  ffilterChipsWrapper: {
+    height: 48,
+    marginBottom: 4,
+  },
   filterChips: {
     paddingHorizontal: tokens.spacing.lg,
     gap: 8,
-    paddingBottom: tokens.spacing.sm,
+    alignItems: 'center',
   },
   filterChip: {
     paddingHorizontal: 16,
