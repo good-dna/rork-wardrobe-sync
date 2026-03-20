@@ -319,12 +319,14 @@ const styles = StyleSheet.create({
     paddingBottom: tokens.spacing.sm,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: tokens.radius.full,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+    height: 32,
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -343,7 +345,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     paddingHorizontal: tokens.spacing.lg,
-    marginBottom: tokens.spacing.sm,
+    marginBottom: 4,
+    marginTop: 2,
   },
   listContent: {
     paddingHorizontal: tokens.spacing.lg,
@@ -353,8 +356,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: tokens.spacing.sm,
-    marginTop: tokens.spacing.sm,
+    paddingVertical: 6,
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 18,
