@@ -5,18 +5,34 @@ import { Save, User } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { supabase } from '@/lib/supabase';
 
+const isValidDate = (val: string): boolean => {
+  if (val.length !== 10) return false;
+  const parts = val.split('/');
+  if (parts.length !== 3) return false;
+  const mm = parseInt(parts[0], 10);
+  const dd = parseInt(parts[1], 10);
+  const yyyy = parseInt(parts[2], 10);
+  if (isNaN(mm) || isNaN(dd) || isNaN(yyyy)) return false;
+  if (mm < 1 || mm > 12) return false;
+  if (dd < 1 || dd > 31) return false;
+  if (yyyy < 1900 || yyyy > new Date().getFullYear()) return false;
+  const date = new Date(yyyy, mm - 1, dd);
+  return date.getMonth() === mm - 1 && date.getDate() === dd;
+};
+
 export default function ProfileSettingsScreen() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // FIX: Only track fields that exist in the profiles table
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [timezone, setTimezone] = useState('');
   const [units, setUnits] = useState<'imperial' | 'metric'>('imperial');
+
+  const dateHasError = dateOfBirth.length > 0 && !isValidDate(dateOfBirth);
 
   useEffect(() => {
     loadProfile();
@@ -42,7 +58,6 @@ export default function ProfileSettingsScreen() {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // Profile doesn't exist yet — create it
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
             .insert({
@@ -75,9 +90,31 @@ export default function ProfileSettingsScreen() {
   const initializeFormFields = (profileData: any) => {
     setDisplayName(profileData.display_name || '');
     setAge(profileData.age?.toString() || '');
-    setDateOfBirth(profileData.date_of_birth || '');
+    // Convert YYYY-MM-DD from Supabase to MM/DD/YYYY for display
+    if (profileData.date_of_birth) {
+      const parts = profileData.date_of_birth.split('-');
+      if (parts.length === 3) {
+        setDateOfBirth(`${parts[1]}/${parts[2]}/${parts[0]}`);
+      } else {
+        setDateOfBirth(profileData.date_of_birth);
+      }
+    }
     setTimezone(profileData.timezone || '');
     setUnits(profileData.units === 'metric' ? 'metric' : 'imperial');
+  };
+
+  const handleDateChange = (val: string) => {
+    // Strip everything except digits
+    const digits = val.replace(/\D/g, '');
+
+    // Auto-insert slashes after MM and DD
+    let formatted = digits;
+    if (digits.length >= 3 && digits.length <= 4) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    } else if (digits.length >= 5) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+    }
+    setDateOfBirth(formatted);
   };
 
   const handleSave = async () => {
@@ -92,6 +129,11 @@ export default function ProfileSettingsScreen() {
       return;
     }
 
+    if (dateOfBirth && !isValidDate(dateOfBirth)) {
+      Alert.alert('Validation Error', 'Please enter a valid date in MM/DD/YYYY format');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -102,7 +144,13 @@ export default function ProfileSettingsScreen() {
         return;
       }
 
-      // FIX: Only update columns that actually exist in the profiles table
+      // Convert MM/DD/YYYY back to YYYY-MM-DD for Supabase
+      let dbDate = null;
+      if (dateOfBirth && isValidDate(dateOfBirth)) {
+        const parts = dateOfBirth.split('/');
+        dbDate = `${parts[2]}-${parts[0]}-${parts[1]}`;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -110,7 +158,7 @@ export default function ProfileSettingsScreen() {
           email: user.email || '',
           display_name: displayName.trim(),
           age: ageNum,
-          date_of_birth: dateOfBirth || null,
+          date_of_birth: dbDate,
           timezone: timezone.trim() || null,
           units: units,
           updated_at: new Date().toISOString(),
@@ -146,11 +194,11 @@ export default function ProfileSettingsScreen() {
         options={{
           title: 'Profile Settings',
           headerRight: () => (
-            <Pressable onPress={handleSave} disabled={saving} style={styles.headerButton}>
+            <Pressable onPress={handleSave} disabled={saving || dateHasError} style={styles.headerButton}>
               {saving ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Save size={20} color={colors.primary} />
+                <Save size={20} color={dateHasError ? colors.mediumGray : colors.primary} />
               )}
             </Pressable>
           ),
@@ -187,14 +235,19 @@ export default function ProfileSettingsScreen() {
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Date of Birth (YYYY-MM-DD)</Text>
+          <Text style={styles.label}>Date of Birth</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, dateHasError && styles.inputError]}
             value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholder="e.g. 1990-01-15"
+            onChangeText={handleDateChange}
+            placeholder="MM/DD/YYYY"
             placeholderTextColor={colors.mediumGray}
+            keyboardType="number-pad"
+            maxLength={10}
           />
+          {dateHasError && (
+            <Text style={styles.errorText}>Please enter a valid date (MM/DD/YYYY)</Text>
+          )}
         </View>
 
         <View style={styles.formGroup}>
@@ -236,9 +289,9 @@ export default function ProfileSettingsScreen() {
       </View>
 
       <Pressable
-        style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+        style={[styles.saveButton, (saving || dateHasError) && styles.saveButtonDisabled]}
         onPress={handleSave}
-        disabled={saving}
+        disabled={saving || dateHasError}
       >
         {saving ? (
           <ActivityIndicator size="small" color="white" />
@@ -310,6 +363,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  inputError: {
+    borderColor: colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: 4,
+  },
   unitsContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -346,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.4,
   },
   saveButtonText: {
     color: 'white',
