@@ -9,6 +9,7 @@ import { Wand2, Camera, Upload, X, RefreshCw, ChevronRight } from 'lucide-react-
 import * as ImagePicker from 'expo-image-picker';
 import { colors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
+import * as FileSystem from 'expo-file-system';
 
 const OCCASIONS = [
   { id: 'casual', label: 'Casual' },
@@ -87,17 +88,9 @@ export default function AIStylistScreen() {
     setStep('result');
 
     try {
-      // Convert image to base64
-      const response = await fetch(userPhoto);
-      const blob = await response.blob();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
+      // Convert image to base64 using expo-file-system (works on iOS/Android)
+      const base64 = await FileSystem.readAsStringAsync(userPhoto, {
+        encoding: FileSystem.EncodingType.Base64,
       });
 
       // Get selected outfit items if any
