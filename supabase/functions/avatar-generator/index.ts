@@ -47,8 +47,8 @@ serve(async (req) => {
 
     // Step 2: Generate avatar with Hugging Face SDXL
     const outfit = outfitDescription || 'stylish casual outfit';
-    const prompt = `Full body portrait photo of a ${gender}, ${appearance}, wearing ${outfit}, standing confidently in front of a luxury walk-in wardrobe with warm ambient lighting and clothes hanging on rails, fashion magazine photography, photorealistic, high quality`;
-    const negativePrompt = 'cartoon, anime, blurry, distorted, deformed, low quality, extra limbs';
+    const prompt = `Professional fashion photography, full body portrait of a real ${gender}, ${appearance}, wearing ${outfit}, standing in front of a luxury walk-in closet with warm LED lighting, clothes hanging neatly on wooden rails behind them, shoes displayed below, clean neutral background, sharp focus, photorealistic, 8k, fashion editorial style, natural skin texture, professional studio lighting`;
+    const negativePrompt = 'cartoon, anime, illustration, painting, blurry, distorted, deformed, ugly, bad anatomy, extra limbs, watermark, text, low quality, grainy, overexposed, plastic skin, fake, artificial';
 
     const hfResponse = await fetch(
       'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
@@ -57,7 +57,7 @@ serve(async (req) => {
         headers: { 'Authorization': `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inputs: prompt,
-          parameters: { negative_prompt: negativePrompt, num_inference_steps: 25, guidance_scale: 7.5, width: 512, height: 768 },
+          parameters: { negative_prompt: negativePrompt, num_inference_steps: 30, guidance_scale: 3.5, width: 576, height: 1024 },
         }),
       }
     );
