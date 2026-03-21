@@ -37,12 +37,9 @@ import {
 } from '@/types/wardrobe';
 import {
   getCurrentLocation,
-  reverseGeocode,
-  searchLocations,
-  getDetailedWeatherData,
+  shouldRefreshWeather,
   convertTemperature,
   getTemperatureUnit,
-  shouldRefreshWeather
 } from '@/services/weatherService';
 
 export default function LocationSettingsScreen() {
@@ -70,22 +67,38 @@ export default function LocationSettingsScreen() {
   );
   
   const handleSearch = async (query: string) => {
-    if (query.length < 2) {
+  if (query.length < 2) {
+    setSearchResults([]);
+    return;
+  }
+  
+  setIsSearching(true);
+  try {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=8&language=en&format=json`
+    );
+    const data = await res.json();
+    if (data.results?.length > 0) {
+      const mapped: LocationData[] = data.results.map((r: any) => ({
+        placeId: String(r.id),
+        city: r.name,
+        region: r.admin1 || r.country,
+        country: r.country,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        timezone: r.timezone || 'UTC',
+      }));
+      setSearchResults(mapped);
+    } else {
       setSearchResults([]);
-      return;
     }
-    
-    setIsSearching(true);
-    try {
-      const results = await searchLocations(query);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Search error:', error);
-      Alert.alert('Error', 'Failed to search locations');
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  } catch (error) {
+    console.error('Search error:', error);
+    Alert.alert('Error', 'Failed to search locations');
+  } finally {
+    setIsSearching(false);
+  }
+};
   
   const handleUseCurrentLocation = async () => {
     setIsLoading(true);

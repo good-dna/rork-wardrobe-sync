@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  ffilterChipsWrapper: {
+  filterChipsWrapper: {
     height: 48,
     marginBottom: 4,
   },
