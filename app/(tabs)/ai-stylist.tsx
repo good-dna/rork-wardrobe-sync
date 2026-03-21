@@ -51,7 +51,8 @@ export default function AIStylistScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [3, 4],
-      quality: 0.8,
+      quality: 0.4,
+      width: 800,
     });
     if (!result.canceled) {
       setUserPhoto(result.assets[0].uri);
@@ -70,7 +71,8 @@ export default function AIStylistScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [3, 4],
-      quality: 0.8,
+      quality: 0.4,
+      width: 800,
     });
     if (!result.canceled) {
       setUserPhoto(result.assets[0].uri);
