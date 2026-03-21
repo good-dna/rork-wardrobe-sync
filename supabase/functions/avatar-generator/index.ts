@@ -51,7 +51,7 @@ serve(async (req) => {
     const negativePrompt = 'cartoon, anime, blurry, distorted, deformed, low quality, extra limbs';
 
     const hfResponse = await fetch(
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
+      'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
       {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
