@@ -131,28 +131,9 @@ export default function LocationSettingsScreen() {
     setSearchResults([]);
   };
   
-  const handleRefreshWeather = async () => {
-    if (!location) {
-      Alert.alert('Error', 'Please select a location first');
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      const cache = await getDetailedWeatherData(location, units);
-      if (cache) {
-        updateWeatherCache(cache);
-        Alert.alert('Success', 'Weather data updated');
-      } else {
-        Alert.alert('Error', 'Failed to fetch weather data');
-      }
-    } catch (error) {
-      console.error('Weather refresh error:', error);
-      Alert.alert('Error', 'Failed to refresh weather data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleRefreshWeather = () => {
+  Alert.alert('Success', 'Pull down on the home screen to refresh weather data');
+};
   
   const handleSave = async () => {
     if (!location) {
