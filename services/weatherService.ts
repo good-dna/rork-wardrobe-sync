@@ -1,4 +1,4 @@
-code 'app/(tabs)/index.tsx'import * as Location from 'expo-location';
+import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 
 export interface WeatherData {
