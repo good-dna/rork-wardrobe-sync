@@ -9,7 +9,7 @@ import { Wand2, Camera, Upload, X, RefreshCw, ChevronRight } from 'lucide-react-
 import * as ImagePicker from 'expo-image-picker';
 import { colors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const OCCASIONS = [
   { id: 'casual', label: 'Casual' },
