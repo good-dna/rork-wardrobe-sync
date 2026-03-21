@@ -89,9 +89,23 @@ export default function AIStylistScreen() {
 
     try {
       // Convert image to base64 using expo-file-system (works on iOS/Android)
-      const base64 = await FileSystem.readAsStringAsync(userPhoto, {
-        encoding: 'base64' as any,
-      });
+      let base64: string;
+      if (typeof document !== 'undefined') {
+        // Web: use fetch + FileReader
+        const response = await fetch(userPhoto);
+        const blob = await response.blob();
+        base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        // Native iOS/Android: use expo-file-system
+        base64 = await FileSystem.readAsStringAsync(userPhoto, {
+          encoding: 'base64' as any,
+        });
+      }
 
       // Get selected outfit items if any
       const selectedOutfit = selectedOutfitId
