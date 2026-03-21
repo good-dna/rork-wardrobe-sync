@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import * as FileSystem from 'expo-file-system/legacy';
+import { supabase } from '@/lib/supabase';
 
 const OCCASIONS = [
   { id: 'casual', label: 'Casual' },
@@ -122,58 +123,17 @@ export default function AIStylistScreen() {
 
       const occasionLabel = OCCASIONS.find(o => o.id === selectedOccasion)?.label || 'Casual';
 
-      // Call Claude AI
-      const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: 'image/jpeg',
-                  data: base64,
-                },
-              },
-              {
-                type: 'text',
-                text: `You are a professional fashion stylist and personal shopper. Analyze this person's photo and provide personalized styling advice.
-
-Occasion: ${occasionLabel}
-Available wardrobe items: ${outfitDescription}
-
-Please provide a JSON response with exactly this structure (no other text):
-{
-  "bodyAnalysis": "Brief, positive description of their build and style personality in 1-2 sentences",
-  "outfitDescription": "Detailed description of how they would look wearing these items styled for ${occasionLabel}, as if painting a picture. 2-3 sentences.",
-  "stylingTips": ["Tip 1", "Tip 2", "Tip 3"],
-  "colorRecommendations": "Which colors from their wardrobe suit them best and why. 1-2 sentences.",
-  "occasion": "${occasionLabel}"
-}
-
-Be positive, specific, and professional. Focus on what works well for their body type and coloring.`,
-              },
-            ],
-          }],
-        }),
+      // Call Claude via Supabase
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('claude-stylist', {
+        body: {
+          imageBase64: base64,
+          occasion: selectedOccasion,
+          outfitDescription,
+        },
       });
 
-      const data = await aiResponse.json();
-      const content = data.content?.[0]?.text || '';
-
-      // Parse JSON from response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        setStyleResult(parsed);
-      } else {
-        throw new Error('Could not parse AI response');
-      }
+      if (aiError) throw new Error(aiError.message);
+      setStyleResult(aiData);
     } catch (err) {
       console.error('AI styling error:', err);
       Alert.alert('Error', 'Failed to generate style advice. Please try again.');
