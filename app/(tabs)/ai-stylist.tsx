@@ -90,7 +90,7 @@ export default function AIStylistScreen() {
     try {
       // Convert image to base64 using expo-file-system (works on iOS/Android)
       const base64 = await FileSystem.readAsStringAsync(userPhoto, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64' as any,
       });
 
       // Get selected outfit items if any
