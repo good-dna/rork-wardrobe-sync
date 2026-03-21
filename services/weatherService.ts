@@ -1,468 +1,235 @@
-import * as Location from 'expo-location';
+code 'app/(tabs)/index.tsx'import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import { 
-  LocationData, 
-  DailyWeather, 
-  HourlyWeather, 
-  WeatherCache, 
-  UnitSystem,
-  WeatherRule,
-  EnhancedItem
-} from '@/types/wardrobe';
-
-// Weather API key - in a real app, this would be stored in environment variables
-const WEATHER_API_KEY = 'demo_key';
-const WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5';
-const GEOCODING_API_URL = 'https://api.openweathermap.org/geo/1.0';
 
 export interface WeatherData {
-  temperature: number; // in Celsius
-  feelsLike: number; // in Celsius
+  temperature: number;
+  feelsLike: number;
   description: string;
-  icon: string;
-  precipitation: number; // probability of precipitation (0-1)
-  humidity: number; // percentage
-  windSpeed: number; // in m/s
-  uvIndex: number; // UV index (0-11+)
+  weatherCode: number;
+  precipitation: number;
+  humidity: number;
+  windSpeed: number;
+  uvIndex: number;
   location: string;
   timestamp: number;
 }
 
-// Location Services
+export interface ForecastDay {
+  date: string;
+  day: string;
+  high: number;
+  low: number;
+  weatherCode: number;
+  description: string;
+  weatherType: 'sunny' | 'cloudy' | 'rainy';
+  precipitationChance: number;
+}
+
+export interface WeatherResult {
+  current: WeatherData;
+  forecast: ForecastDay[];
+  lastUpdated: number;
+}
+
+// Open-Meteo weather code to description
+function getWeatherDescription(code: number): string {
+  if (code === 0) return 'Clear sky';
+  if (code <= 2) return 'Partly cloudy';
+  if (code === 3) return 'Overcast';
+  if (code <= 49) return 'Foggy';
+  if (code <= 59) return 'Drizzle';
+  if (code <= 69) return 'Rain';
+  if (code <= 79) return 'Snow';
+  if (code <= 82) return 'Rain showers';
+  if (code <= 86) return 'Snow showers';
+  if (code <= 99) return 'Thunderstorm';
+  return 'Unknown';
+}
+
+// Open-Meteo weather code to icon type
+export function getWeatherType(code: number): 'sunny' | 'cloudy' | 'rainy' {
+  if (code === 0 || code === 1) return 'sunny';
+  if (code <= 3 || (code >= 45 && code <= 49)) return 'cloudy';
+  return 'rainy';
+}
+
+// Format temperature based on unit preference
+export function formatTemperature(temp: number, unit: 'celsius' | 'fahrenheit' = 'fahrenheit'): string {
+  if (unit === 'fahrenheit') {
+    const f = (temp * 9 / 5) + 32;
+    return `${Math.round(f)}°F`;
+  }
+  return `${Math.round(temp)}°C`;
+}
+
+// Format date for forecast cards
+export function formatForecastDate(dateString: string): { day: string; date: string } {
+  const date = new Date(dateString);
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return {
+    day: dayNames[date.getDay()],
+    date: `${monthNames[date.getMonth()]} ${date.getDate()}`,
+  };
+}
+
+// Get device GPS location
 export async function getCurrentLocation(): Promise<{ latitude: number; longitude: number } | null> {
   try {
     if (Platform.OS === 'web') {
-      // Use web geolocation API
       return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-          console.log('Geolocation not supported on web');
-          resolve(null);
-          return;
-        }
-        
+        if (!navigator.geolocation) { resolve(null); return; }
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            });
-          },
-          (error) => {
-            console.error('Web geolocation error:', error);
-            resolve(null);
-          },
-          { timeout: 10000, enableHighAccuracy: true }
+          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          () => resolve(null),
+          { timeout: 10000 }
         );
       });
-    } else {
-      // Use Expo Location for mobile
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        console.log('Location permission denied');
-        return null;
-      }
-      
-      const location = await Location.getCurrentPositionAsync({});
-      return {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
-      };
     }
-  } catch (error) {
-    console.error('Error getting location:', error);
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    return { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+  } catch {
     return null;
   }
 }
 
-export async function searchLocations(query: string): Promise<LocationData[]> {
+// Reverse geocode coordinates to city name using Open-Meteo geocoding
+export async function reverseGeocodeCoords(lat: number, lon: number): Promise<string> {
   try {
-    // In a real app, use Google Places API or similar
-    // For demo, return mock results
-    const mockResults: LocationData[] = [
-      {
-        placeId: '1',
-        city: 'New York',
-        region: 'NY',
-        country: 'US',
-        latitude: 40.7128,
-        longitude: -74.0060,
-        timezone: 'America/New_York'
-      },
-      {
-        placeId: '2',
-        city: 'London',
-        region: 'England',
-        country: 'UK',
-        latitude: 51.5074,
-        longitude: -0.1278,
-        timezone: 'Europe/London'
-      },
-      {
-        placeId: '3',
-        city: 'Tokyo',
-        region: 'Tokyo',
-        country: 'JP',
-        latitude: 35.6762,
-        longitude: 139.6503,
-        timezone: 'Asia/Tokyo'
-      },
-      {
-        placeId: '4',
-        city: 'Paris',
-        region: 'Île-de-France',
-        country: 'FR',
-        latitude: 48.8566,
-        longitude: 2.3522,
-        timezone: 'Europe/Paris'
-      },
-      {
-        placeId: '5',
-        city: 'Sydney',
-        region: 'NSW',
-        country: 'AU',
-        latitude: -33.8688,
-        longitude: 151.2093,
-        timezone: 'Australia/Sydney'
-      }
-    ];
-    
-    return mockResults.filter(location => 
-      location.city.toLowerCase().includes(query.toLowerCase()) ||
-      location.region.toLowerCase().includes(query.toLowerCase()) ||
-      location.country.toLowerCase().includes(query.toLowerCase())
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
     );
-  } catch (error) {
-    console.error('Error searching locations:', error);
-    return [];
+    const data = await res.json();
+    return data.address?.city || data.address?.town || data.address?.village || 'Your Location';
+  } catch {
+    return 'Your Location';
   }
 }
 
-export async function reverseGeocode(latitude: number, longitude: number): Promise<LocationData | null> {
+// Fetch coordinates from city name
+export async function geocodeCity(city: string): Promise<{ latitude: number; longitude: number } | null> {
   try {
-    // In a real app, use the geocoding API
-    // For demo, return mock data based on coordinates
-    return {
-      placeId: 'current',
-      city: 'Current Location',
-      region: 'Unknown',
-      country: 'Unknown',
-      latitude,
-      longitude,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    };
-  } catch (error) {
-    console.error('Error reverse geocoding:', error);
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
+    );
+    const data = await res.json();
+    if (data.results?.length > 0) {
+      return {
+        latitude: data.results[0].latitude,
+        longitude: data.results[0].longitude,
+      };
+    }
+    return null;
+  } catch {
     return null;
   }
 }
 
-// Weather Data Fetching
-export async function getWeatherData(): Promise<WeatherData | null> {
-  try {
-    const location = await getCurrentLocation();
-    
-    if (!location) {
-      return null;
-    }
-    
-    // For demo purposes, return mock data
-    // In a real app, fetch from weather API
-    return getMockWeatherData('sunny');
-  } catch (error) {
-    console.error('Error fetching weather data:', error);
-    return null;
-  }
-}
+// Main weather fetch using Open-Meteo (free, no API key)
+export async function fetchWeather(
+  latitude: number,
+  longitude: number,
+  locationName?: string
+): Promise<WeatherResult> {
+  const url = `https://api.open-meteo.com/v1/forecast?` +
+    `latitude=${latitude}&longitude=${longitude}` +
+    `&current=temperature_2m,apparent_temperature,precipitation,weather_code,` +
+    `relative_humidity_2m,wind_speed_10m,uv_index` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,` +
+    `precipitation_probability_max,uv_index_max` +
+    `&timezone=auto&forecast_days=4`;
 
-export async function getDetailedWeatherData(locationData: LocationData, units: UnitSystem = 'metric'): Promise<WeatherCache | null> {
-  try {
-    // In a real app, fetch detailed weather data from API
-    // For demo, return mock detailed data
-    const now = new Date();
-    const daily: DailyWeather[] = [];
-    const hourly: HourlyWeather[] = [];
-    
-    // Generate 7 days of mock daily weather
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(now);
-      date.setDate(date.getDate() + i);
-      
-      const baseTemp = 20 + Math.random() * 15; // 20-35°C
-      daily.push({
-        date: date.toISOString().split('T')[0],
-        high: Math.round(baseTemp + 5),
-        low: Math.round(baseTemp - 5),
-        precipProb: Math.round(Math.random() * 100),
-        wind: Math.round(Math.random() * 20),
-        humidity: Math.round(50 + Math.random() * 40),
-        uvIndex: Math.round(Math.random() * 11),
-        sunrise: '06:30',
-        sunset: '19:45',
-        description: i === 0 ? 'Sunny' : ['Partly cloudy', 'Rainy', 'Sunny', 'Overcast'][Math.floor(Math.random() * 4)],
-        icon: i === 0 ? '01d' : ['02d', '10d', '01d', '04d'][Math.floor(Math.random() * 4)]
-      });
-    }
-    
-    // Generate 24 hours of mock hourly weather
-    for (let i = 0; i < 24; i++) {
-      const time = new Date(now);
-      time.setHours(i, 0, 0, 0);
-      
-      const baseTemp = 22 + Math.random() * 8;
-      hourly.push({
-        time: time.toISOString(),
-        temp: Math.round(baseTemp),
-        feelsLike: Math.round(baseTemp + (Math.random() - 0.5) * 4),
-        precipProb: Math.round(Math.random() * 100),
-        wind: Math.round(Math.random() * 15),
-        humidity: Math.round(40 + Math.random() * 50),
-        description: 'Clear',
-        icon: '01d'
-      });
-    }
-    
-    return {
-      daily,
-      hourly,
-      lastUpdated: Date.now()
-    };
-  } catch (error) {
-    console.error('Error fetching detailed weather data:', error);
-    return null;
-  }
-}
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch weather');
+  const data = await res.json();
 
-// Unit Conversion Utilities
-export function convertTemperature(celsius: number, toUnit: UnitSystem): number {
-  if (toUnit === 'imperial') {
-    return Math.round((celsius * 9/5) + 32);
-  }
-  return Math.round(celsius);
-}
+  const current = data.current;
+  const daily = data.daily;
 
-export function convertSpeed(mps: number, toUnit: UnitSystem): number {
-  if (toUnit === 'imperial') {
-    return Math.round(mps * 2.237); // m/s to mph
-  }
-  return Math.round(mps * 3.6); // m/s to km/h
-}
-
-export function getTemperatureUnit(units: UnitSystem): string {
-  return units === 'imperial' ? '°F' : '°C';
-}
-
-export function getSpeedUnit(units: UnitSystem): string {
-  return units === 'imperial' ? 'mph' : 'km/h';
-}
-
-// Weather-based Recommendation Engine
-export function evaluateWeatherRules(weather: WeatherData, rules: WeatherRule[], units: UnitSystem): string[] {
-  const tags: string[] = [];
-  
-  rules.forEach(rule => {
-    if (!rule.enabled) return;
-    
-    let value: number;
-    switch (rule.condition.type) {
-      case 'temperature':
-        value = units === 'imperial' ? convertTemperature(weather.temperature, 'imperial') : weather.temperature;
-        break;
-      case 'precipitation':
-        value = weather.precipitation * 100; // Convert to percentage
-        break;
-      case 'uv':
-        value = weather.uvIndex;
-        break;
-      case 'humidity':
-        value = weather.humidity;
-        break;
-      case 'wind':
-        value = convertSpeed(weather.windSpeed, units);
-        break;
-      default:
-        return;
-    }
-    
-    let conditionMet = false;
-    switch (rule.condition.operator) {
-      case 'lt':
-        conditionMet = value < rule.condition.value;
-        break;
-      case 'lte':
-        conditionMet = value <= rule.condition.value;
-        break;
-      case 'gt':
-        conditionMet = value > rule.condition.value;
-        break;
-      case 'gte':
-        conditionMet = value >= rule.condition.value;
-        break;
-      case 'eq':
-        conditionMet = value === rule.condition.value;
-        break;
-    }
-    
-    if (conditionMet) {
-      tags.push(...rule.recommendationTags);
-    }
-  });
-  
-  return [...new Set(tags)]; // Remove duplicates
-}
-
-export function calculateItemFitScore(item: EnhancedItem, weatherTags: string[], weather: WeatherData): number {
-  let score = 50; // Base score
-  
-  // Check if item has weather-appropriate tags
-  const itemTags = [...(item.tags || []), ...(item.weatherTags || [])];
-  const matchingTags = weatherTags.filter(tag => itemTags.includes(tag));
-  score += matchingTags.length * 15;
-  
-  // Temperature-based scoring
-  if (item.warmthRating) {
-    if (weather.temperature < 10 && item.warmthRating >= 4) score += 20;
-    else if (weather.temperature > 25 && item.warmthRating <= 2) score += 20;
-    else if (weather.temperature >= 10 && weather.temperature <= 25 && item.warmthRating === 3) score += 10;
-  }
-  
-  // Breathability for hot weather
-  if (item.breathability && weather.temperature > 25) {
-    score += item.breathability * 5;
-  }
-  
-  // Waterproof for rainy weather
-  if (item.waterproof && weather.precipitation > 0.3) {
-    score += 25;
-  }
-  
-  // Category-specific adjustments
-  switch (item.category) {
-    case 'shoes':
-      if (weather.precipitation > 0.4 && item.waterproof) score += 15;
-      break;
-    case 'accessories':
-      if (weather.uvIndex > 6 && (item.subType === 'sunglasses' || item.subType === 'hat')) score += 20;
-      if (weather.precipitation > 0.4 && item.subType === 'umbrella') score += 30;
-      break;
-    case 'fragrances':
-      if (item.fragranceFamily) {
-        if (weather.temperature > 25 && ['fresh', 'citrus', 'aquatic'].includes(item.fragranceFamily)) score += 15;
-        if (weather.temperature < 15 && ['warm', 'woody', 'oriental'].includes(item.fragranceFamily)) score += 15;
-        if (weather.humidity > 70 && ['aquatic', 'fresh'].includes(item.fragranceFamily)) score += 10;
-      }
-      break;
-  }
-  
-  return Math.min(100, Math.max(0, score));
-}
-
-// For testing and demo purposes
-export function getMockWeatherData(condition: 'sunny' | 'rainy' | 'cold' | 'hot' | 'windy'): WeatherData {
-  const baseData = {
-    location: 'Demo City',
+  const currentWeather: WeatherData = {
+    temperature: current.temperature_2m,
+    feelsLike: current.apparent_temperature,
+    description: getWeatherDescription(current.weather_code),
+    weatherCode: current.weather_code,
+    precipitation: current.precipitation,
+    humidity: current.relative_humidity_2m,
+    windSpeed: current.wind_speed_10m,
+    uvIndex: current.uv_index,
+    location: locationName || 'Your Location',
     timestamp: Date.now(),
-    humidity: 50,
-    precipitation: 0,
-    windSpeed: 2,
-    uvIndex: 4
   };
-  
-  switch (condition) {
-    case 'sunny':
-      return {
-        ...baseData,
-        temperature: 25,
-        feelsLike: 26,
-        description: 'Clear sky',
-        icon: '01d',
-        uvIndex: 8,
-        humidity: 40,
-        precipitation: 0,
-        windSpeed: 1.5
-      };
-    case 'rainy':
-      return {
-        ...baseData,
-        temperature: 18,
-        feelsLike: 16,
-        description: 'Moderate rain',
-        icon: '10d',
-        precipitation: 0.7,
-        humidity: 85,
-        windSpeed: 3.5,
-        uvIndex: 2
-      };
-    case 'cold':
-      return {
-        ...baseData,
-        temperature: 2,
-        feelsLike: -2,
-        description: 'Overcast clouds',
-        icon: '04d',
-        precipitation: 0.1,
-        humidity: 60,
-        windSpeed: 4,
-        uvIndex: 1
-      };
-    case 'hot':
-      return {
-        ...baseData,
-        temperature: 35,
-        feelsLike: 38,
-        description: 'Hot and sunny',
-        icon: '01d',
-        precipitation: 0,
-        humidity: 70,
-        windSpeed: 1,
-        uvIndex: 10
-      };
-    case 'windy':
-      return {
-        ...baseData,
-        temperature: 15,
-        feelsLike: 12,
-        description: 'Windy with scattered clouds',
-        icon: '03d',
-        precipitation: 0.1,
-        humidity: 45,
-        windSpeed: 8.5,
-        uvIndex: 5
-      };
-    default:
-      return {
-        ...baseData,
-        temperature: 22,
-        feelsLike: 22,
-        description: 'Few clouds',
-        icon: '02d',
-        precipitation: 0.1,
-        humidity: 55,
-        windSpeed: 2.5,
-        uvIndex: 5
-      };
-  }
+
+  // Build 3-day forecast (skip today = index 0)
+  const forecast: ForecastDay[] = daily.time.slice(1, 4).map((date: string, i: number) => {
+    const idx = i + 1;
+    const code = daily.weather_code[idx];
+    const { day, date: dateStr } = formatForecastDate(date);
+    return {
+      date,
+      day,
+      high: daily.temperature_2m_max[idx],
+      low: daily.temperature_2m_min[idx],
+      weatherCode: code,
+      description: getWeatherDescription(code),
+      weatherType: getWeatherType(code),
+      precipitationChance: daily.precipitation_probability_max[idx] || 0,
+    };
+  });
+
+  return {
+    current: currentWeather,
+    forecast,
+    lastUpdated: Date.now(),
+  };
 }
 
-// Weather sync utilities
-export function shouldRefreshWeather(lastSync?: number): boolean {
-  if (!lastSync) return true;
-  const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
-  return lastSync < sixHoursAgo;
+// Should we refresh? (every 3 hours)
+export function shouldRefreshWeather(lastUpdated?: number): boolean {
+  if (!lastUpdated) return true;
+  const threeHoursAgo = Date.now() - (3 * 60 * 60 * 1000);
+  return lastUpdated < threeHoursAgo;
 }
 
-export function formatWeatherSyncTime(timestamp?: number): string {
-  if (!timestamp) return 'Never';
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  
-  if (diffHours < 1) return 'Just now';
-  if (diffHours === 1) return '1 hour ago';
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return '1 day ago';
-  return `${diffDays} days ago`;
+// Weather-based outfit suggestion tags
+export function getWeatherOutfitTags(weather: WeatherData): string[] {
+  const tags: string[] = [];
+  const temp = weather.temperature;
+
+  if (temp < 5) tags.push('heavy-coat', 'winter', 'layers', 'boots');
+  else if (temp < 12) tags.push('jacket', 'sweater', 'fall', 'closed-toe');
+  else if (temp < 18) tags.push('light-jacket', 'jeans', 'sneakers');
+  else if (temp < 24) tags.push('casual', 't-shirt', 'jeans', 'sneakers');
+  else if (temp < 30) tags.push('light', 'breathable', 'shorts', 'sandals');
+  else tags.push('very-light', 'breathable', 'shorts', 'sandals', 'hat');
+
+  if (weather.precipitation > 0.5) tags.push('waterproof', 'rain-jacket', 'boots');
+  if (weather.windSpeed > 20) tags.push('windproof', 'jacket');
+  if (weather.uvIndex > 6) tags.push('hat', 'sunglasses', 'light-colors');
+  if (weather.humidity > 80) tags.push('breathable', 'moisture-wicking');
+
+  return [...new Set(tags)];
+}
+
+// Human-readable outfit suggestion based on weather
+export function getOutfitSuggestion(weather: WeatherData): string {
+  const temp = weather.temperature;
+  const f = Math.round((temp * 9 / 5) + 32);
+  const desc = weather.description.toLowerCase();
+
+  let suggestion = '';
+
+  if (temp < 5) suggestion = `It's very cold at ${f}°F. Layer up with a heavy coat, sweater, and warm boots.`;
+  else if (temp < 12) suggestion = `Cool at ${f}°F. A jacket or sweater with jeans works well.`;
+  else if (temp < 18) suggestion = `Mild at ${f}°F. A light jacket over a t-shirt is perfect.`;
+  else if (temp < 24) suggestion = `Comfortable at ${f}°F. Casual outfit — t-shirt and jeans.`;
+  else if (temp < 30) suggestion = `Warm at ${f}°F. Light breathable clothing recommended.`;
+  else suggestion = `Hot at ${f}°F. Wear light, breathable fabrics and stay hydrated.`;
+
+  if (weather.precipitation > 0.5) suggestion += ' Bring a rain jacket or umbrella.';
+  if (weather.uvIndex > 6) suggestion += ' High UV — wear a hat and sunglasses.';
+
+  return suggestion;
 }
