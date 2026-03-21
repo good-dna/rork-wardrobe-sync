@@ -1,85 +1,36 @@
 import React, { useState } from "react";
 import { Tabs, useRouter } from "expo-router";
-import { View, StyleSheet, Pressable, Modal } from "react-native";
-import { Shirt, Sparkles, Calendar, User, Plus, ShoppingBag } from 'lucide-react-native';
+import { View, StyleSheet, Pressable, Modal, Text } from "react-native";
+import { Shirt, Sparkles, Calendar, User, Plus, ShoppingBag, Wand2 } from 'lucide-react-native';
 import { colors, tokens } from "@/constants/colors";
-import Typography from "@/components/ui/Typography";
 
-function FloatingTabBar() {
+function FloatingAddButton() {
   const router = useRouter();
-  const [showActionSheet, setShowActionSheet] = useState(false);
-
-  const handleActionPress = (action: 'item' | 'outfit' | 'ootd') => {
-    setShowActionSheet(false);
-    if (action === 'item') {
-      router.push('/add-item' as any);
-    } else if (action === 'outfit') {
-      router.push('/add-outfit' as any);
-    } else if (action === 'ootd') {
-      router.push('/calendar' as any);
-    }
-  };
+  const [showSheet, setShowSheet] = useState(false);
 
   return (
     <>
-      <Pressable
-        style={styles.floatingButton}
-        onPress={() => setShowActionSheet(true)}
-      >
-        <Plus size={32} color={colors.text} strokeWidth={2.5} />
+      <Pressable style={styles.floatingButton} onPress={() => setShowSheet(true)}>
+        <Plus size={28} color={colors.background} strokeWidth={2.5} />
       </Pressable>
 
-      <Modal
-        visible={showActionSheet}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowActionSheet(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowActionSheet(false)}
-        >
-          <View style={styles.actionSheet}>
-            <View style={styles.actionSheetHandle} />
-            
-            <Pressable
-              style={styles.actionItem}
-              onPress={() => handleActionPress('item')}
-            >
-              <View style={styles.actionIcon}>
-                <Shirt size={24} color={colors.primary} />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Typography variant="body" style={styles.actionTitle}>Add Item</Typography>
-                <Typography variant="caption" color={colors.textSecondary}>Add clothing to your closet</Typography>
-              </View>
-            </Pressable>
-
-            <Pressable
-              style={styles.actionItem}
-              onPress={() => handleActionPress('outfit')}
-            >
-              <View style={styles.actionIcon}>
-                <Sparkles size={24} color={colors.secondary} />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Typography variant="body" style={styles.actionTitle}>Create Outfit</Typography>
-                <Typography variant="caption" color={colors.textSecondary}>Generate outfit combinations</Typography>
-              </View>
-            </Pressable>
-
-            <Pressable
-              style={styles.actionItem}
-              onPress={() => handleActionPress('ootd')}
-            >
-              <View style={styles.actionIcon}>
-                <Calendar size={24} color={colors.success} />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Typography variant="body" style={styles.actionTitle}>Plan OOTD</Typography>
-                <Typography variant="caption" color={colors.textSecondary}>Schedule outfit for a day</Typography>
-              </View>
-            </Pressable>
+      <Modal visible={showSheet} transparent animationType="slide" onRequestClose={() => setShowSheet(false)}>
+        <Pressable style={styles.overlay} onPress={() => setShowSheet(false)}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            {[
+              { label: 'Add Item', sub: 'Add clothing to your closet', icon: <Shirt size={22} color={colors.primary} />, route: '/add-item' },
+              { label: 'Create Outfit', sub: 'Build outfit combinations', icon: <Sparkles size={22} color={colors.secondary} />, route: '/add-outfit' },
+              { label: 'Plan OOTD', sub: 'Schedule outfit for a day', icon: <Calendar size={22} color={colors.success} />, route: '/(tabs)/calendar' },
+            ].map(({ label, sub, icon, route }) => (
+              <Pressable key={label} style={styles.sheetItem} onPress={() => { setShowSheet(false); router.push(route as any); }}>
+                <View style={styles.sheetIcon}>{icon}</View>
+                <View style={styles.sheetText}>
+                  <Text style={styles.sheetLabel}>{label}</Text>
+                  <Text style={styles.sheetSub}>{sub}</Text>
+                </View>
+              </Pressable>
+            ))}
           </View>
         </Pressable>
       </Modal>
@@ -102,10 +53,7 @@ export default function TabLayout() {
             paddingBottom: 12,
             paddingTop: 8,
           },
-          tabBarLabelStyle: {
-            fontSize: 10,
-            marginTop: 2,
-          },
+          tabBarLabelStyle: { fontSize: 10, marginTop: 2 },
           headerShown: false,
         }}
       >
@@ -138,16 +86,23 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="ai-stylist"
+          options={{
+            title: "AI Stylist",
+            tabBarIcon: ({ color }) => <Wand2 size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
           name="profile"
           options={{
             title: "Profile",
             tabBarIcon: ({ color }) => <User size={22} color={color} />,
           }}
         />
-        <Tabs.Screen name="wishlist" options={{ href: null }} />
         <Tabs.Screen name="analytics" options={{ href: null }} />
+        <Tabs.Screen name="wishlist" options={{ href: null }} />
       </Tabs>
-      <FloatingTabBar />
+      <FloatingAddButton />
     </>
   );
 }
@@ -155,60 +110,46 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
-    bottom: 70,
+    bottom: 76,
     left: '50%',
-    marginLeft: -30,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#E8D5C4',
+    marginLeft: -28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...tokens.shadow.lg,
     zIndex: 1000,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: tokens.radius.xl,
     borderTopRightRadius: tokens.radius.xl,
     paddingHorizontal: tokens.spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 48,
     paddingTop: tokens.spacing.md,
   },
-  actionSheetHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: tokens.spacing.lg,
+  sheetHandle: {
+    width: 40, height: 4, backgroundColor: colors.border,
+    borderRadius: 2, alignSelf: 'center', marginBottom: tokens.spacing.lg,
   },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  sheetItem: {
+    flexDirection: 'row', alignItems: 'center',
     paddingVertical: tokens.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: tokens.radius.lg,
+  sheetIcon: {
+    width: 48, height: 48, borderRadius: tokens.radius.lg,
     backgroundColor: colors.backgroundSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: tokens.spacing.md,
+    alignItems: 'center', justifyContent: 'center', marginRight: tokens.spacing.md,
   },
-  actionTextContainer: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontWeight: '600',
-    marginBottom: 2,
-  },
+  sheetText: { flex: 1 },
+  sheetLabel: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  sheetSub: { fontSize: 13, color: colors.textSecondary },
 });
