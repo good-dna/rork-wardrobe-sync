@@ -42,7 +42,6 @@ import {
   getDetailedWeatherData,
   convertTemperature,
   getTemperatureUnit,
-  formatWeatherSyncTime,
   shouldRefreshWeather
 } from '@/services/weatherService';
 
@@ -192,7 +191,9 @@ export default function LocationSettingsScreen() {
   }, [searchQuery]);
   
   const needsWeatherRefresh = shouldRefreshWeather(profile?.locationPreferences?.lastWeatherSync);
-  const lastSync = formatWeatherSyncTime(profile?.locationPreferences?.lastWeatherSync);
+  const lastSync = profile?.locationPreferences?.lastWeatherSync
+  ? new Date(profile.locationPreferences.lastWeatherSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  : 'Never';
   
   return (
     <>
