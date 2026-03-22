@@ -48,13 +48,9 @@ export function useDataSync() {
           .order('created_at', { ascending: false });
 
         if (!error && data?.length) {
-          const store = useWardrobeStore.getState();
-          // Clear all items and reload fresh from Supabase
           const freshItems = data.map(dbRowToItem);
-          freshItems.forEach(item => {
-            const existing = store.items.find((i: any) => i.id === item.id);
-            if (!existing) store.addItem(item);
-          });
+          // Replace entire store with Supabase data
+          useWardrobeStore.setState({ items: freshItems });
         }
 
         // Load avatar
