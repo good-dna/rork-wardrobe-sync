@@ -4,7 +4,7 @@ import {
   TextInput, Image, Alert, ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3, Save } from 'lucide-react-native';
+import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3, Save, Upload } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, tokens } from '@/constants/colors';
 import { useAuth } from '@/providers/AuthProvider';
@@ -402,6 +402,20 @@ export default function ProfileScreen() {
             <View style={styles.settingsItemText}>
               <Text style={styles.settingsItemTitle}>Closet Analytics</Text>
               <Text style={styles.settingsItemSubtitle}>View valuation and usage insights</Text>
+            </View>
+          </View>
+          <ChevronRight size={20} color={colors.textSecondary} />
+        </Pressable>
+
+        <Pressable
+          style={[styles.settingsItem, styles.settingsItemSpacing]}
+          onPress={() => router.push('/import-wardrobe' as any)}
+        >
+          <View style={styles.settingsItemContent}>
+            <Upload size={20} color={colors.primary} />
+            <View style={styles.settingsItemText}>
+              <Text style={styles.settingsItemTitle}>Import Wardrobe</Text>
+              <Text style={styles.settingsItemSubtitle}>Bulk import from CSV or Excel file</Text>
             </View>
           </View>
           <ChevronRight size={20} color={colors.textSecondary} />
