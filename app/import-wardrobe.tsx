@@ -80,18 +80,38 @@ export default function ImportWardrobeScreen() {
       if (!rows.length) throw new Error('File is empty.');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('You must be signed in.');
-      const cleaned = rows.map(row => ({
-        user_id: user.id,
-        name: row.name?.toString().trim() || '',
-        category: row.category?.toString().trim() || 'shirts',
-        brand: row.brand?.toString().trim() || null,
-        color: row.color?.toString().trim() || null,
-        size: row.size?.toString().trim() || null,
-        season: row.season?.toString().trim() || null,
-        price: row.price && !isNaN(Number(row.price)) ? Number(row.price) : null,
-        image_url: row.image_url?.toString().trim() || null,
-        notes: row.notes?.toString().trim() || null,
-      })).filter(r => r.name);
+      const cleaned = rows.map(row => {
+        // Normalize keys to lowercase
+        const r: any = {};
+        Object.keys(row).forEach(k => { r[k.toLowerCase().trim()] = row[k]; });
+
+        const name = (r.name || r.item || r.title || '').toString().trim();
+        if (!name) return null;
+
+        // Map category — handle subcategory overrides
+        let category = (r.category || r.type || 'shirts').toString().trim().toLowerCase();
+        const subcategory = (r.subcategory || '').toString().toLowerCase();
+        if (subcategory.includes('sneaker') || subcategory.includes('boot')) category = 'shoes';
+        if (subcategory.includes('jacket')) category = 'jackets';
+        if (subcategory.includes('t-shirt') || subcategory.includes('polo') || subcategory === 'top') category = 'shirts';
+        if (category === 'top' || category === 'outerwear') {
+          if (subcategory.includes('jacket')) category = 'jackets';
+          else category = 'shirts';
+        }
+
+        return {
+          user_id: user.id,
+          name,
+          category,
+          brand: (r.brand || r.designer || '').toString().trim() || null,
+          color: (r.color || r.colour || '').toString().trim() || null,
+          size: (r.size || '').toString().trim() || null,
+          season: (r.seasons || r.season || 'all seasons').toString().trim() || null,
+          price: r.price && !isNaN(Number(r.price)) ? Number(r.price) : null,
+          image_url: (r.imageurl || r.image_url || r.image || r.photo || '').toString().trim() || null,
+          notes: (r.notes || r.description || r.careinstructions || '').toString().trim() || null,
+        };
+      }).filter(Boolean);
       if (!cleaned.length) throw new Error('No valid rows found.');
       setNormalizedRows(cleaned);
     } catch (error) {
