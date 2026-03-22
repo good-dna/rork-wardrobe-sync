@@ -4,7 +4,7 @@ import {
   Pressable, Switch, KeyboardAvoidingView, Platform, Image, ActivityIndicator
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { X, Check, Image as ImageIcon, Sparkles } from 'lucide-react-native';
+import { X, Check, Image as ImageIcon, Sparkles, Camera, Upload } from 'lucide-react-native';
 import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import { Category, Season, CleaningStatus, Item } from '@/types/wardrobe';
@@ -12,6 +12,7 @@ import AIScanner from '@/components/AIScanner';
 import Dropdown from '@/components/ui/Dropdown';
 import { supabase } from '@/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function AddItemScreen() {
   const router = useRouter();
@@ -52,7 +53,6 @@ export default function AddItemScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get base64
       let base64: string;
       if (typeof document !== 'undefined') {
         const response = await fetch(localUri);
@@ -69,7 +69,6 @@ export default function AddItemScreen() {
 
       const fileName = `item_${Date.now()}.jpg`;
 
-      // Call edge function to process image and remove background
       const { data, error } = await supabase.functions.invoke('process-wardrobe-image', {
         body: { imageBase64: base64, fileName, userId: user.id },
       });
@@ -80,13 +79,47 @@ export default function AddItemScreen() {
       setUploadedBgRemovedUrl(data.bgRemovedUrl);
       setBgRemoved(data.bgRemoved);
       setProcessedImage(data.bgRemovedUrl);
-
     } catch (err: any) {
       console.error('Upload error:', err);
-      // Fall back to local image
       setProcessedImage(localUri);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Camera permission is required to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setProcessedImage(result.assets[0].uri);
+      await uploadImageToSupabase(result.assets[0].uri);
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Photo library permission is required.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setProcessedImage(result.assets[0].uri);
+      await uploadImageToSupabase(result.assets[0].uri);
     }
   };
 
@@ -101,9 +134,7 @@ export default function AddItemScreen() {
 
     const newItem: Item = {
       id: Date.now().toString(),
-      name,
-      brand,
-      category,
+      name, brand, category,
       color: color || 'Unknown',
       material: material || 'Unknown',
       season: selectedSeasons,
@@ -112,17 +143,14 @@ export default function AddItemScreen() {
       wearCount: 0,
       lastWorn: new Date().toISOString().split('T')[0],
       imageUrl: finalImageUrl,
-      notes,
-      tags,
+      notes, tags,
       cleaningStatus: 'clean' as CleaningStatus,
       wearHistory: [],
       washHistory: [],
     };
 
-    // Save to local store
     addItem(newItem);
 
-    // Also save to Supabase database
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -145,7 +173,6 @@ export default function AddItemScreen() {
       }
     } catch (err) {
       console.warn('Failed to sync to database:', err);
-      // Item is still saved locally
     }
 
     router.back();
@@ -204,6 +231,19 @@ export default function AddItemScreen() {
       />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+
+        {/* Photo buttons */}
+        <View style={styles.photoButtonRow}>
+          <Pressable style={styles.photoBtn} onPress={handleTakePhoto}>
+            <Camera size={20} color={colors.text} />
+            <Text style={styles.photoBtnText}>Take Photo</Text>
+          </Pressable>
+          <Pressable style={styles.photoBtn} onPress={handlePickPhoto}>
+            <Upload size={20} color={colors.text} />
+            <Text style={styles.photoBtnText}>Upload Photo</Text>
+          </Pressable>
+        </View>
+
         {/* AI Scanner */}
         <Pressable style={styles.scanButton} onPress={() => setShowScanner(!showScanner)}>
           <Sparkles size={18} color={colors.background} />
@@ -216,8 +256,8 @@ export default function AddItemScreen() {
           </View>
         )}
 
-        {/* Image preview with bg removed badge */}
-        {processedImage && (
+        {/* Image preview */}
+        {(processedImage || uploading) && (
           <View style={styles.imageContainer}>
             {uploading ? (
               <View style={styles.uploadingContainer}>
@@ -226,7 +266,7 @@ export default function AddItemScreen() {
               </View>
             ) : (
               <>
-                <Image source={{ uri: processedImage }} style={styles.imagePreview} resizeMode="contain" />
+                <Image source={{ uri: processedImage! }} style={styles.imagePreview} resizeMode="contain" />
                 {bgRemoved && (
                   <View style={styles.bgRemovedBadge}>
                     <Sparkles size={12} color={colors.background} />
@@ -238,7 +278,7 @@ export default function AddItemScreen() {
           </View>
         )}
 
-        {/* Form */}
+        {/* Form fields */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Name *</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. White Oxford Shirt" placeholderTextColor={colors.mediumGray} />
@@ -324,7 +364,7 @@ export default function AddItemScreen() {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Image URL (optional)</Text>
           <TextInput style={styles.input} value={imageUrl} onChangeText={setImageUrl} placeholder="https://example.com/image.jpg" placeholderTextColor={colors.mediumGray} />
-          <Text style={styles.helperText}>Use AI scanner above for automatic background removal</Text>
+          <Text style={styles.helperText}>Or use camera/upload above — background is removed automatically</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -336,6 +376,13 @@ const styles = StyleSheet.create({
   headerButton: { padding: 8 },
   scrollView: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
+  photoButtonRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  photoBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 14,
+    gap: 8, borderWidth: 1, borderColor: colors.border,
+  },
+  photoBtnText: { fontSize: 14, fontWeight: '600', color: colors.text },
   scanButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 12,
