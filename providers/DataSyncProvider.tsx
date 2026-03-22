@@ -49,9 +49,11 @@ export function useDataSync() {
 
         if (!error && data?.length) {
           const store = useWardrobeStore.getState();
-          const existingIds = new Set(store.items.map((i: any) => i.id));
-          data.forEach(row => {
-            if (!existingIds.has(row.id)) store.addItem(dbRowToItem(row));
+          // Clear all items and reload fresh from Supabase
+          const freshItems = data.map(dbRowToItem);
+          freshItems.forEach(item => {
+            const existing = store.items.find((i: any) => i.id === item.id);
+            if (!existing) store.addItem(item);
           });
         }
 

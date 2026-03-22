@@ -71,7 +71,7 @@ const enhancedMockItems = mockItems.map(item => ({
 export const useWardrobeStore = create<WardrobeState>()(
   persist(
     (set, get) => ({
-      items: enhancedMockItems,
+      items: [],
       outfits: mockOutfitSuggestions,
       wishlist: mockWishlist,
       scheduledOutfits: [],
