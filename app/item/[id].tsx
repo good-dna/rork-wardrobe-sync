@@ -1,38 +1,47 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, Pressable, Alert, Platform } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { 
-  Calendar, 
-  DollarSign, 
-  Tag, 
-  Trash2, 
-  Edit, 
-  Check, 
-  X, 
-  Clock, 
-  Droplets,
-  ImageIcon
-} from 'lucide-react-native';
-import { colors, categoryColors } from '@/constants/colors';
+import {
+  StyleSheet, Text, View, ScrollView, TextInput,
+  Pressable, Switch, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert
+} from 'react-native';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { X, Check, Sparkles, Camera, Upload } from 'lucide-react-native';
+import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { CleaningStatus, WearLogEntry, WashLogEntry } from '@/types/wardrobe';
-import * as Haptics from 'expo-haptics';
+import { Category, Season, CleaningStatus } from '@/types/wardrobe';
+import Dropdown from '@/components/ui/Dropdown';
+import { supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
 
-export default function ItemDetailScreen() {
+export default function EditItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  
-  const items = useWardrobeStore((state) => state.items);
-  const deleteItem = useWardrobeStore((state) => state.deleteItem);
-  const updateCleaningStatus = useWardrobeStore((state) => state.updateCleaningStatus);
-  const logItemWorn = useWardrobeStore((state) => state.logItemWorn);
-  const logItemWashed = useWardrobeStore((state) => state.logItemWashed);
-  
-  const item = items.find((item) => item.id === id);
-  
-  const [showCleaningOptions, setShowCleaningOptions] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  
+  const { items, updateItem } = useWardrobeStore();
+  const item = items.find(i => i.id === id);
+
+  const [name, setName] = useState(item?.name || '');
+  const [brand, setBrand] = useState(item?.brand || '');
+  const [category, setCategory] = useState<Category>(item?.category || 'shirts');
+  const [color, setColor] = useState(item?.color || '');
+  const [material, setMaterial] = useState(item?.material || '');
+  const [selectedSeasons, setSelectedSeasons] = useState<Season[]>(item?.season || ['all']);
+  const [purchaseDate, setPurchaseDate] = useState(item?.purchaseDate || '');
+  const [purchasePrice, setPurchasePrice] = useState(item?.purchasePrice?.toString() || '');
+  const [notes, setNotes] = useState(item?.notes || '');
+  const [tags, setTags] = useState<string[]>(item?.tags || []);
+  const [tagInput, setTagInput] = useState('');
+  const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
+  const [uploading, setUploading] = useState(false);
+  const [bgRemoved, setBgRemoved] = useState(false);
+
+  const categories: Category[] = ['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'];
+  const seasons: Season[] = ['spring', 'summer', 'fall', 'winter', 'all'];
+  const categoryOptions = categories.map(cat => ({
+    label: cat.charAt(0).toUpperCase() + cat.slice(1),
+    value: cat,
+    color: categoryColors[cat],
+  }));
+
   if (!item) {
     return (
       <View style={styles.notFound}>
@@ -40,649 +49,266 @@ export default function ItemDetailScreen() {
       </View>
     );
   }
-  
-  const handleDelete = () => {
-    Alert.alert(
-      "Delete Item",
-      "Are you sure you want to delete this item? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        { 
-          text: "Delete", 
-          onPress: () => {
-            deleteItem(item.id);
-            router.back();
-          },
-          style: "destructive"
-        }
-      ]
-    );
-  };
-  
-  const handleEdit = () => {
-    // In a real app, navigate to edit screen
-    Alert.alert("Edit Item", "Edit functionality would be implemented here.");
-  };
-  
-  const handleWearCountIncrement = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    
-    // Log the wear with today's date
-    const today = new Date().toISOString().split('T')[0];
-    logItemWorn(item.id, {
-      date: today,
-      notes: ''
-    });
-  };
-  
-  const handleCleaningStatusUpdate = (status: CleaningStatus) => {
-    updateCleaningStatus(item.id, status);
-    
-    // If marking as clean, log a wash
-    if (status === 'clean') {
-      const today = new Date().toISOString().split('T')[0];
-      logItemWashed(item.id, {
-        date: today,
-        notes: ''
+
+  const uploadImageToSupabase = async (localUri: string) => {
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      let base64: string;
+      if (typeof document !== 'undefined') {
+        const response = await fetch(localUri);
+        const blob = await response.blob();
+        base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' as any });
+      }
+      const fileName = `item_${Date.now()}.png`;
+      const { data, error } = await supabase.functions.invoke('process-wardrobe-image', {
+        body: { imageBase64: base64, fileName, userId: user.id },
       });
+      if (error) throw new Error(error.message);
+      setImageUrl(data.bgRemovedUrl || data.imageUrl);
+      setBgRemoved(data.bgRemoved);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setImageUrl(localUri);
+    } finally {
+      setUploading(false);
     }
-    
-    setShowCleaningOptions(false);
   };
-  
-  const categoryColor = categoryColors[item.category] || colors.lightGray;
-  
-  // Check if the image URL contains a transparent image indicator
-  // This is a simplified check - in a real app, you might have a more robust way to track this
-  const hasTransparentBackground = item.imageUrl.includes('processed') || item.imageUrl.includes('transparent');
-  
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Camera access required.'); return; }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.8 });
+    if (!result.canceled) await uploadImageToSupabase(result.assets[0].uri);
   };
-  
+
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Photo library access required.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.8 });
+    if (!result.canceled) await uploadImageToSupabase(result.assets[0].uri);
+  };
+
+  const handleSave = async () => {
+    if (!name || !brand) { Alert.alert('Error', 'Name and brand are required'); return; }
+    const updates = {
+      name, brand, category, color,
+      material, season: selectedSeasons,
+      purchaseDate, purchasePrice: parseFloat(purchasePrice) || 0,
+      notes, tags, imageUrl,
+    };
+    updateItem(id, updates);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('wardrobe_items').update({
+          name, brand, category, color,
+          image_url: imageUrl,
+          purchase_date: purchaseDate || null,
+          purchase_price: parseFloat(purchasePrice) || null,
+          notes: notes || null,
+          tags: tags || null,
+        }).eq('id', id).eq('user_id', user.id);
+      }
+    } catch (err) { console.warn('Failed to sync update:', err); }
+    router.back();
+  };
+
+  const toggleSeason = (season: Season) => {
+    if (season === 'all') { setSelectedSeasons(['all']); return; }
+    if (selectedSeasons.includes('all')) { setSelectedSeasons([season]); return; }
+    if (selectedSeasons.includes(season)) {
+      if (selectedSeasons.length === 1) return;
+      setSelectedSeasons(selectedSeasons.filter(s => s !== season));
+    } else {
+      setSelectedSeasons([...selectedSeasons, season]);
+    }
+  };
+
+  const handleAddTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <Stack.Screen 
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={100}>
+      <Stack.Screen
         options={{
-          title: item.name,
+          title: 'Edit Item',
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} style={styles.headerButton}>
+              <X size={24} color={colors.text} />
+            </Pressable>
+          ),
           headerRight: () => (
-            <Pressable onPress={handleEdit} style={styles.headerButton}>
-              <Edit size={20} color={colors.primary} />
+            <Pressable onPress={handleSave} style={styles.headerButton} disabled={uploading}>
+              {uploading
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Check size={24} color={colors.primary} />
+              }
             </Pressable>
           ),
         }}
       />
-      
-      <View style={styles.imageContainer}>
-        <Image 
-          source={{ uri: item.imageUrl }} 
-          style={styles.image} 
-          resizeMode="contain"
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+
+        {/* Image preview */}
+        <View style={styles.imageContainer}>
+          {uploading ? (
+            <View style={styles.uploadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.uploadingText}>Removing background...</Text>
+            </View>
+          ) : (
+            <Image source={{ uri: imageUrl }} style={styles.imagePreview} resizeMode="contain" />
+          )}
+          {bgRemoved && (
+            <View style={styles.bgRemovedBadge}>
+              <Sparkles size={12} color={colors.background} />
+              <Text style={styles.bgRemovedText}>Background Removed</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Photo buttons */}
+        <View style={styles.photoButtonRow}>
+          <Pressable style={styles.photoBtn} onPress={handleTakePhoto}>
+            <Camera size={18} color={colors.text} />
+            <Text style={styles.photoBtnText}>Take Photo</Text>
+          </Pressable>
+          <Pressable style={styles.photoBtn} onPress={handlePickPhoto}>
+            <Upload size={18} color={colors.text} />
+            <Text style={styles.photoBtnText}>Upload Photo</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Name *</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholderTextColor={colors.mediumGray} />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Brand *</Text>
+          <TextInput style={styles.input} value={brand} onChangeText={setBrand} placeholderTextColor={colors.mediumGray} />
+        </View>
+
+        <Dropdown
+          label="Category *"
+          options={categoryOptions}
+          value={category}
+          onSelect={(value) => setCategory(value as Category)}
+          placeholder="Select a category"
         />
-        <View 
-          style={[
-            styles.categoryBadge, 
-            { backgroundColor: categoryColor }
-          ]}
-        >
-          <Text style={styles.categoryText}>
-            {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
-          </Text>
-        </View>
-        
-        {hasTransparentBackground && (
-          <View style={styles.transparentBadge}>
-            <ImageIcon size={12} color="white" />
-            <Text style={styles.transparentText}>Transparent BG</Text>
+
+        <View style={styles.formRow}>
+          <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+            <Text style={styles.label}>Color</Text>
+            <TextInput style={styles.input} value={color} onChangeText={setColor} placeholderTextColor={colors.mediumGray} />
           </View>
-        )}
-      </View>
-      
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.brand}>{item.brand}</Text>
-          </View>
-          
-          <View style={styles.actions}>
-            <Pressable 
-              style={[styles.actionButton, styles.wearButton]} 
-              onPress={handleWearCountIncrement}
-            >
-              <Clock size={16} color="white" />
-              <Text style={styles.actionButtonText}>Wore Today</Text>
-            </Pressable>
-            
-            <Pressable 
-              style={[styles.actionButton, styles.cleanButton]} 
-              onPress={() => setShowCleaningOptions(!showCleaningOptions)}
-            >
-              <Droplets size={16} color="white" />
-            </Pressable>
+          <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+            <Text style={styles.label}>Material</Text>
+            <TextInput style={styles.input} value={material} onChangeText={setMaterial} placeholderTextColor={colors.mediumGray} />
           </View>
         </View>
-        
-        {showCleaningOptions && (
-          <View style={styles.cleaningOptions}>
-            <Pressable 
-              style={[styles.cleaningOption, { backgroundColor: colors.success }]} 
-              onPress={() => handleCleaningStatusUpdate('clean')}
-            >
-              <Check size={16} color="white" />
-              <Text style={styles.cleaningOptionText}>Clean</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.cleaningOption, { backgroundColor: colors.warning }]} 
-              onPress={() => handleCleaningStatusUpdate('dirty')}
-            >
-              <Droplets size={16} color="white" />
-              <Text style={styles.cleaningOptionText}>Dirty</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.cleaningOption, { backgroundColor: colors.error }]} 
-              onPress={() => handleCleaningStatusUpdate('needs repair')}
-            >
-              <X size={16} color="white" />
-              <Text style={styles.cleaningOptionText}>Needs Repair</Text>
-            </Pressable>
-          </View>
-        )}
-        
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconContainer}>
-              <Tag size={18} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Color & Material</Text>
-              <Text style={styles.detailValue}>{item.color} • {item.material}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconContainer}>
-              <Calendar size={18} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Season</Text>
-              <Text style={styles.detailValue}>
-                {item.season.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconContainer}>
-              <DollarSign size={18} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Purchase Info</Text>
-              <Text style={styles.detailValue}>
-                ${item.purchasePrice.toFixed(2)} • {formatDate(item.purchaseDate)}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconContainer}>
-              <Clock size={18} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Wear Count</Text>
-              <Text style={styles.detailValue}>
-                Worn {item.wearCount} times • Last worn: {formatDate(item.lastWorn)}
-              </Text>
-            </View>
-          </View>
-        </View>
-        
-        <Pressable 
-          style={styles.historyToggle}
-          onPress={() => setShowHistory(!showHistory)}
-        >
-          <Text style={styles.historyToggleText}>
-            {showHistory ? 'Hide Usage History' : 'Show Usage History'}
-          </Text>
-          <Text style={styles.historyToggleIcon}>{showHistory ? '▲' : '▼'}</Text>
-        </Pressable>
-        
-        {showHistory && (
-          <View style={styles.historyContainer}>
-            <View style={styles.historySection}>
-              <View style={styles.historySectionHeader}>
-                <Clock size={16} color={colors.primary} />
-                <Text style={styles.historySectionTitle}>Wear History</Text>
-              </View>
-              
-              {item.wearHistory && item.wearHistory.length > 0 ? (
-                item.wearHistory.slice(0, 5).map((entry: WearLogEntry, index: number) => (
-                  <View key={index} style={styles.historyEntry}>
-                    <Text style={styles.historyDate}>{formatDate(entry.date)}</Text>
-                    {entry.notes && <Text style={styles.historyNotes}>{entry.notes}</Text>}
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.noHistoryText}>No wear history recorded</Text>
-              )}
-              
-              {item.wearHistory && item.wearHistory.length > 5 && (
-                <Pressable 
-                  style={styles.viewMoreButton}
-                  onPress={() => router.push('/calendar' as any)}
-                >
-                  <Text style={styles.viewMoreButtonText}>
-                    View all {item.wearHistory.length} entries
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-            
-            <View style={styles.historySection}>
-              <View style={styles.historySectionHeader}>
-                <Droplets size={16} color={colors.info} />
-                <Text style={styles.historySectionTitle}>Wash History</Text>
-              </View>
-              
-              {item.washHistory && item.washHistory.length > 0 ? (
-                item.washHistory.slice(0, 5).map((entry: WashLogEntry, index: number) => (
-                  <View key={index} style={styles.historyEntry}>
-                    <Text style={styles.historyDate}>{formatDate(entry.date)}</Text>
-                    {entry.notes && <Text style={styles.historyNotes}>{entry.notes}</Text>}
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.noHistoryText}>No wash history recorded</Text>
-              )}
-              
-              {item.washHistory && item.washHistory.length > 5 && (
-                <Pressable 
-                  style={styles.viewMoreButton}
-                  onPress={() => router.push('/calendar' as any)}
-                >
-                  <Text style={styles.viewMoreButtonText}>
-                    View all {item.washHistory.length} entries
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-            
-            {item.nextWashDue && (
-              <View style={styles.nextWashContainer}>
-                <Text style={styles.nextWashLabel}>Next Wash Due:</Text>
-                <Text style={styles.nextWashDate}>{formatDate(item.nextWashDue)}</Text>
-              </View>
-            )}
-          </View>
-        )}
-        
-        {item.notes && (
-          <View style={styles.notesContainer}>
-            <Text style={styles.notesLabel}>Notes</Text>
-            <Text style={styles.notesText}>{item.notes}</Text>
-          </View>
-        )}
-        
-        <View style={styles.tagsContainer}>
-          <Text style={styles.tagsLabel}>Tags</Text>
-          <View style={styles.tagsList}>
-            {item.tags.map((tag) => (
-              <View key={tag} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Season</Text>
+          <View style={styles.seasonsContainer}>
+            {seasons.map((season) => (
+              <View key={season} style={styles.seasonRow}>
+                <Text style={styles.seasonText}>{season.charAt(0).toUpperCase() + season.slice(1)}</Text>
+                <Switch
+                  value={selectedSeasons.includes(season)}
+                  onValueChange={() => toggleSeason(season)}
+                  trackColor={{ false: colors.border, true: colors.primary + '40' }}
+                  thumbColor={selectedSeasons.includes(season) ? colors.primary : colors.textTertiary}
+                />
               </View>
             ))}
           </View>
         </View>
-        
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusLabel}>Status</Text>
-          <View 
-            style={[
-              styles.statusBadge, 
-              { 
-                backgroundColor: 
-                  item.cleaningStatus === 'clean' 
-                    ? colors.success 
-                    : item.cleaningStatus === 'dirty' 
-                      ? colors.warning 
-                      : colors.error 
-              }
-            ]}
-          >
-            <Text style={styles.statusText}>
-              {item.cleaningStatus.charAt(0).toUpperCase() + item.cleaningStatus.slice(1)}
-            </Text>
+
+        <View style={styles.formRow}>
+          <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+            <Text style={styles.label}>Purchase Date</Text>
+            <TextInput style={styles.input} value={purchaseDate} onChangeText={setPurchaseDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.mediumGray} />
+          </View>
+          <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+            <Text style={styles.label}>Price</Text>
+            <TextInput style={styles.input} value={purchasePrice} onChangeText={setPurchasePrice} placeholder="0.00" placeholderTextColor={colors.mediumGray} keyboardType="numeric" />
           </View>
         </View>
-        
-        <Pressable style={styles.deleteButton} onPress={handleDelete}>
-          <Trash2 size={18} color={colors.error} />
-          <Text style={styles.deleteButtonText}>Delete Item</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Notes</Text>
+          <TextInput style={[styles.input, styles.textArea]} value={notes} onChangeText={setNotes} placeholder="Add any notes..." placeholderTextColor={colors.mediumGray} multiline numberOfLines={4} textAlignVertical="top" />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Tags</Text>
+          <View style={styles.tagInputContainer}>
+            <TextInput style={styles.tagInput} value={tagInput} onChangeText={setTagInput} placeholder="Add a tag" placeholderTextColor={colors.mediumGray} onSubmitEditing={handleAddTag} />
+            <Pressable style={styles.addTagButton} onPress={handleAddTag}>
+              <Text style={styles.addTagButtonText}>+</Text>
+            </Pressable>
+          </View>
+          <View style={styles.tagsContainer}>
+            {tags.map((tag) => (
+              <View key={tag} style={styles.tag}>
+                <Text style={styles.tagText}>{tag}</Text>
+                <Pressable onPress={() => setTags(tags.filter(t => t !== tag))}>
+                  <X size={12} color={colors.subtext} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerButton: {
-    padding: 8,
-  },
-  imageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 300,
-    backgroundColor: Platform.OS === 'web' ? 'rgba(240, 240, 240, 0.5)' : colors.card, // Checkerboard pattern for web to show transparency
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  transparentBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  transparentText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: 'white',
-    marginLeft: 4,
-  },
-  content: {
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  brand: {
-    fontSize: 16,
-    color: colors.subtext,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  wearButton: {
-    backgroundColor: colors.primary,
-  },
-  cleanButton: {
-    backgroundColor: colors.info,
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  cleaningOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  cleaningOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    flex: 1,
-    marginHorizontal: 4,
-    justifyContent: 'center',
-  },
-  cleaningOptionText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  detailsContainer: {
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  detailIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary + '20', // 20% opacity
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  detailContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: colors.subtext,
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  historyToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
-  },
-  historyToggleText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.primary,
-  },
-  historyToggleIcon: {
-    fontSize: 16,
-    color: colors.primary,
-  },
-  historyContainer: {
-    marginBottom: 16,
-  },
-  historySection: {
-    marginBottom: 16,
-  },
-  historySectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  historySectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 8,
-  },
-  historyEntry: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  historyDate: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  historyNotes: {
-    fontSize: 12,
-    color: colors.subtext,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  noHistoryText: {
-    fontSize: 14,
-    color: colors.subtext,
-    fontStyle: 'italic',
-    padding: 8,
-  },
-  viewMoreButton: {
-    alignSelf: 'center',
-    marginTop: 8,
-    paddingVertical: 8,
-  },
-  viewMoreButtonText: {
-    fontSize: 14,
-    color: colors.primary,
-  },
-  nextWashContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.warning + '20',
-    padding: 12,
-    borderRadius: 8,
-  },
-  nextWashLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginRight: 8,
-  },
-  nextWashDate: {
-    fontSize: 14,
-    color: colors.warning,
-    fontWeight: '600',
-  },
-  notesContainer: {
-    marginBottom: 24,
-  },
-  notesLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  notesText: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  tagsContainer: {
-    marginBottom: 24,
-  },
-  tagsLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  tagsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  tag: {
-    backgroundColor: colors.lightGray,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagText: {
-    fontSize: 12,
-    color: colors.text,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  statusLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginRight: 12,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'white',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  deleteButtonText: {
-    fontSize: 14,
-    color: colors.error,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  notFoundText: {
-    fontSize: 16,
-    color: colors.subtext,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  notFoundText: { fontSize: 16, color: colors.textSecondary },
+  headerButton: { padding: 8 },
+  scrollView: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
+  imageContainer: { marginBottom: 16, backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+  imagePreview: { width: '100%', height: 220, backgroundColor: colors.backgroundSecondary },
+  uploadingContainer: { height: 180, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  uploadingText: { fontSize: 14, color: colors.textSecondary },
+  bgRemovedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, margin: 10, borderRadius: 20, alignSelf: 'flex-start' },
+  bgRemovedText: { fontSize: 12, fontWeight: '600', color: colors.background },
+  photoButtonRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  photoBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: 12, paddingVertical: 12, gap: 8, borderWidth: 1, borderColor: colors.border },
+  photoBtnText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  formGroup: { marginBottom: tokens.spacing.md },
+  formRow: { flexDirection: 'row', marginBottom: tokens.spacing.md },
+  label: { fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: tokens.spacing.xs },
+  input: { backgroundColor: colors.card, borderRadius: tokens.radius.md, paddingHorizontal: tokens.spacing.md, paddingVertical: tokens.spacing.sm, fontSize: 16, color: colors.text, borderWidth: 1, borderColor: colors.border },
+  textArea: { minHeight: 100, paddingTop: tokens.spacing.md, textAlignVertical: 'top' },
+  seasonsContainer: { backgroundColor: colors.card, borderRadius: tokens.radius.md, padding: tokens.spacing.md, borderWidth: 1, borderColor: colors.border },
+  seasonRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: tokens.spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
+  seasonText: { fontSize: 16, color: colors.text },
+  tagInputContainer: { flexDirection: 'row', marginBottom: 8 },
+  tagInput: { flex: 1, backgroundColor: colors.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: colors.text, marginRight: 8 },
+  addTagButton: { width: 40, height: 40, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  addTagButtonText: { color: colors.background, fontSize: 20, fontWeight: '600' },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
+  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+  tagText: { fontSize: 14, color: colors.text, marginRight: 4 },
 });
