@@ -26,7 +26,7 @@ serve(async (req) => {
     const mediaType = imageMediaType || (imageBase64.startsWith('iVBOR') ? 'image/png' : 'image/jpeg');
     const outfit = outfitDescription || 'stylish casual outfit';
 
-    // Step 1: Claude analyzes appearance for prompt
+    // Step 1: Claude analyzes appearance
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
@@ -49,26 +49,24 @@ serve(async (req) => {
     const claudeData = await claudeRes.json();
     const appearance = claudeData.content?.[0]?.text || 'a person';
 
-    // Step 2: Create prediction on Replicate using InstantID
+    // Step 2: Send to Replicate PhotoMaker
     const dataUri = `data:${mediaType};base64,${imageBase64}`;
-    const prompt = `Full body fashion photo of ${appearance}, wearing ${outfit}, standing in front of a luxury walk-in wardrobe with warm ambient lighting, clothes hanging on rails, photorealistic, fashion magazine style, 8k`;
+    const prompt = `Full body fashion photo of ${appearance}, wearing ${outfit}, standing in front of a luxury walk-in wardrobe with warm ambient lighting, clothes hanging on rails, photorealistic, fashion magazine style, 8k img`;
 
-    const predictionRes = await fetch('https://api.replicate.com/v1/predictions', {
+    const predictionRes = await fetch('https://api.replicate.com/v1/models/tencentarc/photomaker/predictions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${replicateKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'a67f8b26f731f3c3a169bf18b6da9be24c7b5b87be19e7d8a0f9bdd3e8e6b7a5',
         input: {
-          image: dataUri,
           prompt,
-          negative_prompt: 'cartoon, anime, blurry, distorted, deformed, low quality',
+          input_image: dataUri,
+          style_strength_ratio: 35,
+          num_outputs: 1,
           num_inference_steps: 30,
           guidance_scale: 5,
-          width: 512,
-          height: 768,
         },
       }),
     });
@@ -78,8 +76,7 @@ serve(async (req) => {
       throw new Error(`Replicate error: ${predictionRes.status} - ${err}`);
     }
 
-    const prediction = await predictionRes.json();
-    let result = prediction;
+    let result = await predictionRes.json();
 
     // Poll for completion (max 90 seconds)
     let attempts = 0;
@@ -92,13 +89,17 @@ serve(async (req) => {
       attempts++;
     }
 
-    if (result.status === 'failed' || !result.output) {
-      throw new Error(`Replicate generation failed: ${result.error || 'unknown error'}`);
+    if (result.status === 'failed') {
+      throw new Error(`Replicate failed: ${result.error || 'unknown error'}`);
+    }
+
+    if (!result.output) {
+      throw new Error('No output returned from Replicate');
     }
 
     const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
 
-    // Fetch the image and convert to base64
+    // Fetch image and convert to base64
     const imgRes = await fetch(outputUrl);
     const imgBuffer = await imgRes.arrayBuffer();
     const uint8 = new Uint8Array(imgBuffer);
