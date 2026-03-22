@@ -32,13 +32,16 @@ serve(async (req) => {
         messages: [{
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
+            { type: 'image', source: { type: 'base64', media_type: imageBase64.startsWith('iVBOR') ? 'image/png' : 'image/jpeg', data: imageBase64 } },
             { type: 'text', text: `Describe this person for AI image generation. Be specific about gender, age range, skin tone, hair, build, and facial features. Respond ONLY with JSON: {"appearance": "detailed description", "gender": "woman/man/person"}` },
           ],
         }],
       }),
     });
-    if (!claudeResponse.ok) throw new Error(`Claude error: ${claudeResponse.status}`);
+    if (!claudeResponse.ok) {
+  const errText = await claudeResponse.text();
+  throw new Error(`Claude error: ${claudeResponse.status} - ${errText}`);
+}
     const claudeData = await claudeResponse.json();
     const claudeText = claudeData.content?.[0]?.text || '';
     const jsonMatch = claudeText.match(/\{[\s\S]*\}/);
