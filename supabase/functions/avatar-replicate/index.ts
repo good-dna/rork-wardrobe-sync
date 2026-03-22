@@ -53,23 +53,23 @@ serve(async (req) => {
     const dataUri = `data:${mediaType};base64,${imageBase64}`;
     const prompt = `Full body fashion photo of ${appearance}, wearing ${outfit}, standing in front of a luxury walk-in wardrobe with warm ambient lighting, clothes hanging on rails, photorealistic, fashion magazine style, 8k img`;
 
-    const predictionRes = await fetch('https://api.replicate.com/v1/predictions', {
+    const predictionRes = await fetch('https://api.replicate.com/v1/models/stability-ai/sdxl/predictions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${replicateKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-  version: 'ddfc2b08d209f9fa8c1eca692712918bd449f695dabb4a958da31802a9570fe4',
-  input: {
-    prompt,
-    input_image: dataUri,
-    style_strength_ratio: 35,
-    num_outputs: 1,
-    num_inference_steps: 25,
-    guidance_scale: 5,
-  },
-}),
+        input: {
+          prompt,
+          negative_prompt: 'cartoon, anime, blurry, distorted, deformed, low quality, extra limbs',
+          num_inference_steps: 25,
+          guidance_scale: 7.5,
+          width: 768,
+          height: 1024,
+        },
+      }),
+    });
 
     if (!predictionRes.ok) {
       const err = await predictionRes.text();
