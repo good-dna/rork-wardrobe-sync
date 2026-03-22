@@ -28,8 +28,18 @@ function parseCsvLine(line) {
 function parseCsv(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
-  const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
-  return lines.slice(1).map(line => {
+  
+  // Find the actual header row by looking for 'name' column
+  let headerIndex = 0;
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    if (lines[i].toLowerCase().includes('name')) {
+      headerIndex = i;
+      break;
+    }
+  }
+  
+  const headers = parseCsvLine(lines[headerIndex]).map(h => h.toLowerCase().trim());
+  return lines.slice(headerIndex + 1).map(line => {
     const values = parseCsvLine(line);
     const row = {};
     headers.forEach((header, i) => { row[header] = values[i] ?? ''; });
