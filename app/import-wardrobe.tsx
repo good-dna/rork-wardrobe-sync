@@ -116,9 +116,9 @@ export default function ImportWardrobeScreen() {
           brand: (r.brand || r.designer || '').toString().trim() || null,
           color: (r.color || r.colour || '').toString().trim() || null,
           size: (r.size || '').toString().trim() || null,
-          season: (r.seasons || r.season || 'all seasons').toString().trim() || null,
-          price: r.price && !isNaN(Number(r.price)) ? Number(r.price) : null,
-          image_url: (r.imageurl || r.image_url || r.image || r.photo || '').toString().trim() || null,
+          season: [(r.seasons || r.season || 'all').toString().trim()],
+          purchase_price: r.price && !isNaN(Number(r.price)) ? Number(r.price) : null,
+          image_url: (r.imageurl || r.image_url || r.image || r.photo || r.imageUrl || '').toString().trim() || null,
           notes: (r.notes || r.description || r.careinstructions || '').toString().trim() || null,
         };
       }).filter(Boolean);
