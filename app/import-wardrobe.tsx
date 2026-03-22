@@ -196,7 +196,7 @@ export default function ImportWardrobeScreen() {
         {previewRows.length > 0 && (
           <View style={s.card}>
             <Text style={s.previewTitle}>Preview (first 5 rows)</Text>
-            {{previewRows.map((item, i) => (
+            {previewRows.map((item, i) => (
                 <View key={`preview_${i}_${item.name}`} style={s.previewRow}>
                 <Text style={s.previewName}>{item.name}</Text>
                 <Text style={s.previewMeta}>{[item.category, item.brand, item.color].filter(Boolean).join(' · ')}</Text>
