@@ -60,10 +60,18 @@ export default function ImportWardrobeScreen() {
       const ext = asset.name.split('.').pop()?.toLowerCase();
       let rows = [];
       if (ext === 'csv') {
-        const text = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'utf8' });
+        const response = await fetch(asset.uri);
+        const text = await response.text();
         rows = parseCsv(text);
       } else if (ext === 'xlsx' || ext === 'xls') {
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
         const workbook = XLSX.read(base64, { type: 'base64' });
         rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
       } else {
