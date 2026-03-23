@@ -207,7 +207,7 @@ export default function HomeScreen() {
 
         {/* Mini Calendar */}
         <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>This Week</Text>
+          <Text style={s.sectionTitle}>Outfits Planned</Text>
           <Pressable onPress={() => router.push('/(tabs)/calendar' as any)}>
             <Text style={s.sectionLink}>View all</Text>
           </Pressable>
