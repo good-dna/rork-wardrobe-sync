@@ -20,6 +20,10 @@ const WEATHER_CACHE_KEY = 'klotho_weather_cache';
 const REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000;
 const WEATHER_EMOJI: Record<string, string> = { sunny: '☀️', cloudy: '⛅', rainy: '🌧️' };
 
+const CATEGORY_EMOJI: Record<string, string> = {
+  shirts: '👕', pants: '👖', jackets: '🧥', shoes: '👟', accessories: '👜', fragrances: '🌸'
+};
+
 function ForecastCard({ day, date, high, low, weatherCode }: {
   day: string; date: string; high: number; low: number; weatherCode: number;
 }) {
@@ -64,6 +68,27 @@ export default function HomeScreen() {
   const firstName = displayName.split(' ')[0];
   const totalItems = items.length;
   const toItem = (item: any) => ({ id: item.id, title: item.name, imageUrl: item.imageUrl, wornCount: item.wearCount });
+
+  // Category stats with subcategory breakdown
+  const categoryStats = (['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'] as const).map(cat => {
+    const catItems = getItemsByCategory(cat);
+    const unworn = catItems.filter((i: any) => i.wearCount === 0).length;
+    const isNew = (i: any) => {
+      const added = new Date(i.purchaseDate || Date.now());
+      return (Date.now() - added.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+    };
+    const newCount = catItems.filter(isNew).length;
+
+    // Subcategory breakdown
+    const subCounts: Record<string, number> = {};
+    catItems.forEach((i: any) => {
+      if (i.subcategory) {
+        subCounts[i.subcategory] = (subCounts[i.subcategory] || 0) + 1;
+      }
+    });
+
+    return { category: cat, total: catItems.length, unworn, newCount, subCounts };
+  });
 
   const loadWeather = useCallback(async (force = false) => {
     try {
@@ -164,9 +189,7 @@ export default function HomeScreen() {
                   key={i}
                   day={d.toLocaleDateString('en-US', { weekday: 'short' })}
                   date={d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  high={day.high}
-                  low={day.low}
-                  weatherCode={day.weatherCode}
+                  high={day.high} low={day.low} weatherCode={day.weatherCode}
                 />
               );
             })}
@@ -201,15 +224,58 @@ export default function HomeScreen() {
 
         {selectedTab === 'closet' ? (
           <>
+            {/* Closet header */}
             <View style={s.closetHeader}>
               <View>
                 <Text style={s.closetTitle}>Your Closet</Text>
-                <Text style={s.closetCount}>{totalItems} items</Text>
+                <Text style={s.closetCount}>{totalItems} items total</Text>
               </View>
               <Pressable style={s.addButton} onPress={() => router.push('/add-item' as any)}>
                 <Plus size={20} color={colors.background} strokeWidth={2.5} />
               </Pressable>
             </View>
+
+            {/* Category stats strip */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.statsStrip}
+              style={{ marginBottom: tokens.spacing.lg }}
+            >
+              {categoryStats.map(({ category, total, unworn, newCount, subCounts }) => (
+                <Pressable
+                  key={category}
+                  style={s.statCard}
+                  onPress={() => router.push('/(tabs)/wardrobe' as any)}
+                >
+                  <Text style={s.statEmoji}>{CATEGORY_EMOJI[category]}</Text>
+                  <Text style={s.statCategory}>{category.charAt(0).toUpperCase() + category.slice(1)}</Text>
+                  <Text style={s.statTotal}>{total}</Text>
+                  <Text style={s.statSub}>items</Text>
+                  {unworn > 0 && (
+                    <View style={s.statBadge}>
+                      <Text style={s.statBadgeText}>{unworn} unworn</Text>
+                    </View>
+                  )}
+                  {newCount > 0 && (
+                    <View style={[s.statBadge, s.statBadgeNew]}>
+                      <Text style={s.statBadgeText}>{newCount} new</Text>
+                    </View>
+                  )}
+                  {Object.keys(subCounts).length > 0 && (
+                    <View style={s.subCountsContainer}>
+                      {Object.entries(subCounts).slice(0, 2).map(([sub, count]) => (
+                        <Text key={sub} style={s.subCountText}>
+                          {sub}: {count}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Closet sections */}
             {[
               { title: 'Tops', items: getItemsByCategory('shirts') },
               { title: 'Pants', items: getItemsByCategory('pants') },
@@ -298,6 +364,26 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
   },
+  // Category stats
+  statsStrip: { paddingHorizontal: tokens.spacing.lg, gap: 10, paddingBottom: 4 },
+  statCard: {
+    width: 110, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
+    padding: tokens.spacing.md, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  statEmoji: { fontSize: 24, marginBottom: 4 },
+  statCategory: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginBottom: 2, textTransform: 'capitalize' },
+  statTotal: { fontSize: 26, fontWeight: '700', color: colors.text },
+  statSub: { fontSize: 11, color: colors.textSecondary, marginBottom: 4 },
+  statBadge: {
+    backgroundColor: colors.primary + '25', borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3, marginTop: 3,
+  },
+  statBadgeNew: { backgroundColor: colors.success + '25' },
+  statBadgeText: { fontSize: 10, fontWeight: '600', color: colors.text },
+  subCountsContainer: { marginTop: 6, width: '100%' },
+  subCountText: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 1 },
+  // Empty outfit
   emptyOutfit: { alignItems: 'center', paddingVertical: tokens.spacing.xxl, paddingHorizontal: tokens.spacing.xl },
   emptyOutfitTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: tokens.spacing.lg, marginBottom: tokens.spacing.sm },
   emptyOutfitSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: tokens.spacing.xl },

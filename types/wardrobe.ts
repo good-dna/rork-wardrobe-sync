@@ -1,4 +1,63 @@
 export type Category = 'shirts' | 'pants' | 'jackets' | 'shoes' | 'accessories' | 'fragrances';
+
+export type Subcategory =
+  | 't-shirt' | 'polo' | 'button-down' | 'tank-top' | 'hoodie' | 'sweater' | 'crewneck'
+  | 'jeans' | 'chinos' | 'shorts' | 'sweatpants' | 'dress-pants' | 'joggers'
+  | 'bomber' | 'blazer' | 'denim-jacket' | 'leather-jacket' | 'parka' | 'windbreaker'
+  | 'sneakers' | 'boots' | 'dress-shoes' | 'sandals' | 'loafers' | 'slides'
+  | 'hat' | 'belt' | 'watch' | 'bag' | 'sunglasses' | 'jewelry' | 'scarf' | 'gloves'
+  | 'cologne' | 'perfume' | 'body-spray';
+
+export const SUBCATEGORIES: Record<Category, { label: string; value: Subcategory }[]> = {
+  shirts: [
+    { label: 'T-Shirt', value: 't-shirt' },
+    { label: 'Polo', value: 'polo' },
+    { label: 'Button-Down', value: 'button-down' },
+    { label: 'Tank Top', value: 'tank-top' },
+    { label: 'Hoodie', value: 'hoodie' },
+    { label: 'Sweater', value: 'sweater' },
+    { label: 'Crewneck', value: 'crewneck' },
+  ],
+  pants: [
+    { label: 'Jeans', value: 'jeans' },
+    { label: 'Chinos', value: 'chinos' },
+    { label: 'Shorts', value: 'shorts' },
+    { label: 'Sweatpants', value: 'sweatpants' },
+    { label: 'Dress Pants', value: 'dress-pants' },
+    { label: 'Joggers', value: 'joggers' },
+  ],
+  jackets: [
+    { label: 'Bomber', value: 'bomber' },
+    { label: 'Blazer', value: 'blazer' },
+    { label: 'Denim Jacket', value: 'denim-jacket' },
+    { label: 'Leather Jacket', value: 'leather-jacket' },
+    { label: 'Parka', value: 'parka' },
+    { label: 'Windbreaker', value: 'windbreaker' },
+  ],
+  shoes: [
+    { label: 'Sneakers', value: 'sneakers' },
+    { label: 'Boots', value: 'boots' },
+    { label: 'Dress Shoes', value: 'dress-shoes' },
+    { label: 'Sandals', value: 'sandals' },
+    { label: 'Loafers', value: 'loafers' },
+    { label: 'Slides', value: 'slides' },
+  ],
+  accessories: [
+    { label: 'Hat', value: 'hat' },
+    { label: 'Belt', value: 'belt' },
+    { label: 'Watch', value: 'watch' },
+    { label: 'Bag', value: 'bag' },
+    { label: 'Sunglasses', value: 'sunglasses' },
+    { label: 'Jewelry', value: 'jewelry' },
+    { label: 'Scarf', value: 'scarf' },
+    { label: 'Gloves', value: 'gloves' },
+  ],
+  fragrances: [
+    { label: 'Cologne', value: 'cologne' },
+    { label: 'Perfume', value: 'perfume' },
+    { label: 'Body Spray', value: 'body-spray' },
+  ],
+};
 export type Season = 'spring' | 'summer' | 'fall' | 'winter' | 'all';
 export type CleaningStatus = 'clean' | 'dirty' | 'needs repair';
 export type Occasion = 'casual' | 'formal' | 'work' | 'athletic' | 'evening' | 'special';
@@ -9,6 +68,7 @@ export interface Item {
   name: string;
   brand: string;
   category: Category;
+  subcategory?: Subcategory;
   color: string;
   material: string;
   season: Season[];

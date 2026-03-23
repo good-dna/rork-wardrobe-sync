@@ -7,7 +7,7 @@ import { useRouter, Stack } from 'expo-router';
 import { X, Check, Image as ImageIcon, Sparkles, Camera, Upload } from 'lucide-react-native';
 import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { Category, Season, CleaningStatus, Item } from '@/types/wardrobe';
+import { Category, Season, CleaningStatus, Item, Subcategory, SUBCATEGORIES } from '@/types/wardrobe';
 import AIScanner from '@/components/AIScanner';
 import Dropdown from '@/components/ui/Dropdown';
 import { supabase } from '@/lib/supabase';
@@ -21,6 +21,7 @@ export default function AddItemScreen() {
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
   const [category, setCategory] = useState<Category>('shirts');
+  const [subcategory, setSubcategory] = useState<Subcategory | ''>('');
   const [color, setColor] = useState('');
   const [material, setMaterial] = useState('');
   const [selectedSeasons, setSelectedSeasons] = useState<Season[]>(['all']);
@@ -135,6 +136,7 @@ export default function AddItemScreen() {
     const newItem: Item = {
       id: Date.now().toString(),
       name, brand, category,
+      subcategory: subcategory || undefined,
       color: color || 'Unknown',
       material: material || 'Unknown',
       season: selectedSeasons,
@@ -160,6 +162,7 @@ export default function AddItemScreen() {
           name: newItem.name,
           brand: newItem.brand,
           category: newItem.category,
+          subcategory: subcategory || null,
           color: newItem.color,
           image_url: uploadedImageUrl || finalImageUrl,
           bg_removed_url: uploadedBgRemovedUrl || null,
@@ -293,9 +296,29 @@ export default function AddItemScreen() {
           label="Category *"
           options={categoryOptions}
           value={category}
-          onSelect={(value) => setCategory(value as Category)}
+          onSelect={(value) => { setCategory(value as Category); setSubcategory(''); }}
           placeholder="Select a category"
         />
+
+        {/* Subcategory chips */}
+        {category && SUBCATEGORIES[category] && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Subcategory</Text>
+            <View style={styles.subcategoryChips}>
+              {SUBCATEGORIES[category].map((sub) => (
+                <Pressable
+                  key={sub.value}
+                  style={[styles.subChip, subcategory === sub.value && styles.subChipActive]}
+                  onPress={() => setSubcategory(subcategory === sub.value ? '' : sub.value)}
+                >
+                  <Text style={[styles.subChipText, subcategory === sub.value && styles.subChipTextActive]}>
+                    {sub.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.formRow}>
           <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
@@ -435,5 +458,9 @@ const styles = StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8,
     borderWidth: 1, borderColor: colors.border,
   },
-  tagText: { fontSize: 14, color: colors.text, marginRight: 4 },
+  subcategoryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  subChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  subChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  subChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  subChipTextActive: { color: '#000', fontWeight: '700' },
 });
