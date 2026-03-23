@@ -478,7 +478,7 @@ const s = StyleSheet.create({
   avatarActionText: { fontSize: 14, fontWeight: '600', color: colors.primary },
   chipsScroll: { marginBottom: tokens.spacing.lg },
   chipsRow: { gap: 8, paddingRight: tokens.spacing.lg },
-  chip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  chip: { paddingHorizontal: 18, paddingVertical: 14, borderRadius: tokens.radius.lg, backgroundColor: 'rgba(11,11,13,0.82)', borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)', minWidth: 80, alignItems: 'center' as const },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
   chipTextActive: { color: '#000', fontWeight: '700' },
