@@ -137,9 +137,10 @@ export default function HomeScreen() {
     <ImageBackground
       source={require('../../assets/images/closet-backdrop.png')}
       style={{ flex: 1 }}
-      imageStyle={{ opacity: 0.4 }}
+      imageStyle={{ opacity: 0.25, width: '100%', height: '100%' }}
       resizeMode="cover"
     >
+    
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView
         style={s.scroll}
@@ -292,7 +293,7 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
+  container: { flex: 1, backgroundColor: 'rgba(11, 11, 13, 0.7)' },
   scroll: { flex: 1 },
   content: { paddingBottom: 120 },
   header: {
