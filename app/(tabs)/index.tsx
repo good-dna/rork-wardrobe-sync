@@ -5,11 +5,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MapPin, Bookmark, Plus, Sparkles } from 'lucide-react-native';
+import { MapPin, Bookmark, Sparkles, TrendingUp, Shirt } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
 import { useUserStore } from '@/store/userStore';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import ClosetSectionRow from '@/components/ui/ClosetSectionRow';
 import {
   fetchWeather, getCurrentLocation, geocodeCity, reverseGeocodeCoords,
   shouldRefreshWeather, getWeatherType, getOutfitSuggestion, WeatherResult
@@ -19,7 +18,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const WEATHER_CACHE_KEY = 'klotho_weather_cache';
 const REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000;
 const WEATHER_EMOJI: Record<string, string> = { sunny: '☀️', cloudy: '⛅', rainy: '🌧️' };
-
 const CATEGORY_EMOJI: Record<string, string> = {
   shirts: '👕', pants: '👖', jackets: '🧥', shoes: '👟', accessories: '👜', fragrances: '🌸'
 };
@@ -43,22 +41,21 @@ function ForecastCard({ day, date, high, low, weatherCode }: {
 
 const fc = StyleSheet.create({
   card: {
-    width: 95, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
-    padding: 12, marginRight: 10, alignItems: 'center',
+    width: 80, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
+    padding: 10, marginRight: 8, alignItems: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
-  day: { fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 2 },
-  date: { fontSize: 10, color: colors.textSecondary, marginBottom: 6 },
-  emoji: { fontSize: 28, marginBottom: 4 },
-  high: { fontSize: 14, fontWeight: '700', color: colors.text },
-  low: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  day: { fontSize: 11, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  date: { fontSize: 10, color: colors.textSecondary, marginBottom: 4 },
+  emoji: { fontSize: 22, marginBottom: 4 },
+  high: { fontSize: 13, fontWeight: '700', color: colors.text },
+  low: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
 });
 
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useUserStore();
-  const { items, getItemsByCategory } = useWardrobeStore();
-  const [selectedTab, setSelectedTab] = useState<'closet' | 'outfit'>('closet');
+  const { items, outfits, scheduledOutfits, getItemsByCategory, getTotalWardrobeValue } = useWardrobeStore();
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,27 +64,31 @@ export default function HomeScreen() {
   const displayName = profile?.displayName || 'User';
   const firstName = displayName.split(' ')[0];
   const totalItems = items.length;
-  const toItem = (item: any) => ({ id: item.id, title: item.name, imageUrl: item.imageUrl, wornCount: item.wearCount });
+  const totalOutfits = outfits.length;
+  const wardrobeValue = getTotalWardrobeValue();
 
-  // Category stats with subcategory breakdown
+  // Category stats
   const categoryStats = (['shirts', 'pants', 'jackets', 'shoes', 'accessories', 'fragrances'] as const).map(cat => {
     const catItems = getItemsByCategory(cat);
     const unworn = catItems.filter((i: any) => i.wearCount === 0).length;
-    const isNew = (i: any) => {
-      const added = new Date(i.purchaseDate || Date.now());
-      return (Date.now() - added.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+    return { category: cat, total: catItems.length, unworn };
+  });
+
+  // Mini calendar — next 7 days
+  const calendarDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const scheduled = scheduledOutfits?.filter((o: any) => o.date === dateStr) || [];
+    return {
+      date: d,
+      dateStr,
+      dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      dayNum: d.getDate(),
+      isToday: i === 0,
+      outfitCount: scheduled.length,
+      outfitName: scheduled[0]?.outfitName || null,
     };
-    const newCount = catItems.filter(isNew).length;
-
-    // Subcategory breakdown
-    const subCounts: Record<string, number> = {};
-    catItems.forEach((i: any) => {
-      if (i.subcategory) {
-        subCounts[i.subcategory] = (subCounts[i.subcategory] || 0) + 1;
-      }
-    });
-
-    return { category: cat, total: catItems.length, unworn, newCount, subCounts };
   });
 
   const loadWeather = useCallback(async (force = false) => {
@@ -160,21 +161,16 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Location + OOTD row */}
-        <View style={s.locationRow}>
-          <Pressable style={s.locationLeft} onPress={() => router.push('/location-settings' as any)}>
-            <MapPin size={15} color={colors.textSecondary} />
-            <Text style={s.locationText}>
-              {weather?.current.location || (profile as any)?.city || 'Set location'}
-            </Text>
-            {currentTemp !== null && <Text style={s.currentTemp}> · {currentTemp}°F</Text>}
-          </Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/calendar' as any)}>
-            <Text style={s.ootdLink}>OOTD Calendar</Text>
-          </Pressable>
-        </View>
+        {/* Location row */}
+        <Pressable style={s.locationRow} onPress={() => router.push('/location-settings' as any)}>
+          <MapPin size={14} color={colors.textSecondary} />
+          <Text style={s.locationText}>
+            {weather?.current.location || (profile as any)?.city || 'Set location'}
+          </Text>
+          {currentTemp !== null && <Text style={s.currentTemp}> · {currentTemp}°F</Text>}
+        </Pressable>
 
-        {/* Forecast cards */}
+        {/* Forecast strip */}
         {weatherLoading ? (
           <View style={s.weatherLoading}>
             <ActivityIndicator size="small" color={colors.primary} />
@@ -196,113 +192,92 @@ export default function HomeScreen() {
           </ScrollView>
         ) : (
           <Pressable style={s.weatherEmpty} onPress={() => router.push('/location-settings' as any)}>
-            <MapPin size={16} color={colors.textSecondary} />
-            <Text style={s.weatherEmptyText}>  Tap to set location for weather</Text>
+            <Text style={s.weatherEmptyText}>📍 Tap to set location for weather</Text>
           </Pressable>
         )}
 
-        {/* AI suggestion banner */}
+        {/* AI suggestion */}
         {weather && (
           <Pressable style={s.suggestionCard} onPress={() => router.push('/ai-recommendations' as any)}>
-            <Sparkles size={16} color={colors.primary} />
-            <Text style={s.suggestionText} numberOfLines={2}>{getOutfitSuggestion(weather.current)}</Text>
-            <Text style={s.suggestionCta}>Get outfit →</Text>
+            <Sparkles size={14} color={colors.primary} />
+            <Text style={s.suggestionText} numberOfLines={1}>{getOutfitSuggestion(weather.current)}</Text>
+            <Text style={s.suggestionCta}>→</Text>
           </Pressable>
         )}
 
-        {/* Tab row */}
-        <View style={s.tabRow}>
-          {(['closet', 'outfit'] as const).map((tab) => (
-            <Pressable key={tab} onPress={() => setSelectedTab(tab)} style={s.tabBtn}>
-              <Text style={[s.tabLabel, selectedTab === tab && s.tabLabelActive]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-              {selectedTab === tab && <View style={s.tabUnderline} />}
+        {/* Mini Calendar */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>This Week</Text>
+          <Pressable onPress={() => router.push('/(tabs)/calendar' as any)}>
+            <Text style={s.sectionLink}>View all</Text>
+          </Pressable>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.calendarStrip}>
+          {calendarDays.map(({ date, dateStr, dayName, dayNum, isToday, outfitCount, outfitName }) => (
+            <Pressable
+              key={dateStr}
+              style={[s.calDay, isToday && s.calDayToday]}
+              onPress={() => router.push('/(tabs)/calendar' as any)}
+            >
+              <Text style={[s.calDayName, isToday && s.calDayTextToday]}>{dayName}</Text>
+              <Text style={[s.calDayNum, isToday && s.calDayTextToday]}>{dayNum}</Text>
+              {outfitCount > 0 ? (
+                <View style={s.calDot} />
+              ) : (
+                <View style={s.calDotEmpty} />
+              )}
+              {outfitName && (
+                <Text style={s.calOutfitName} numberOfLines={1}>{outfitName}</Text>
+              )}
             </Pressable>
           ))}
+        </ScrollView>
+
+        {/* Stats row */}
+        <View style={s.statsRow}>
+          <Pressable style={s.statBox} onPress={() => router.push('/(tabs)/wardrobe' as any)}>
+            <Shirt size={18} color={colors.primary} />
+            <Text style={s.statNum}>{totalItems}</Text>
+            <Text style={s.statLabel}>Items</Text>
+          </Pressable>
+          <Pressable style={s.statBox} onPress={() => router.push('/(tabs)/outfits' as any)}>
+            <Sparkles size={18} color={colors.primary} />
+            <Text style={s.statNum}>{totalOutfits}</Text>
+            <Text style={s.statLabel}>Outfits</Text>
+          </Pressable>
+          <Pressable style={s.statBox} onPress={() => router.push('/closet-analytics' as any)}>
+            <TrendingUp size={18} color={colors.primary} />
+            <Text style={s.statNum}>${wardrobeValue.toLocaleString()}</Text>
+            <Text style={s.statLabel}>Est. Value</Text>
+          </Pressable>
         </View>
 
-        {selectedTab === 'closet' ? (
-          <>
-            {/* Closet header */}
-            <View style={s.closetHeader}>
-              <View>
-                <Text style={s.closetTitle}>Your Closet</Text>
-                <Text style={s.closetCount}>{totalItems} items total</Text>
-              </View>
-              <Pressable style={s.addButton} onPress={() => router.push('/add-item' as any)}>
-                <Plus size={20} color={colors.background} strokeWidth={2.5} />
-              </Pressable>
-            </View>
-
-            {/* Category stats strip */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.statsStrip}
-              style={{ marginBottom: tokens.spacing.lg }}
+        {/* Category stats */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>My Closet</Text>
+          <Pressable onPress={() => router.push('/(tabs)/wardrobe' as any)}>
+            <Text style={s.sectionLink}>View all</Text>
+          </Pressable>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryStrip}>
+          {categoryStats.map(({ category, total, unworn }) => (
+            <Pressable
+              key={category}
+              style={s.catCard}
+              onPress={() => router.push('/(tabs)/wardrobe' as any)}
             >
-              {categoryStats.map(({ category, total, unworn, newCount, subCounts }) => (
-                <Pressable
-                  key={category}
-                  style={s.statCard}
-                  onPress={() => router.push('/(tabs)/wardrobe' as any)}
-                >
-                  <Text style={s.statEmoji}>{CATEGORY_EMOJI[category]}</Text>
-                  <Text style={s.statCategory}>{category.charAt(0).toUpperCase() + category.slice(1)}</Text>
-                  <Text style={s.statTotal}>{total}</Text>
-                  <Text style={s.statSub}>items</Text>
-                  {unworn > 0 && (
-                    <View style={s.statBadge}>
-                      <Text style={s.statBadgeText}>{unworn} unworn</Text>
-                    </View>
-                  )}
-                  {newCount > 0 && (
-                    <View style={[s.statBadge, s.statBadgeNew]}>
-                      <Text style={s.statBadgeText}>{newCount} new</Text>
-                    </View>
-                  )}
-                  {Object.keys(subCounts).length > 0 && (
-                    <View style={s.subCountsContainer}>
-                      {Object.entries(subCounts).slice(0, 2).map(([sub, count]) => (
-                        <Text key={sub} style={s.subCountText}>
-                          {sub}: {count}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
-
-            {/* Closet sections */}
-            {[
-              { title: 'Tops', items: getItemsByCategory('shirts') },
-              { title: 'Pants', items: getItemsByCategory('pants') },
-              { title: 'Shoes', items: getItemsByCategory('shoes') },
-              { title: 'Jackets', items: getItemsByCategory('jackets') },
-              { title: 'Accessories', items: getItemsByCategory('accessories') },
-              { title: 'Fragrances', items: getItemsByCategory('fragrances') },
-            ].map(({ title, items: sectionItems }) => (
-              <ClosetSectionRow
-                key={title}
-                title={title}
-                items={sectionItems.map(toItem)}
-                onItemPress={(id) => router.push(`/item/${id}` as any)}
-                onAddPress={() => router.push('/add-item' as any)}
-              />
-            ))}
-          </>
-        ) : (
-          <View style={s.emptyOutfit}>
-            <Sparkles size={48} color={colors.textSecondary} />
-            <Text style={s.emptyOutfitTitle}>No outfits yet</Text>
-            <Text style={s.emptyOutfitSub}>Create outfit combinations from your wardrobe</Text>
-            <Pressable style={s.createOutfitBtn} onPress={() => router.push('/add-outfit' as any)}>
-              <Text style={s.createOutfitBtnText}>Create Your First Outfit</Text>
+              <Text style={s.catEmoji}>{CATEGORY_EMOJI[category]}</Text>
+              <Text style={s.catName}>{category.charAt(0).toUpperCase() + category.slice(1)}</Text>
+              <Text style={s.catTotal}>{total}</Text>
+              {unworn > 0 && (
+                <View style={s.catBadge}>
+                  <Text style={s.catBadgeText}>{unworn} unworn</Text>
+                </View>
+              )}
             </Pressable>
-          </View>
-        )}
+          ))}
+        </ScrollView>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -325,68 +300,65 @@ const s = StyleSheet.create({
   avatarInitial: { fontSize: 18, fontWeight: '700', color: colors.background },
   welcomeText: { fontSize: 16, fontWeight: '700', color: colors.text },
   profileLink: { fontSize: 12, color: colors.primary, marginTop: 2 },
-  locationRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.md,
-  },
-  locationLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
-  currentTemp: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  ootdLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.sm },
+  locationText: { fontSize: 13, color: colors.textSecondary },
+  currentTemp: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   forecastStrip: { paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.md },
   weatherLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: tokens.spacing.md },
   weatherLoadingText: { fontSize: 13, color: colors.textSecondary },
-  weatherEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: tokens.spacing.md },
+  weatherEmpty: { paddingHorizontal: tokens.spacing.lg, paddingVertical: tokens.spacing.sm },
   weatherEmptyText: { fontSize: 13, color: colors.textSecondary },
   suggestionCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     marginHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.lg,
     backgroundColor: colors.primaryLight, borderRadius: tokens.radius.lg,
-    padding: tokens.spacing.md, borderWidth: 1, borderColor: colors.primary + '30',
+    paddingHorizontal: tokens.spacing.md, paddingVertical: 10,
+    borderWidth: 1, borderColor: colors.primary + '30',
   },
-  suggestionText: { flex: 1, fontSize: 13, color: colors.text, lineHeight: 18 },
-  suggestionCta: { fontSize: 12, color: colors.primary, fontWeight: '600' },
-  tabRow: {
-    flexDirection: 'row', paddingHorizontal: tokens.spacing.lg,
-    borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: tokens.spacing.lg,
-  },
-  tabBtn: { marginRight: 24, paddingBottom: 0 },
-  tabLabel: { fontSize: 16, fontWeight: '500', color: colors.textSecondary, paddingBottom: 10 },
-  tabLabelActive: { color: colors.primary, fontWeight: '700' },
-  tabUnderline: { height: 2, backgroundColor: colors.primary, borderRadius: 1 },
-  closetHeader: {
+  suggestionText: { flex: 1, fontSize: 12, color: colors.text },
+  suggestionCta: { fontSize: 14, color: colors.primary, fontWeight: '700' },
+  sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.sm,
   },
-  closetTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
-  closetCount: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  addButton: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  sectionLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  // Calendar
+  calendarStrip: { paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.lg, gap: 8 },
+  calDay: {
+    width: 56, alignItems: 'center', backgroundColor: colors.card,
+    borderRadius: tokens.radius.lg, paddingVertical: 10,
+    borderWidth: 1, borderColor: colors.border,
   },
-  // Category stats
-  statsStrip: { paddingHorizontal: tokens.spacing.lg, gap: 10, paddingBottom: 4 },
-  statCard: {
-    width: 110, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
+  calDayToday: { backgroundColor: colors.primary, borderColor: colors.primary },
+  calDayName: { fontSize: 10, color: colors.textSecondary, fontWeight: '600', marginBottom: 2 },
+  calDayNum: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  calDayTextToday: { color: colors.background },
+  calDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },
+  calDotEmpty: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'transparent' },
+  calOutfitName: { fontSize: 9, color: colors.textSecondary, marginTop: 2, textAlign: 'center', paddingHorizontal: 2 },
+  // Stats row
+  statsRow: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.lg,
+  },
+  statBox: {
+    flex: 1, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
+    padding: tokens.spacing.md, alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  statNum: { fontSize: 18, fontWeight: '700', color: colors.text },
+  statLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
+  // Category strip
+  categoryStrip: { paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.lg, gap: 10 },
+  catCard: {
+    width: 90, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
     padding: tokens.spacing.md, alignItems: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
-  statEmoji: { fontSize: 24, marginBottom: 4 },
-  statCategory: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginBottom: 2, textTransform: 'capitalize' },
-  statTotal: { fontSize: 26, fontWeight: '700', color: colors.text },
-  statSub: { fontSize: 11, color: colors.textSecondary, marginBottom: 4 },
-  statBadge: {
-    backgroundColor: colors.primary + '25', borderRadius: 10,
-    paddingHorizontal: 8, paddingVertical: 3, marginTop: 3,
-  },
-  statBadgeNew: { backgroundColor: colors.success + '25' },
-  statBadgeText: { fontSize: 10, fontWeight: '600', color: colors.text },
-  subCountsContainer: { marginTop: 6, width: '100%' },
-  subCountText: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 1 },
-  // Empty outfit
-  emptyOutfit: { alignItems: 'center', paddingVertical: tokens.spacing.xxl, paddingHorizontal: tokens.spacing.xl },
-  emptyOutfitTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: tokens.spacing.lg, marginBottom: tokens.spacing.sm },
-  emptyOutfitSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: tokens.spacing.xl },
-  createOutfitBtn: { backgroundColor: colors.primary, paddingVertical: tokens.spacing.md, paddingHorizontal: tokens.spacing.xl, borderRadius: tokens.radius.lg },
-  createOutfitBtnText: { fontSize: 15, fontWeight: '600', color: colors.background },
+  catEmoji: { fontSize: 24, marginBottom: 4 },
+  catName: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginBottom: 2, textTransform: 'capitalize' },
+  catTotal: { fontSize: 20, fontWeight: '700', color: colors.text },
+  catBadge: { backgroundColor: colors.primary + '25', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, marginTop: 4 },
+  catBadgeText: { fontSize: 9, fontWeight: '600', color: colors.text },
 });
