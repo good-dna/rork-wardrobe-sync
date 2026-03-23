@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { X, Check, Sparkles, Camera, Upload, Trash2, Archive, DollarSign } from 'lucide-react-native';
 import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { Category, Season } from '@/types/wardrobe';
+import { Category, Season, Subcategory, SUBCATEGORIES } from '@/types/wardrobe';
 import Dropdown from '@/components/ui/Dropdown';
 import { supabase } from '@/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -22,6 +22,7 @@ export default function EditItemScreen() {
   const [name, setName] = useState(item?.name || '');
   const [brand, setBrand] = useState(item?.brand || '');
   const [category, setCategory] = useState<Category>(item?.category || 'shirts');
+  const [subcategory, setSubcategory] = useState<Subcategory | ''>(item?.subcategory || '');
   const [color, setColor] = useState(item?.color || '');
   const [material, setMaterial] = useState(item?.material || '');
   const [selectedSeasons, setSelectedSeasons] = useState<Season[]>(item?.season || ['all']);
@@ -100,8 +101,9 @@ export default function EditItemScreen() {
   const handleSave = async () => {
     if (!name || !brand) { Alert.alert('Error', 'Name and brand are required'); return; }
     const updates = {
-      name, brand, category, color,
-      material, season: selectedSeasons,
+      name, brand, category,
+      subcategory: subcategory || undefined,
+      color, material, season: selectedSeasons,
       purchaseDate, purchasePrice: parseFloat(purchasePrice) || 0,
       notes, tags, imageUrl,
     };
@@ -110,7 +112,9 @@ export default function EditItemScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('wardrobe_items').update({
-          name, brand, category, color,
+          name, brand, category,
+          subcategory: subcategory || null,
+          color,
           image_url: imageUrl,
           purchase_date: purchaseDate || null,
           purchase_price: parseFloat(purchasePrice) || null,
@@ -208,9 +212,28 @@ export default function EditItemScreen() {
           label="Category *"
           options={categoryOptions}
           value={category}
-          onSelect={(value) => setCategory(value as Category)}
+          onSelect={(value) => { setCategory(value as Category); setSubcategory(''); }}
           placeholder="Select a category"
         />
+
+        {category && SUBCATEGORIES[category] && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Subcategory</Text>
+            <View style={styles.subcategoryChips}>
+              {SUBCATEGORIES[category].map((sub) => (
+                <Pressable
+                  key={sub.value}
+                  style={[styles.subChip, subcategory === sub.value && styles.subChipActive]}
+                  onPress={() => setSubcategory(subcategory === sub.value ? '' : sub.value)}
+                >
+                  <Text style={[styles.subChipText, subcategory === sub.value && styles.subChipTextActive]}>
+                    {sub.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.formRow}>
           <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
@@ -406,6 +429,11 @@ const styles = StyleSheet.create({
   tagsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
   tagText: { fontSize: 14, color: colors.text, marginRight: 4 },
+  subcategoryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  subChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  subChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  subChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' as const },
+  subChipTextActive: { color: '#000', fontWeight: '700' as const },
   actionsSection: { marginTop: 12, marginBottom: 24, gap: 10 },
   actionsSectionTitle: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
