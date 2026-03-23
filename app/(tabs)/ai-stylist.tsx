@@ -207,7 +207,7 @@ export default function AIStylistScreen() {
       resizeMode="cover"
     >
     <SafeAreaView style={s.container} edges={['top']}>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <View style={s.content}>
 
         {/* Header */}
         <View style={s.header}>
@@ -378,7 +378,7 @@ export default function AIStylistScreen() {
             )}
           </>
         )}
-      </ScrollView>
+      </View>
 
       {/* Method picker modal */}
       <Modal visible={showMethodPicker} transparent animationType="slide" onRequestClose={() => setShowMethodPicker(false)}>
@@ -441,7 +441,7 @@ export default function AIStylistScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
-  content: { padding: tokens.spacing.lg, paddingBottom: 90 },
+  content: { flex: 1, padding: tokens.spacing.lg, paddingBottom: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: tokens.spacing.lg },
   title: { fontSize: 24, fontWeight: '700', color: colors.text, flex: 1 },
@@ -451,24 +451,24 @@ const s = StyleSheet.create({
   tabBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
   tabBtnTextActive: { color: colors.background },
-  onboarding: { alignItems: 'center', paddingVertical: tokens.spacing.xl },
-  avatarPlaceholder: { width: 160, height: 220, borderRadius: tokens.radius.xl, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed', marginBottom: tokens.spacing.lg },
-  onboardingTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.sm, textAlign: 'center' },
-  onboardingSub: { fontSize: 14, color: colors.textSecondary, lineHeight: 22, textAlign: 'center', marginBottom: tokens.spacing.xl, paddingHorizontal: tokens.spacing.md },
+  onboarding: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  avatarPlaceholder: { width: 140, height: 180, borderRadius: tokens.radius.xl, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed', marginBottom: tokens.spacing.md },
+  onboardingTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.xs, textAlign: 'center' },
+  onboardingSub: { fontSize: 13, color: colors.textSecondary, lineHeight: 20, textAlign: 'center', marginBottom: tokens.spacing.lg, paddingHorizontal: tokens.spacing.md },
   photoButtons: { flexDirection: 'row', gap: 12, width: '100%' },
   photoBtn: { flex: 1, backgroundColor: colors.card, borderRadius: tokens.radius.xl, padding: tokens.spacing.lg, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border },
   photoBtnText: { fontSize: 13, fontWeight: '600', color: colors.text },
   loadingCard: { marginTop: tokens.spacing.xl, alignItems: 'center', padding: tokens.spacing.xl, backgroundColor: colors.card, borderRadius: tokens.radius.xl, borderWidth: 1, borderColor: colors.border, gap: 8, width: '100%' },
   loadingTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   loadingSub: { fontSize: 13, color: colors.textSecondary },
-  avatarSection: { alignItems: 'center', marginBottom: tokens.spacing.lg },
-  avatarImage: { width: '100%', height: 420, borderRadius: tokens.radius.xl, backgroundColor: colors.card, marginBottom: tokens.spacing.md },
-  backdropContainer: { width: '100%', height: 420, borderRadius: tokens.radius.xl, overflow: 'hidden', marginBottom: tokens.spacing.md, position: 'relative' },
+  avatarSection: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: '100%', height: 320, borderRadius: tokens.radius.xl, backgroundColor: colors.card, marginBottom: tokens.spacing.md },
+  backdropContainer: { width: '100%', height: 320, borderRadius: tokens.radius.xl, overflow: 'hidden', marginBottom: tokens.spacing.md, position: 'relative' },
   backdropImage: { width: '100%', height: '100%' },
   backdropOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center' },
   backdropBrand: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', marginTop: 16, letterSpacing: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
   backdropUserPhoto: { width: '70%', height: '82%', borderRadius: 12, marginTop: 8 },
-  backdropContainerSmall: { width: '100%', height: 280, borderRadius: tokens.radius.xl, overflow: 'hidden', marginBottom: tokens.spacing.md, position: 'relative' },
+  backdropContainerSmall: { width: '100%', height: 200, borderRadius: tokens.radius.xl, overflow: 'hidden', marginBottom: tokens.spacing.md, position: 'relative' },
   backdropImageSmall: { width: '100%', height: '100%' },
   backdropUserSmall: { position: 'absolute', bottom: 0, left: '15%', width: '70%', height: '90%', borderRadius: 8 },
   methodBadge: { backgroundColor: colors.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: tokens.spacing.md, borderWidth: 1, borderColor: colors.border },
@@ -482,17 +482,17 @@ const s = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
   chipTextActive: { color: '#000', fontWeight: '700' },
-  stylistSection: { marginBottom: tokens.spacing.lg },
+  stylistSection: { flex: 1, justifyContent: 'center' },
   stepTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.sm },
   stepSub: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: tokens.spacing.lg },
-  previewSection: { marginBottom: tokens.spacing.lg },
-  photoPreview: { width: '100%', height: 280, borderRadius: tokens.radius.xl, backgroundColor: colors.card, marginBottom: tokens.spacing.md },
+  previewSection: { flex: 1 },
+  photoPreview: { width: '100%', height: 220, borderRadius: tokens.radius.xl, backgroundColor: colors.card, marginBottom: tokens.spacing.md },
   outfitPickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderRadius: tokens.radius.lg, padding: tokens.spacing.md, marginBottom: tokens.spacing.md, borderWidth: 1, borderColor: colors.border },
   outfitPickerText: { fontSize: 14, color: colors.text },
   generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: tokens.radius.lg, padding: tokens.spacing.md, gap: 8 },
   generateBtnText: { fontSize: 16, fontWeight: '700', color: colors.background },
   results: { gap: 12 },
-  resultAvatar: { width: '100%', height: 300, borderRadius: tokens.radius.xl, marginBottom: 4 },
+  resultAvatar: { width: '100%', height: 200, borderRadius: tokens.radius.xl, marginBottom: 4 },
   resultCard: { backgroundColor: colors.card, borderRadius: tokens.radius.xl, padding: tokens.spacing.lg, borderWidth: 1, borderColor: colors.border },
   resultCardTitle: { fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: tokens.spacing.sm },
   resultCardText: { fontSize: 15, color: colors.text, lineHeight: 22 },
