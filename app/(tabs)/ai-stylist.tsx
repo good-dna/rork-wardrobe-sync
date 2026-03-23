@@ -38,7 +38,7 @@ interface StyleResult {
 }
 
 export default function AIStylistScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const { items, outfits } = useWardrobeStore();
 
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export default function AIStylistScreen() {
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'avatar' | 'stylist'>('avatar');
 
-  useEffect(() => { loadSavedAvatar(); }, []);
+  useEffect(() => { void loadSavedAvatar(); }, []);
 
   const loadSavedAvatar = async () => {
     try {
@@ -87,7 +87,7 @@ export default function AIStylistScreen() {
     const { status } = await permFn();
     if (status !== 'granted') { Alert.alert('Permission needed', 'Photo access required.'); return; }
     const launchFn = useCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
-    const result = await launchFn({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.3, width: 500 });
+    const result = await launchFn({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.3 });
     if (!result.canceled) {
       setPendingPhotoUri(result.assets[0].uri);
       setShowMethodPicker(true);
@@ -165,14 +165,14 @@ export default function AIStylistScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission needed', 'Camera access required.'); return; }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.1, width: 400 });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.1 });
     if (!result.canceled) { setUserPhoto(result.assets[0].uri); setStep('occasion'); setStyleResult(null); }
   };
 
   const uploadPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission needed', 'Photo library access required.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.1, width: 400 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.1 });
     if (!result.canceled) { setUserPhoto(result.assets[0].uri); setStep('occasion'); setStyleResult(null); }
   };
 
@@ -189,7 +189,7 @@ export default function AIStylistScreen() {
       });
       if (aiError) throw new Error(aiError.message);
       setStyleResult(aiData);
-    } catch (err: any) {
+    } catch {
       Alert.alert('Error', 'Failed to generate style advice.');
       setStep('occasion');
     } finally { setLoading(false); }

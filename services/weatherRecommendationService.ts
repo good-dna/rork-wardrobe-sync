@@ -1,15 +1,20 @@
 import { 
   EnhancedItem, 
-  WeatherRule, 
-  UnitSystem, 
   LocationPreferences 
 } from '@/types/wardrobe';
-import { 
-  WeatherData, 
-  evaluateWeatherRules, 
-  calculateItemFitScore,
-  getMockWeatherData 
-} from '@/services/weatherService';
+import { WeatherData } from '@/services/weatherService';
+
+function calculateItemFitScoreLocal(item: EnhancedItem, weatherTags: string[], weather: WeatherData): number {
+  let score = 50;
+  const itemTags = item.weatherTags || [];
+  for (const tag of weatherTags) {
+    if (itemTags.includes(tag)) score += 10;
+  }
+  if (item.waterproof && weather.precipitation > 0.4) score += 15;
+  if (item.warmthRating && item.warmthRating >= 4 && weather.temperature < 10) score += 15;
+  if (item.breathability && item.breathability >= 4 && weather.temperature > 25) score += 15;
+  return Math.min(100, score);
+}
 
 export interface WeatherRecommendation {
   id: string;
@@ -238,15 +243,20 @@ export function generateWeatherRecommendations(
   context: RecommendationContext,
   availableItems: EnhancedItem[] = mockEnhancedItems
 ): WeatherRecommendation[] {
-  const { weather, preferences } = context;
+  const { weather } = context;
   
   // Evaluate weather rules to get recommendation tags
-  const weatherTags = evaluateWeatherRules(weather, preferences.rules, preferences.units);
+  const weatherTags: string[] = [];
+  if (weather.temperature < 10) weatherTags.push('thermal', 'insulated', 'warm');
+  if (weather.precipitation > 0.4) weatherTags.push('waterproof', 'umbrella');
+  if (weather.uvIndex > 6) weatherTags.push('sunglasses', 'hat', 'uv_protection');
+  if (weather.windSpeed > 20) weatherTags.push('windproof');
+  if (weather.humidity > 70) weatherTags.push('breathable', 'moisture_wicking');
   
   // Calculate fit scores for all items
   const scoredItems = availableItems.map(item => ({
     ...item,
-    fitScore: calculateItemFitScore(item, weatherTags, weather)
+    fitScore: calculateItemFitScoreLocal(item, weatherTags, weather)
   }));
   
   // Sort items by fit score
@@ -400,10 +410,14 @@ export function getWeatherBasedOutfitSuggestions(
 
 // Mock function to simulate getting current weather and recommendations
 export async function getCurrentWeatherRecommendations(
-  preferences?: LocationPreferences
+  _preferences?: LocationPreferences
 ): Promise<WeatherRecommendation[]> {
   // In a real app, this would fetch actual weather data
-  const mockWeather = getMockWeatherData('sunny');
+  const mockWeather: WeatherData = {
+    temperature: 25, feelsLike: 26, description: 'Clear sky', weatherCode: 0,
+    precipitation: 0, humidity: 40, windSpeed: 10, uvIndex: 7,
+    location: 'Demo', timestamp: Date.now(),
+  };
   
   const defaultPreferences: LocationPreferences = {
     units: 'metric',
@@ -442,6 +456,6 @@ export async function getCurrentWeatherRecommendations(
   
   return getWeatherBasedOutfitSuggestions(
     mockWeather, 
-    preferences || defaultPreferences
+    _preferences || defaultPreferences
   );
 }

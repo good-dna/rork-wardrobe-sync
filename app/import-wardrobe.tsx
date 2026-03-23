@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as XLSX from 'xlsx';
 import { Stack, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -11,7 +10,7 @@ import { Upload, FileText, Check } from 'lucide-react-native';
 
 const SUGGESTED_COLUMNS = ['name', 'category', 'brand', 'color', 'size', 'season', 'price', 'image_url', 'notes'];
 
-function parseCsvLine(line) {
+function parseCsvLine(line: string) {
   const result = [];
   let current = '';
   let inQuotes = false;
@@ -25,8 +24,8 @@ function parseCsvLine(line) {
   return result;
 }
 
-function parseCsv(text) {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+function parseCsv(text: string) {
+  const lines = text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
   
   // Find the actual header row by looking for 'name' column
@@ -39,9 +38,9 @@ function parseCsv(text) {
   }
   
   const headers = parseCsvLine(lines[headerIndex]).map(h => h.toLowerCase().trim());
-  return lines.slice(headerIndex + 1).map(line => {
+  return lines.slice(headerIndex + 1).map((line: string) => {
     const values = parseCsvLine(line);
-    const row = {};
+    const row: Record<string, string> = {};
     headers.forEach((header, i) => { row[header] = values[i] ?? ''; });
     return row;
   });
@@ -51,7 +50,7 @@ export default function ImportWardrobeScreen() {
   const router = useRouter();
   const addItem = useWardrobeStore(state => state.addItem);
   const [loading, setLoading] = useState(false);
-  const [normalizedRows, setNormalizedRows] = useState([]);
+  const [normalizedRows, setNormalizedRows] = useState<any[]>([]);
   const [fileName, setFileName] = useState('');
 
   const previewRows = useMemo(() => normalizedRows.slice(0, 5), [normalizedRows]);
@@ -78,7 +77,7 @@ export default function ImportWardrobeScreen() {
         const blob = await response.blob();
         const base64 = await new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
@@ -90,8 +89,7 @@ export default function ImportWardrobeScreen() {
       if (!rows.length) throw new Error('File is empty.');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('You must be signed in.');
-      const cleaned = rows.map(row => {
-        // Normalize keys to lowercase
+      const cleaned = rows.map((row: any) => {
         const r: any = {};
         Object.keys(row).forEach(k => { r[k.toLowerCase().trim()] = row[k]; });
 
@@ -124,7 +122,7 @@ export default function ImportWardrobeScreen() {
       }).filter(Boolean);
       if (!cleaned.length) throw new Error('No valid rows found.');
       setNormalizedRows(cleaned);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Error', error?.message || 'Could not read file.');
     } finally {
       setLoading(false);
@@ -157,7 +155,7 @@ export default function ImportWardrobeScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
       setNormalizedRows([]); setFileName('');
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Error', error?.message || 'Import failed.');
     } finally {
       setLoading(false);

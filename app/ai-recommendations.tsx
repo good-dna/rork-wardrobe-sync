@@ -10,7 +10,7 @@ import Typography from '@/components/ui/Typography';
 import Card from '@/components/ui/Card';
 
 import { generateOutfitRecommendation } from '@/services/outfitRecommendationService';
-import { getWeatherData } from '@/services/weatherService';
+import { fetchWeather, getCurrentLocation } from '@/services/weatherService';
 import ItemCard from '@/components/ItemCard';
 import { OutfitSuggestion } from '@/types/wardrobe';
 
@@ -79,9 +79,10 @@ export default function AIRecommendationsScreen() {
     try {
       if (occasionId === 'weather') {
         // Generate weather-based recommendation
-        const weather = await getWeatherData();
-        if (weather) {
-          const weatherRecommendation = generateOutfitRecommendation(items, weather);
+        const coords = await getCurrentLocation();
+        const weatherResult = coords ? await fetchWeather(coords.latitude, coords.longitude) : null;
+        if (weatherResult) {
+          const weatherRecommendation = generateOutfitRecommendation(items, weatherResult.current);
           
           if (weatherRecommendation) {
             setRecommendation(weatherRecommendation);
@@ -154,7 +155,7 @@ export default function AIRecommendationsScreen() {
   // Auto-select and generate outfit if occasion is provided via URL
   useEffect(() => {
     if (occasion && typeof occasion === 'string' && !selectedOccasion) {
-      handleOccasionSelect(occasion);
+      void handleOccasionSelect(occasion);
     }
   }, [occasion, selectedOccasion, handleOccasionSelect]);
 
@@ -167,7 +168,7 @@ export default function AIRecommendationsScreen() {
 
   const handleRegenerateOutfit = () => {
     if (selectedOccasion) {
-      handleOccasionSelect(selectedOccasion);
+      void handleOccasionSelect(selectedOccasion);
     }
   };
 

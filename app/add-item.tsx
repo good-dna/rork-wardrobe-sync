@@ -4,7 +4,7 @@ import {
   Pressable, Switch, KeyboardAvoidingView, Platform, Image, ActivityIndicator
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { X, Check, Image as ImageIcon, Sparkles, Camera, Upload } from 'lucide-react-native';
+import { X, Check, Sparkles, Camera, Upload } from 'lucide-react-native';
 import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
 import { Category, Season, CleaningStatus, Item, Subcategory, SUBCATEGORIES } from '@/types/wardrobe';
@@ -458,6 +458,7 @@ const styles = StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8,
     borderWidth: 1, borderColor: colors.border,
   },
+  tagText: { fontSize: 14, color: colors.text, marginRight: 6 },
   subcategoryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   subChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   subChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },

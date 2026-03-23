@@ -17,13 +17,11 @@ import {
 import {
   getCurrentLocation,
   shouldRefreshWeather,
-  convertTemperature,
-  getTemperatureUnit,
 } from '@/services/weatherService';
 
 export default function LocationSettingsScreen() {
   const router = useRouter();
-  const { profile, updateLocationPreferences, updateWeatherCache, weatherCache } = useUserStore();
+  const { profile, updateLocationPreferences } = useUserStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,7 +61,7 @@ export default function LocationSettingsScreen() {
       } else {
         setSearchResults([]);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to search locations');
     } finally {
       setIsSearching(false);
@@ -96,7 +94,7 @@ export default function LocationSettingsScreen() {
       } else {
         Alert.alert('Error', 'Location permission denied or unavailable');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to get current location');
     } finally {
       setIsLoading(false);
@@ -129,7 +127,7 @@ export default function LocationSettingsScreen() {
       Alert.alert('Success', 'Location preferences saved', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to save preferences');
     } finally {
       setIsLoading(false);
@@ -138,7 +136,7 @@ export default function LocationSettingsScreen() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      if (searchQuery) handleSearch(searchQuery);
+      if (searchQuery) void handleSearch(searchQuery);
     }, 300);
     return () => clearTimeout(t);
   }, [searchQuery]);

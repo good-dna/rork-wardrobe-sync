@@ -24,10 +24,10 @@ export default function SegmentedControl({ options, selectedIndex, onSelectIndex
           <Typography
             variant="body"
             color={index === selectedIndex ? colors.text : colors.textSecondary}
-            style={[
-              styles.segmentText,
-              index === selectedIndex && styles.segmentTextActive,
-            ]}
+            style={{
+              ...styles.segmentText,
+              ...(index === selectedIndex ? styles.segmentTextActive : {}),
+            }}
           >
             {option}
           </Typography>

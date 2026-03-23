@@ -82,13 +82,13 @@ export default function HomeScreen() {
     const dateStr = d.toISOString().split('T')[0];
     const scheduled = scheduledOutfits?.filter((o: any) => o.date === dateStr) || [];
     return {
-      date: d,
+      _date: d,
       dateStr,
       dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
       dayNum: d.getDate(),
       isToday: i === 0,
       outfitCount: scheduled.length,
-      outfitName: scheduled[0]?.outfitName || null,
+      outfitName: scheduled[0]?.name || null,
     };
   });
 
@@ -119,7 +119,7 @@ export default function HomeScreen() {
     finally { setWeatherLoading(false); }
   }, [profile]);
 
-  useEffect(() => { loadWeather(); }, [loadWeather]);
+  useEffect(() => { void loadWeather(); }, [loadWeather]);
   useEffect(() => {
     refreshTimer.current = setInterval(() => loadWeather(true), REFRESH_INTERVAL_MS);
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
@@ -221,7 +221,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.calendarStrip}>
-          {calendarDays.map(({ date, dateStr, dayName, dayNum, isToday, outfitCount, outfitName }) => (
+          {calendarDays.map(({ _date, dateStr, dayName, dayNum, isToday, outfitCount, outfitName }) => (
             <Pressable
               key={dateStr}
               style={[s.calDay, isToday && s.calDayToday]}

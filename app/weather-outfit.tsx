@@ -10,33 +10,30 @@ import {
   Platform
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { RefreshCw, MapPin, AlertCircle } from 'lucide-react-native';
+import { RefreshCw, AlertCircle } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { 
-  getWeatherData, 
-  getMockWeatherData, 
-  WeatherData 
-} from '@/services/weatherService';
+import { WeatherData } from '@/services/weatherService';
 import { generateOutfitRecommendation } from '@/services/outfitRecommendationService';
 import WeatherOutfitCard from '@/components/WeatherOutfitCard';
 import * as Haptics from 'expo-haptics';
 
 export default function WeatherOutfitScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const items = useWardrobeStore((state) => state.items);
   const addOutfit = useWardrobeStore((state) => state.addOutfit);
   
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recommendation, setRecommendation] = useState<any | null>(null);
+  const [recommendation, setRecommendation] = useState<any>(null);
   
   // For demo purposes, we'll use mock weather conditions
   const [selectedWeather, setSelectedWeather] = useState<'sunny' | 'rainy' | 'cold' | 'hot' | 'windy'>('sunny');
   
   useEffect(() => {
-    fetchWeatherAndGenerateOutfit();
+    void fetchWeatherAndGenerateOutfit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWeather]);
   
   const fetchWeatherAndGenerateOutfit = async () => {
@@ -48,7 +45,14 @@ export default function WeatherOutfitScreen() {
       // const weatherData = await getWeatherData();
       
       // For demo purposes, we'll use mock data
-      const weatherData = getMockWeatherData(selectedWeather);
+      const mockConditions: Record<string, WeatherData> = {
+        sunny: { temperature: 25, feelsLike: 26, description: 'Clear sky', weatherCode: 0, precipitation: 0, humidity: 40, windSpeed: 10, uvIndex: 7, location: 'Demo', timestamp: Date.now() },
+        rainy: { temperature: 18, feelsLike: 16, description: 'Rain', weatherCode: 61, precipitation: 0.8, humidity: 85, windSpeed: 15, uvIndex: 2, location: 'Demo', timestamp: Date.now() },
+        cold: { temperature: 2, feelsLike: -2, description: 'Overcast', weatherCode: 3, precipitation: 0.1, humidity: 70, windSpeed: 20, uvIndex: 1, location: 'Demo', timestamp: Date.now() },
+        hot: { temperature: 35, feelsLike: 38, description: 'Clear sky', weatherCode: 0, precipitation: 0, humidity: 30, windSpeed: 5, uvIndex: 10, location: 'Demo', timestamp: Date.now() },
+        windy: { temperature: 15, feelsLike: 10, description: 'Partly cloudy', weatherCode: 2, precipitation: 0, humidity: 50, windSpeed: 40, uvIndex: 4, location: 'Demo', timestamp: Date.now() },
+      };
+      const weatherData = mockConditions[selectedWeather];
       
       if (weatherData) {
         setWeather(weatherData);
@@ -82,9 +86,9 @@ export default function WeatherOutfitScreen() {
   
   const handleRefresh = () => {
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    fetchWeatherAndGenerateOutfit();
+    void fetchWeatherAndGenerateOutfit();
   };
   
   const handleSaveOutfit = () => {
