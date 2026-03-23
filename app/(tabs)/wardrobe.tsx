@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   gridImage: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: 'transparent'Secondary,
+    backgroundColor: 'transparent',
   },
   gridItemName: {
     fontSize: 13,
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   listImage: {
     width: 80,
     height: 80,
-    backgroundColor: 'transparent'Secondary,
+    backgroundColor: 'transparent',
   },
   listItemInfo: {
     flex: 1,
