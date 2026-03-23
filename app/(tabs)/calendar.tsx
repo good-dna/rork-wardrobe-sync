@@ -317,10 +317,9 @@ export default function CalendarScreen() {
     >
       <View style={styles.container}>
         <View style={styles.header}>
-        <Text style={styles.title}>Calendar</Text>
-      </View>
-      <View style={styles.tabRow}>
           <Text style={styles.title}>Calendar</Text>
+        </View>
+        <View style={styles.tabRow}>
           <View style={styles.viewToggle}>
             <Pressable style={[styles.toggleButton, calendarView === 'month' && styles.activeToggleButton]} onPress={() => setCalendarView('month')}>
               <CalendarIcon size={16} color={calendarView === 'month' ? colors.primary : colors.subtext} />
@@ -335,7 +334,6 @@ export default function CalendarScreen() {
               <Text style={[styles.toggleButtonText, calendarView === 'list' && styles.activeToggleButtonText]}>Log</Text>
             </Pressable>
           </View>
-        </View>
         </View>
 
         <View style={styles.body}>
