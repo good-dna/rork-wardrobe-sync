@@ -137,7 +137,7 @@ export default function HomeScreen() {
     <ImageBackground
       source={require('../../assets/images/closet-backdrop.png')}
       style={{ flex: 1 }}
-      imageStyle={{ opacity: 0.25, width: '100%', height: '100%' }}
+      imageStyle={{ width: '100%', height: '100%' }}
       resizeMode="cover"
     >
     
@@ -293,7 +293,7 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'rgba(11, 11, 13, 0.7)' },
+  container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
   content: { paddingBottom: 120 },
   header: {
@@ -335,9 +335,9 @@ const s = StyleSheet.create({
   // Calendar
   calendarStrip: { paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.lg, gap: 8 },
   calDay: {
-    width: 56, alignItems: 'center', backgroundColor: colors.card,
+    width: 56, alignItems: 'center', backgroundColor: 'rgba(11,11,13,0.75)',
     borderRadius: tokens.radius.lg, paddingVertical: 10,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1.5, borderColor: colors.primary + '60',
   },
   calDayToday: { backgroundColor: colors.primary, borderColor: colors.primary },
   calDayName: { fontSize: 10, color: colors.textSecondary, fontWeight: '600', marginBottom: 2 },
@@ -352,18 +352,18 @@ const s = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg, marginBottom: tokens.spacing.lg,
   },
   statBox: {
-    flex: 1, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
+    flex: 1, backgroundColor: 'rgba(11,11,13,0.75)', borderRadius: tokens.radius.lg,
     padding: tokens.spacing.md, alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1.5, borderColor: colors.primary + '60',
   },
   statNum: { fontSize: 18, fontWeight: '700', color: colors.text },
   statLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
   // Category strip
   categoryStrip: { paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.lg, gap: 10 },
   catCard: {
-    width: 90, backgroundColor: colors.card, borderRadius: tokens.radius.lg,
+    width: 90, backgroundColor: 'rgba(11,11,13,0.75)', borderRadius: tokens.radius.lg,
     padding: tokens.spacing.md, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1.5, borderColor: colors.primary + '60',
   },
   catEmoji: { fontSize: 24, marginBottom: 4 },
   catName: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginBottom: 2, textTransform: 'capitalize' },
