@@ -344,8 +344,6 @@ export default function AIStylistScreen() {
   );
 }
 
-const BOX_BG = 'rgba(11,11,13,0.82)';
-const BOX_BORDER = 'rgba(245,200,91,0.25)';
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
