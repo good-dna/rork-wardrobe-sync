@@ -4,10 +4,10 @@ import {
   Pressable, Switch, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { X, Check, Sparkles, Camera, Upload } from 'lucide-react-native';
+import { X, Check, Sparkles, Camera, Upload, Trash2, Archive, DollarSign } from 'lucide-react-native';
 import { colors, categoryColors, tokens } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
-import { Category, Season, CleaningStatus } from '@/types/wardrobe';
+import { Category, Season } from '@/types/wardrobe';
 import Dropdown from '@/components/ui/Dropdown';
 import { supabase } from '@/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -16,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 export default function EditItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { items, updateItem } = useWardrobeStore();
+  const { items, updateItem, deleteItem } = useWardrobeStore();
   const item = items.find(i => i.id === id);
 
   const [name, setName] = useState(item?.name || '');
@@ -275,6 +275,101 @@ export default function EditItemScreen() {
             ))}
           </View>
         </View>
+
+        {/* Item Actions */}
+        <View style={styles.actionsSection}>
+          <Text style={styles.actionsSectionTitle}>Item Actions</Text>
+          <Pressable
+            style={({ pressed }) => [styles.actionButton, styles.archiveButton, pressed && styles.actionButtonPressed]}
+            onPress={() => {
+              Alert.alert(
+                'Archive Item',
+                'This will move the item to your archive. You can restore it later.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Archive',
+                    onPress: () => {
+                      updateItem(id, { status: 'archived' });
+                      try {
+                        supabase.auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
+                          if (user) {
+                            supabase.from('wardrobe_items').update({ status: 'archived' }).eq('id', id).eq('user_id', user.id);
+                          }
+                        });
+                      } catch (err) { console.warn('Failed to sync archive:', err); }
+                      router.back();
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <Archive size={18} color={colors.warning} />
+            <Text style={styles.archiveButtonText}>Archive Item</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.actionButton, styles.soldButton, pressed && styles.actionButtonPressed]}
+            onPress={() => {
+              Alert.alert(
+                'Mark as Sold',
+                'This will mark the item as sold and remove it from your active wardrobe.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Mark Sold',
+                    onPress: () => {
+                      updateItem(id, { status: 'sold' });
+                      try {
+                        supabase.auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
+                          if (user) {
+                            supabase.from('wardrobe_items').update({ status: 'sold' }).eq('id', id).eq('user_id', user.id);
+                          }
+                        });
+                      } catch (err) { console.warn('Failed to sync sold status:', err); }
+                      router.back();
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <DollarSign size={18} color={colors.success} />
+            <Text style={styles.soldButtonText}>Mark as Sold</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.actionButton, styles.deleteButton, pressed && styles.actionButtonPressed]}
+            onPress={() => {
+              Alert.alert(
+                'Delete Item',
+                'This will permanently delete this item from your wardrobe. This cannot be undone.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                      deleteItem(id);
+                      try {
+                        supabase.auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
+                          if (user) {
+                            supabase.from('wardrobe_items').delete().eq('id', id).eq('user_id', user.id);
+                          }
+                        });
+                      } catch (err) { console.warn('Failed to sync delete:', err); }
+                      router.back();
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <Trash2 size={18} color={colors.error} />
+            <Text style={styles.deleteButtonText}>Delete Item</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -311,4 +406,14 @@ const styles = StyleSheet.create({
   tagsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
   tagText: { fontSize: 14, color: colors.text, marginRight: 4 },
+  actionsSection: { marginTop: 12, marginBottom: 24, gap: 10 },
+  actionsSectionTitle: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
+  actionButtonPressed: { opacity: 0.7 },
+  archiveButton: { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30' },
+  archiveButtonText: { fontSize: 15, fontWeight: '600', color: colors.warning },
+  soldButton: { backgroundColor: colors.success + '10', borderColor: colors.success + '30' },
+  soldButtonText: { fontSize: 15, fontWeight: '600', color: colors.success },
+  deleteButton: { backgroundColor: colors.error + '10', borderColor: colors.error + '30' },
+  deleteButtonText: { fontSize: 15, fontWeight: '600', color: colors.error },
 });

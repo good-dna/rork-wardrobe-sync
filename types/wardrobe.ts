@@ -60,6 +60,7 @@ export const SUBCATEGORIES: Record<Category, { label: string; value: Subcategory
 };
 export type Season = 'spring' | 'summer' | 'fall' | 'winter' | 'all';
 export type CleaningStatus = 'clean' | 'dirty' | 'needs repair';
+export type ItemStatus = 'active' | 'archived' | 'sold';
 export type Occasion = 'casual' | 'formal' | 'work' | 'athletic' | 'evening' | 'special';
 export type Priority = 'low' | 'medium' | 'high';
 
@@ -80,7 +81,7 @@ export interface Item {
   notes: string;
   tags: string[];
   cleaningStatus: CleaningStatus;
-  // New fields for tracking wear and wash history
+  status?: ItemStatus;
   wearHistory: WearLogEntry[];
   washHistory: WashLogEntry[];
   nextWashDue?: string;
