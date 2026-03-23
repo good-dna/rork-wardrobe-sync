@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, Modal, TextInput, ImageBackground } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Modal, TextInput, ImageBackground } from 'react-native';
 import { Calendar as CalendarIcon, Clock, Droplets, X, Check, Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
@@ -20,38 +20,28 @@ export default function CalendarScreen() {
   const [logNote, setLogNote] = useState('');
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
   const [editingOutfit, setEditingOutfit] = useState<any>(null);
-  
-  const items = useWardrobeStore((state) => state.items);
 
+  const items = useWardrobeStore((state) => state.items);
   const logItemWorn = useWardrobeStore((state) => state.logItemWorn);
   const logItemWashed = useWardrobeStore((state) => state.logItemWashed);
   const setNextWashDue = useWardrobeStore((state) => state.setNextWashDue);
-  // Use tRPC for calendar plans
-  const { plansForDate, plansForRange } = usePlans({ 
+
+  const { plansForDate, plansForRange } = usePlans({
     date: selectedDate,
     startDate: new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
     endDate: new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
   });
-  
-  // Generate calendar days for the current month
+
   const calendarDays = useMemo(() => {
     const days = [];
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
-    
-    // Get first day of month
     const firstDay = new Date(year, month, 1);
     const startingDayOfWeek = firstDay.getDay();
-    
-    // Get days in month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    // Add empty days for start of month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push({ date: '', day: '', isCurrentMonth: false });
     }
-    
-    // Add days of current month
     for (let i = 1; i <= daysInMonth; i++) {
       const currentDate = new Date(year, month, i);
       const dateString = currentDate.toLocaleDateString('en-CA');
@@ -62,96 +52,70 @@ export default function CalendarScreen() {
         isToday: dateString === new Date().toLocaleDateString('en-CA'),
       });
     }
-    
     return days;
   }, [selectedDate]);
-  
-  // Get events for the selected date
+
   const eventsForSelectedDate = useMemo(() => {
     const selectedDateString = selectedDate.toLocaleDateString('en-CA');
     const wearEvents: { item: Item; entry: WearLogEntry }[] = [];
     const washEvents: { item: Item; entry: WashLogEntry }[] = [];
-    
     items.forEach(item => {
-      // Check wear history
       if (item.wearHistory) {
         item.wearHistory.forEach(entry => {
-          if (entry.date === selectedDateString) {
-            wearEvents.push({ item, entry });
-          }
+          if (entry.date === selectedDateString) wearEvents.push({ item, entry });
         });
       }
-      
-      // Check wash history
       if (item.washHistory) {
         item.washHistory.forEach(entry => {
-          if (entry.date === selectedDateString) {
-            washEvents.push({ item, entry });
-          }
+          if (entry.date === selectedDateString) washEvents.push({ item, entry });
         });
       }
     });
-    
     return { wearEvents, washEvents, scheduledOutfits: plansForDate };
   }, [items, selectedDate, plansForDate]);
-  
-  // Get items with wash due on selected date
+
   const washDueItems = useMemo(() => {
     const selectedDateString = selectedDate.toLocaleDateString('en-CA');
     return items.filter(item => item.nextWashDue === selectedDateString);
   }, [items, selectedDate]);
-  
-  // Get all items for list view
-  const allItems = useMemo(() => {
-    return [...items].sort((a, b) => a.name.localeCompare(b.name));
-  }, [items]);
-  
+
+  const allItems = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name)), [items]);
+
   const handleDateSelect = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
     setSelectedDate(new Date(year, month - 1, day));
   };
-  
+
   const handlePrevMonth = () => {
     const newDate = new Date(selectedDate);
     newDate.setMonth(newDate.getMonth() - 1);
     setSelectedDate(newDate);
   };
-  
+
   const handleNextMonth = () => {
     const newDate = new Date(selectedDate);
     newDate.setMonth(newDate.getMonth() + 1);
     setSelectedDate(newDate);
   };
-  
+
   const openLogModal = (item: Item, type: LogType) => {
     setSelectedItem(item);
     setLogType(type);
     setLogNote('');
     setModalVisible(true);
   };
-  
+
   const handleLogSubmit = () => {
     if (!selectedItem) return;
-    
     const selectedDateString = selectedDate.toLocaleDateString('en-CA');
-    
     if (logType === 'wear') {
-      logItemWorn(selectedItem.id, {
-        date: selectedDateString,
-        notes: logNote
-      });
+      logItemWorn(selectedItem.id, { date: selectedDateString, notes: logNote });
     } else {
-      logItemWashed(selectedItem.id, {
-        date: selectedDateString,
-        notes: logNote
-      });
-      
-      // Set next wash due date (e.g., 7 days after washing)
+      logItemWashed(selectedItem.id, { date: selectedDateString, notes: logNote });
       const nextWashDate = new Date(selectedDate);
       nextWashDate.setDate(nextWashDate.getDate() + 7);
       setNextWashDue(selectedItem.id, nextWashDate.toLocaleDateString('en-CA'));
     }
-    
     setModalVisible(false);
   };
 
@@ -164,11 +128,10 @@ export default function CalendarScreen() {
     setScheduleModalVisible(false);
     setEditingOutfit(null);
   };
-  
+
   const renderCalendarHeader = () => {
     const monthName = selectedDate.toLocaleString('default', { month: 'long' });
     const year = selectedDate.getFullYear();
-    
     return (
       <View style={styles.calendarHeader}>
         <Pressable onPress={handlePrevMonth} style={styles.calendarNavButton}>
@@ -181,21 +144,18 @@ export default function CalendarScreen() {
       </View>
     );
   };
-  
+
   const renderCalendarDays = () => {
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    
     return (
       <View style={styles.calendarDaysHeader}>
         {weekdays.map((day, index) => (
-          <Text key={index} style={styles.calendarDayName}>
-            {day}
-          </Text>
+          <Text key={index} style={styles.calendarDayName}>{day}</Text>
         ))}
       </View>
     );
   };
-  
+
   const renderCalendarGrid = () => {
     return (
       <View style={styles.calendarGrid}>
@@ -203,19 +163,10 @@ export default function CalendarScreen() {
           if (!day.isCurrentMonth) {
             return <View key={index} style={styles.calendarEmptyDay} />;
           }
-          
-          // Check if there are events on this day
-          const hasWearEvents = items.some(item => 
-            item.wearHistory && item.wearHistory.some(entry => entry.date === day.date)
-          );
-          
-          const hasWashEvents = items.some(item => 
-            item.washHistory && item.washHistory.some(entry => entry.date === day.date)
-          );
-          
+          const hasWearEvents = items.some(item => item.wearHistory && item.wearHistory.some(e => e.date === day.date));
+          const hasWashEvents = items.some(item => item.washHistory && item.washHistory.some(e => e.date === day.date));
           const hasWashDue = items.some(item => item.nextWashDue === day.date);
           const hasScheduledOutfits = plansForRange.some(plan => plan.date_ymd === day.date);
-          
           return (
             <Pressable
               key={index}
@@ -226,13 +177,11 @@ export default function CalendarScreen() {
               ]}
               onPress={() => handleDateSelect(day.date)}
             >
-              <Text 
-                style={[
-                  styles.calendarDayText,
-                  selectedDate.toLocaleDateString('en-CA') === day.date && styles.calendarSelectedDayText,
-                  day.isToday && styles.calendarTodayText
-                ]}
-              >
+              <Text style={[
+                styles.calendarDayText,
+                selectedDate.toLocaleDateString('en-CA') === day.date && styles.calendarSelectedDayText,
+                day.isToday && styles.calendarTodayText
+              ]}>
                 {day.day}
               </Text>
               <View style={styles.calendarDayIndicators}>
@@ -247,29 +196,21 @@ export default function CalendarScreen() {
       </View>
     );
   };
-  
+
   const renderSelectedDateEvents = () => {
     const { wearEvents, washEvents, scheduledOutfits } = eventsForSelectedDate;
     const formattedDate = selectedDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
+      weekday: 'long', month: 'long', day: 'numeric'
     });
-    
     return (
       <View style={styles.eventsContainer}>
         <View style={styles.eventsHeader}>
           <Text style={styles.eventsDate}>{formattedDate}</Text>
-          <Pressable
-            style={styles.addOutfitButton}
-            onPress={() => openScheduleModal()}
-          >
+          <Pressable style={styles.addOutfitButton} onPress={() => openScheduleModal()}>
             <Plus size={16} color="white" />
             <Text style={styles.addOutfitButtonText}>Add Outfit</Text>
           </Pressable>
         </View>
-
-        {/* Scheduled Outfits */}
         {scheduledOutfits.length > 0 && (
           <View style={styles.eventSection}>
             <View style={styles.eventSectionHeader}>
@@ -280,20 +221,14 @@ export default function CalendarScreen() {
               <View key={plan.id} style={styles.scheduledPlanCard}>
                 <Text style={styles.scheduledPlanName}>{plan.name}</Text>
                 <Text style={styles.scheduledPlanCategory}>{plan.category}</Text>
-                {plan.notes && (
-                  <Text style={styles.scheduledPlanNotes}>{plan.notes}</Text>
-                )}
-                <Pressable
-                  style={styles.editPlanButton}
-                  onPress={() => openScheduleModal(plan)}
-                >
+                {plan.notes && <Text style={styles.scheduledPlanNotes}>{plan.notes}</Text>}
+                <Pressable style={styles.editPlanButton} onPress={() => openScheduleModal(plan)}>
                   <Text style={styles.editPlanButtonText}>Edit</Text>
                 </Pressable>
               </View>
             ))}
           </View>
         )}
-        
         {wearEvents.length > 0 && (
           <View style={styles.eventSection}>
             <View style={styles.eventSectionHeader}>
@@ -303,14 +238,11 @@ export default function CalendarScreen() {
             {wearEvents.map((event, index) => (
               <View key={index} style={styles.eventItem}>
                 <ItemCard item={event.item} compact />
-                {event.entry.notes && (
-                  <Text style={styles.eventNote}>{event.entry.notes}</Text>
-                )}
+                {event.entry.notes && <Text style={styles.eventNote}>{event.entry.notes}</Text>}
               </View>
             ))}
           </View>
         )}
-        
         {washEvents.length > 0 && (
           <View style={styles.eventSection}>
             <View style={styles.eventSectionHeader}>
@@ -320,14 +252,11 @@ export default function CalendarScreen() {
             {washEvents.map((event, index) => (
               <View key={index} style={styles.eventItem}>
                 <ItemCard item={event.item} compact />
-                {event.entry.notes && (
-                  <Text style={styles.eventNote}>{event.entry.notes}</Text>
-                )}
+                {event.entry.notes && <Text style={styles.eventNote}>{event.entry.notes}</Text>}
               </View>
             ))}
           </View>
         )}
-        
         {washDueItems.length > 0 && (
           <View style={styles.eventSection}>
             <View style={styles.eventSectionHeader}>
@@ -337,24 +266,17 @@ export default function CalendarScreen() {
             {washDueItems.map((item, index) => (
               <View key={index} style={styles.eventItem}>
                 <ItemCard item={item} compact />
-                <Pressable 
-                  style={styles.washButton}
-                  onPress={() => openLogModal(item, 'wash')}
-                >
+                <Pressable style={styles.washButton} onPress={() => openLogModal(item, 'wash')}>
                   <Text style={styles.washButtonText}>Log Wash</Text>
                 </Pressable>
               </View>
             ))}
           </View>
         )}
-        
         {wearEvents.length === 0 && washEvents.length === 0 && washDueItems.length === 0 && scheduledOutfits.length === 0 && (
           <View style={styles.noEventsContainer}>
             <Text style={styles.noEventsText}>No events for this day</Text>
-            <Pressable
-              style={styles.addFirstOutfitButton}
-              onPress={() => openScheduleModal()}
-            >
+            <Pressable style={styles.addFirstOutfitButton} onPress={() => openScheduleModal()}>
               <Plus size={16} color={colors.primary} />
               <Text style={styles.addFirstOutfitButtonText}>Schedule your first outfit</Text>
             </Pressable>
@@ -363,7 +285,7 @@ export default function CalendarScreen() {
       </View>
     );
   };
-  
+
   const renderListView = () => {
     return (
       <View style={styles.listContainer}>
@@ -371,17 +293,11 @@ export default function CalendarScreen() {
           <View key={item.id} style={styles.listItem}>
             <ItemCard item={item} />
             <View style={styles.listItemActions}>
-              <Pressable 
-                style={[styles.listItemAction, { backgroundColor: colors.primary }]}
-                onPress={() => openLogModal(item, 'wear')}
-              >
+              <Pressable style={[styles.listItemAction, { backgroundColor: colors.primary }]} onPress={() => openLogModal(item, 'wear')}>
                 <Clock size={16} color="white" />
                 <Text style={styles.listItemActionText}>Wore Today</Text>
               </Pressable>
-              <Pressable 
-                style={[styles.listItemAction, { backgroundColor: colors.info }]}
-                onPress={() => openLogModal(item, 'wash')}
-              >
+              <Pressable style={[styles.listItemAction, { backgroundColor: colors.info }]} onPress={() => openLogModal(item, 'wash')}>
                 <Droplets size={16} color="white" />
                 <Text style={styles.listItemActionText}>Washed Today</Text>
               </Pressable>
@@ -391,7 +307,7 @@ export default function CalendarScreen() {
       </View>
     );
   };
-  
+
   return (
     <ImageBackground
       source={require('../../assets/images/closet-backdrop.png')}
@@ -399,121 +315,60 @@ export default function CalendarScreen() {
       imageStyle={{ width: '100%', height: '100%' }}
       resizeMode="cover"
     >
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Calendar</Text>
-        <View style={styles.viewToggle}>
-          <Pressable
-            style={[
-              styles.toggleButton,
-              calendarView === 'month' && styles.activeToggleButton
-            ]}
-            onPress={() => setCalendarView('month')}
-          >
-            <CalendarIcon size={16} color={calendarView === 'month' ? colors.primary : colors.subtext} />
-            <Text 
-              style={[
-                styles.toggleButtonText,
-                calendarView === 'month' && styles.activeToggleButtonText
-              ]}
-            >
-              Month
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.toggleButton,
-              calendarView === 'week' && styles.activeToggleButton
-            ]}
-            onPress={() => setCalendarView('week')}
-          >
-            <CalendarIcon size={16} color={calendarView === 'week' ? colors.primary : colors.subtext} />
-            <Text 
-              style={[
-                styles.toggleButtonText,
-                calendarView === 'week' && styles.activeToggleButtonText
-              ]}
-            >
-              Week
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.toggleButton,
-              calendarView === 'list' && styles.activeToggleButton
-            ]}
-            onPress={() => setCalendarView('list')}
-          >
-            <Clock size={16} color={calendarView === 'list' ? colors.primary : colors.subtext} />
-            <Text 
-              style={[
-                styles.toggleButtonText,
-                calendarView === 'list' && styles.activeToggleButtonText
-              ]}
-            >
-              Log
-            </Text>
-          </Pressable>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Calendar</Text>
+          <View style={styles.viewToggle}>
+            <Pressable style={[styles.toggleButton, calendarView === 'month' && styles.activeToggleButton]} onPress={() => setCalendarView('month')}>
+              <CalendarIcon size={16} color={calendarView === 'month' ? colors.primary : colors.subtext} />
+              <Text style={[styles.toggleButtonText, calendarView === 'month' && styles.activeToggleButtonText]}>Month</Text>
+            </Pressable>
+            <Pressable style={[styles.toggleButton, calendarView === 'week' && styles.activeToggleButton]} onPress={() => setCalendarView('week')}>
+              <CalendarIcon size={16} color={calendarView === 'week' ? colors.primary : colors.subtext} />
+              <Text style={[styles.toggleButtonText, calendarView === 'week' && styles.activeToggleButtonText]}>Week</Text>
+            </Pressable>
+            <Pressable style={[styles.toggleButton, calendarView === 'list' && styles.activeToggleButton]} onPress={() => setCalendarView('list')}>
+              <Clock size={16} color={calendarView === 'list' ? colors.primary : colors.subtext} />
+              <Text style={[styles.toggleButtonText, calendarView === 'list' && styles.activeToggleButtonText]}>Log</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.body}>
+          {calendarView === 'month' || calendarView === 'week' ? (
+            <>
+              <View style={styles.calendarCard}>
+                {renderCalendarHeader()}
+                {renderCalendarDays()}
+                {renderCalendarGrid()}
+              </View>
+              {renderSelectedDateEvents()}
+            </>
+          ) : (
+            renderListView()
+          )}
         </View>
       </View>
-      
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {calendarView === 'month' ? (
-          <>
-            {renderCalendarHeader()}
-            {renderCalendarDays()}
-            {renderCalendarGrid()}
-            {renderSelectedDateEvents()}
-          </>
-        ) : calendarView === 'week' ? (
-          <>
-            {renderCalendarHeader()}
-            {renderCalendarDays()}
-            {renderCalendarGrid()}
-            {renderSelectedDateEvents()}
-          </>
-        ) : (
-          renderListView()
-        )}
-      </ScrollView>
-      
-      <Modal
-        visible={modalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
+
+      <Modal visible={modalVisible} transparent={true} animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {logType === 'wear' ? 'Log Item Worn' : 'Log Item Washed'}
-              </Text>
+              <Text style={styles.modalTitle}>{logType === 'wear' ? 'Log Item Worn' : 'Log Item Washed'}</Text>
               <Pressable onPress={() => setModalVisible(false)}>
                 <X size={24} color={colors.text} />
               </Pressable>
             </View>
-            
             {selectedItem && (
               <View style={styles.modalItem}>
                 <ItemCard item={selectedItem} />
               </View>
             )}
-            
             <View style={styles.modalForm}>
               <Text style={styles.modalLabel}>Date</Text>
               <Text style={styles.modalDate}>
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+                {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Text>
-              
               <Text style={styles.modalLabel}>Notes (Optional)</Text>
               <TextInput
                 style={styles.modalInput}
@@ -526,24 +381,20 @@ export default function CalendarScreen() {
                 textAlignVertical="top"
               />
             </View>
-            
             <Pressable style={styles.modalSubmitButton} onPress={handleLogSubmit}>
               <Check size={18} color="white" />
-              <Text style={styles.modalSubmitButtonText}>
-                {logType === 'wear' ? 'Log Wear' : 'Log Wash'}
-              </Text>
+              <Text style={styles.modalSubmitButtonText}>{logType === 'wear' ? 'Log Wear' : 'Log Wash'}</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
-      
+
       <ScheduleOutfitModal
         visible={scheduleModalVisible}
         onClose={closeScheduleModal}
         selectedDate={selectedDate}
         editingOutfit={editingOutfit || undefined}
       />
-    </View>
     </ImageBackground>
   );
 }
@@ -591,19 +442,24 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '500',
   },
-  content: {
+  body: {
     flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 8,
+    paddingHorizontal: 16,
     paddingBottom: 90,
+  },
+  calendarCard: {
+    backgroundColor: 'rgba(20, 16, 10, 0.75)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(200, 164, 93, 0.35)',
+    padding: 12,
+    marginBottom: 12,
   },
   calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   calendarTitle: {
     fontSize: 18,
@@ -615,7 +471,7 @@ const styles = StyleSheet.create({
   },
   calendarDaysHeader: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   calendarDayName: {
     flex: 1,
@@ -627,7 +483,6 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 24,
   },
   calendarDay: {
     width: '14.28%',
@@ -641,7 +496,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
   calendarSelectedDay: {
-    backgroundColor: '#C8A45D' + '20',
+    backgroundColor: '#C8A45D20',
     borderRadius: 8,
   },
   calendarToday: {
@@ -663,11 +518,11 @@ const styles = StyleSheet.create({
   },
   calendarDayIndicators: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 2,
   },
   calendarDayIndicator: {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: 3,
     marginHorizontal: 1,
   },
@@ -675,6 +530,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
+    flex: 1,
   },
   eventsHeader: {
     flexDirection: 'row',
