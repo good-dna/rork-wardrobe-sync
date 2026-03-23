@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   listContent: {
-    paddingBottom: 16,
+    paddingBottom: 90,
   },
   subtitle: {
     fontSize: 14,

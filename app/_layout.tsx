@@ -62,6 +62,9 @@ function RootLayoutNav() {
               fontWeight: '600',
             },
             headerShadowVisible: false,
+            contentStyle: {
+              backgroundColor: colors.background,
+            },
           }}
         >
           <Stack.Screen name="splash" options={{ headerShown: false }} />

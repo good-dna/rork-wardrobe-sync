@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: tokens.spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 90,
   },
   sectionHeader: {
     flexDirection: 'row',

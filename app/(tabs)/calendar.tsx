@@ -590,6 +590,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingTop: 8,
+    paddingBottom: 90,
   },
   calendarHeader: {
     flexDirection: 'row',

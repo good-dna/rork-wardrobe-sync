@@ -100,14 +100,14 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: tokens.spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 90,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: tokens.spacing.xl,
-    paddingBottom: 100,
+    paddingBottom: 90,
   },
   emptyIconContainer: {
     width: 80,

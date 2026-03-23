@@ -434,7 +434,7 @@ export default function AIStylistScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: tokens.spacing.lg, paddingBottom: 120 },
+  content: { padding: tokens.spacing.lg, paddingBottom: 90 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: tokens.spacing.lg },
   title: { fontSize: 24, fontWeight: '700', color: colors.text, flex: 1 },

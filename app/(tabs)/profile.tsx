@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: tokens.spacing.lg,
-    paddingBottom: 60,
+    paddingBottom: 90,
   },
   loadingContainer: {
     flex: 1,
