@@ -14,6 +14,7 @@ import {
   shouldRefreshWeather, getWeatherType, getOutfitSuggestion, WeatherResult
 } from '@/services/weatherService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ImageBackground } from 'react-native';
 
 const WEATHER_CACHE_KEY = 'klotho_weather_cache';
 const REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000;
@@ -133,6 +134,12 @@ export default function HomeScreen() {
   const currentTemp = weather ? Math.round((weather.current.temperature * 9 / 5) + 32) : null;
 
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ opacity: 0.4 }}
+      resizeMode="cover"
+    >
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView
         style={s.scroll}
@@ -280,13 +287,14 @@ export default function HomeScreen() {
 
       </ScrollView>
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: 120, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 120 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.sm, paddingBottom: tokens.spacing.sm,
