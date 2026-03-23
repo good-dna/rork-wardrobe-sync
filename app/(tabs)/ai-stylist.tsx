@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Wand2, Camera, Upload, X, RefreshCw, ChevronRight, Sparkles, User, Zap } from 'lucide-react-native';
+import { Wand2, Camera, Upload, X, RefreshCw, Sparkles, ShoppingBag } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, tokens } from '@/constants/colors';
@@ -14,8 +14,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 
 const AVATAR_KEY = 'klotho_user_avatar';
+const AVATAR_URL_KEY = 'klotho_user_avatar_url';
 const AVATAR_METHOD_KEY = 'klotho_avatar_method';
-const AVATAR_APPEARANCE_KEY = 'klotho_user_appearance';
+
+const BOX_BG = 'rgba(11,11,13,0.82)';
+const BOX_BORDER = 'rgba(245,200,91,0.25)';
 
 const OCCASIONS = [
   { id: 'casual', label: 'Casual' },
@@ -23,47 +26,37 @@ const OCCASIONS = [
   { id: 'formal', label: 'Formal' },
   { id: 'evening', label: 'Evening' },
   { id: 'athletic', label: 'Athletic' },
-  { id: 'weather', label: 'Weather' },
 ];
 
-// KLOTHO wardrobe backdrop for option 3
-const WARDROBE_BACKDROP = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80';
-
-interface StyleResult {
-  bodyAnalysis: string;
-  outfitDescription: string;
-  stylingTips: string[];
-  colorRecommendations: string;
-  occasion: string;
+// Map category to cloth_type for CAT-VTON
+function getClothType(category: string): string {
+  if (['pants', 'shorts', 'jeans'].includes(category)) return 'lower';
+  if (['jackets', 'outerwear'].includes(category)) return 'outer';
+  return 'upper';
 }
 
 export default function AIStylistScreen() {
-  const _router = useRouter();
-  const { items, outfits } = useWardrobeStore();
+  const router = useRouter();
+  const { items } = useWardrobeStore();
 
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [avatarMethod, setAvatarMethod] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [checkingAvatar, setCheckingAvatar] = useState(true);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  const [showMethodPicker, setShowMethodPicker] = useState(false);
-  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
-
-  const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [tryOnLoading, setTryOnLoading] = useState(false);
+  const [tryOnResult, setTryOnResult] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [selectedOccasion, setSelectedOccasion] = useState('casual');
-  const [loading, setLoading] = useState(false);
-  const [styleResult, setStyleResult] = useState<StyleResult | null>(null);
-  const [step, setStep] = useState<'photo' | 'occasion' | 'result'>('photo');
-  const [showOutfitPicker, setShowOutfitPicker] = useState(false);
-  const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'avatar' | 'stylist'>('avatar');
+  const [showItemPicker, setShowItemPicker] = useState(false);
 
-  useEffect(() => { void loadSavedAvatar(); }, []);
+  useEffect(() => { loadSavedAvatar(); }, []);
 
   const loadSavedAvatar = async () => {
     try {
       const saved = await AsyncStorage.getItem(AVATAR_KEY);
-      const method = await AsyncStorage.getItem(AVATAR_METHOD_KEY);
-      if (saved) { setAvatar(saved); setAvatarMethod(method); setActiveTab('stylist'); }
+      const savedUrl = await AsyncStorage.getItem(AVATAR_URL_KEY);
+      if (saved) { setAvatar(saved); setAvatarUrl(savedUrl); setActiveTab('stylist'); }
     } catch (err) { console.warn('Failed to load avatar:', err); }
     finally { setCheckingAvatar(false); }
   };
@@ -87,48 +80,22 @@ export default function AIStylistScreen() {
     const { status } = await permFn();
     if (status !== 'granted') { Alert.alert('Permission needed', 'Photo access required.'); return; }
     const launchFn = useCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
-    const result = await launchFn({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.3 });
-    if (!result.canceled) {
-      setPendingPhotoUri(result.assets[0].uri);
-      setShowMethodPicker(true);
-    }
+    const result = await launchFn({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [3, 4], quality: 0.4, width: 512,
+    });
+    if (!result.canceled) generateAvatar(result.assets[0].uri);
   };
 
-  // Option 3: Use real photo with wardrobe backdrop overlay
-  const generateBackdropAvatar = async (photoUri: string) => {
+  const generateAvatar = async (photoUri: string) => {
     setAvatarLoading(true);
-    setShowMethodPicker(false);
-    try {
-      // For option 3 we just use the user's real photo directly
-      // The "avatar" IS their photo — shown with wardrobe context in the UI
-      const avatarUri = photoUri;
-      setAvatar(avatarUri);
-      setAvatarMethod('backdrop');
-      await AsyncStorage.setItem(AVATAR_KEY, avatarUri);
-      await AsyncStorage.setItem(AVATAR_METHOD_KEY, 'backdrop');
-      setActiveTab('stylist');
-      Alert.alert('Avatar Set!', 'Your photo has been set as your avatar. Now style yourself!');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to set avatar');
-    } finally {
-      setAvatarLoading(false);
-    }
-  };
-
-  // Option 1: Replicate InstantID
-  const generateReplicateAvatar = async (photoUri: string) => {
-    setAvatarLoading(true);
-    setShowMethodPicker(false);
     try {
       const base64 = await getBase64(photoUri);
       const mediaType = base64.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+      const { data: { user } } = await supabase.auth.getUser();
 
-      const selectedOutfit = selectedOutfitId ? outfits.find(o => o.id === selectedOutfitId) : null;
-      const outfitItems = selectedOutfit ? items.filter(i => selectedOutfit.items.includes(i.id)) : items.slice(0, 3);
-      const outfitDesc = outfitItems.length > 0 ? outfitItems.map(i => `${i.name} in ${i.color}`).join(', ') : 'stylish casual outfit';
-
-      const { data, error } = await supabase.functions.invoke('avatar-replicate', {
-        body: { imageBase64: base64, outfitDescription: outfitDesc, imageMediaType: mediaType },
+      const { data, error } = await supabase.functions.invoke('avatar-fal', {
+        body: { imageBase64: base64, imageMediaType: mediaType, userId: user?.id },
       });
 
       if (error) throw new Error(error.message);
@@ -136,16 +103,61 @@ export default function AIStylistScreen() {
 
       const avatarUri = `data:image/png;base64,${data.avatarBase64}`;
       setAvatar(avatarUri);
-      setAvatarMethod('replicate');
+      setAvatarUrl(null);
       await AsyncStorage.setItem(AVATAR_KEY, avatarUri);
-      await AsyncStorage.setItem(AVATAR_METHOD_KEY, 'replicate');
+      await AsyncStorage.setItem(AVATAR_METHOD_KEY, 'fal');
       setActiveTab('stylist');
-      Alert.alert('Avatar Created!', 'Your AI avatar is ready!');
+      Alert.alert('Avatar Created!', 'Your avatar is ready. Now try on items from your wardrobe!');
     } catch (err: any) {
-      console.error('Replicate avatar error:', err);
-      Alert.alert('Error', `Failed to create avatar: ${err?.message || 'Please try again'}`);
+      console.error('Avatar error:', err);
+      // Fallback: use original photo as avatar
+      const avatarUri = photoUri;
+      setAvatar(avatarUri);
+      await AsyncStorage.setItem(AVATAR_KEY, avatarUri);
+      await AsyncStorage.setItem(AVATAR_METHOD_KEY, 'photo');
+      setActiveTab('stylist');
+      Alert.alert('Avatar Set', 'Your photo has been set as your avatar.');
     } finally {
       setAvatarLoading(false);
+    }
+  };
+
+  const tryOnItem = async (item: any) => {
+    if (!avatar) { Alert.alert('No avatar', 'Please create your avatar first.'); return; }
+    setSelectedItem(item);
+    setTryOnLoading(true);
+    setTryOnResult(null);
+
+    try {
+      // Get avatar URL — either saved Supabase URL or base64
+      const avatarSource = avatarUrl || avatar;
+      const clothType = getClothType(item.category);
+
+      let body: any = {
+        avatarUrl: avatarSource,
+        clothType,
+      };
+
+      // If item has imageUrl, use it directly
+      if (item.imageUrl && item.imageUrl.startsWith('http')) {
+        body.garmentUrl = item.imageUrl;
+      } else if (item.imageUrl) {
+        // Convert local image to base64
+        const base64 = await getBase64(item.imageUrl);
+        body.garmentBase64 = base64;
+        body.garmentMediaType = 'image/jpeg';
+      }
+
+      const { data, error } = await supabase.functions.invoke('tryon-fal', { body });
+      if (error) throw new Error(error.message);
+      if (!data?.resultBase64) throw new Error('No result returned');
+
+      setTryOnResult(`data:image/png;base64,${data.resultBase64}`);
+    } catch (err: any) {
+      console.error('Try-on error:', err);
+      Alert.alert('Try-on failed', err?.message || 'Please try again.');
+    } finally {
+      setTryOnLoading(false);
     }
   };
 
@@ -154,376 +166,241 @@ export default function AIStylistScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Reset', style: 'destructive', onPress: async () => {
-          await AsyncStorage.multiRemove([AVATAR_KEY, AVATAR_METHOD_KEY, AVATAR_APPEARANCE_KEY]);
-          setAvatar(null); setAvatarMethod(null); setActiveTab('avatar');
+          await AsyncStorage.multiRemove([AVATAR_KEY, AVATAR_URL_KEY, AVATAR_METHOD_KEY]);
+          setAvatar(null); setAvatarUrl(null); setTryOnResult(null);
+          setSelectedItem(null); setActiveTab('avatar');
         }
       }
     ]);
   };
 
-  // Stylist functions
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permission needed', 'Camera access required.'); return; }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.1 });
-    if (!result.canceled) { setUserPhoto(result.assets[0].uri); setStep('occasion'); setStyleResult(null); }
-  };
-
-  const uploadPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permission needed', 'Photo library access required.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 0.1 });
-    if (!result.canceled) { setUserPhoto(result.assets[0].uri); setStep('occasion'); setStyleResult(null); }
-  };
-
-  const generateStyle = async () => {
-    if (!userPhoto) { Alert.alert('Photo required'); return; }
-    setLoading(true); setStep('result');
-    try {
-      const base64 = await getBase64(userPhoto);
-      const selectedOutfit = selectedOutfitId ? outfits.find(o => o.id === selectedOutfitId) : null;
-      const outfitItems = selectedOutfit ? items.filter(i => selectedOutfit.items.includes(i.id)) : items.slice(0, 5);
-      const outfitDescription = outfitItems.length > 0 ? outfitItems.map(i => `${i.name} (${i.brand}, ${i.color})`).join(', ') : 'casual everyday clothes';
-      const { data: aiData, error: aiError } = await supabase.functions.invoke('claude-stylist', {
-        body: { imageBase64: base64, occasion: selectedOccasion, outfitDescription },
-      });
-      if (aiError) throw new Error(aiError.message);
-      setStyleResult(aiData);
-    } catch {
-      Alert.alert('Error', 'Failed to generate style advice.');
-      setStep('occasion');
-    } finally { setLoading(false); }
-  };
-
   if (checkingAvatar) {
-    return <ImageBackground source={require('../../assets/images/closet-backdrop.png')} style={{ flex: 1 }} imageStyle={{ width: '100%', height: '100%' }} resizeMode="cover"><SafeAreaView style={s.container} edges={['top']}><View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View></SafeAreaView></ImageBackground>;
+    return (
+      <ImageBackground source={require('../../assets/images/closet-backdrop.png')} style={{ flex: 1 }} resizeMode="cover">
+        <SafeAreaView style={s.container} edges={['top']}>
+          <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View>
+        </SafeAreaView>
+      </ImageBackground>
+    );
   }
 
   return (
-    <ImageBackground
-      source={require('../../assets/images/closet-backdrop.png')}
-      style={{ flex: 1 }}
-      imageStyle={{ width: '100%', height: '100%' }}
-      resizeMode="cover"
-    >
-    <SafeAreaView style={s.container} edges={['top']}>
-      <View style={s.content}>
+    <ImageBackground source={require('../../assets/images/closet-backdrop.png')} style={{ flex: 1 }} resizeMode="cover">
+      <SafeAreaView style={s.container} edges={['top']}>
+        <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <View style={s.header}>
-          <Wand2 size={24} color={colors.primary} />
-          <Text style={s.title}>AI Stylist</Text>
-          {avatar && <Pressable onPress={resetAvatar} style={s.resetBtn}><RefreshCw size={18} color={colors.textSecondary} /></Pressable>}
-        </View>
-
-        {/* Tab switcher */}
-        {avatar && (
-          <View style={s.tabRow}>
-            <Pressable style={[s.tabBtn, activeTab === 'avatar' && s.tabBtnActive]} onPress={() => setActiveTab('avatar')}>
-              <User size={16} color={activeTab === 'avatar' ? colors.background : colors.textSecondary} />
-              <Text style={[s.tabBtnText, activeTab === 'avatar' && s.tabBtnTextActive]}>My Avatar</Text>
-            </Pressable>
-            <Pressable style={[s.tabBtn, activeTab === 'stylist' && s.tabBtnActive]} onPress={() => setActiveTab('stylist')}>
-              <Sparkles size={16} color={activeTab === 'stylist' ? colors.background : colors.textSecondary} />
-              <Text style={[s.tabBtnText, activeTab === 'stylist' && s.tabBtnTextActive]}>AI Styling</Text>
-            </Pressable>
+          {/* Header */}
+          <View style={s.header}>
+            <Wand2 size={22} color={colors.primary} />
+            <Text style={s.title}>AI Stylist</Text>
+            {avatar && <Pressable onPress={resetAvatar} style={s.resetBtn}><RefreshCw size={18} color={colors.textSecondary} /></Pressable>}
           </View>
-        )}
 
-        {/* AVATAR TAB */}
-        {(!avatar || activeTab === 'avatar') && (
-          <>
-            {!avatar ? (
-              <View style={s.onboarding}>
-                <View style={s.avatarPlaceholder}>
-                  <User size={80} color={colors.textSecondary} />
-                </View>
-                <Text style={s.onboardingTitle}>Create Your Avatar</Text>
-                <Text style={s.onboardingSub}>Upload a full-body photo. Choose instant (your real photo) or AI-generated replica.</Text>
-                <View style={s.photoButtons}>
-                  <Pressable style={s.photoBtn} onPress={() => pickPhoto(true)}>
-                    <Camera size={28} color={colors.primary} />
-                    <Text style={s.photoBtnText}>Take Photo</Text>
-                  </Pressable>
-                  <Pressable style={s.photoBtn} onPress={() => pickPhoto(false)}>
-                    <Upload size={28} color={colors.primary} />
-                    <Text style={s.photoBtnText}>Upload Photo</Text>
-                  </Pressable>
-                </View>
-                {avatarLoading && (
-                  <View style={s.loadingCard}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={s.loadingTitle}>Creating your avatar...</Text>
-                    <Text style={s.loadingSub}>This takes 30-60 seconds</Text>
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View style={s.avatarSection}>
-                {/* Show avatar with wardrobe backdrop for option 3 */}
-                {avatarMethod === 'backdrop' ? (
-                  <View style={s.backdropContainer}>
-                    <Image source={{ uri: WARDROBE_BACKDROP }} style={s.backdropImage} resizeMode="cover" />
-                    <View style={s.backdropOverlay}>
-                      <Text style={s.backdropBrand}>KLOTHO</Text>
-                      <Image source={{ uri: avatar }} style={s.backdropUserPhoto} resizeMode="cover" />
-                    </View>
-                  </View>
-                ) : (
-                  <Image source={{ uri: avatar }} style={s.avatarImage} resizeMode="cover" />
-                )}
-                <View style={s.methodBadge}>
-                  <Text style={s.methodBadgeText}>
-                    {avatarMethod === 'replicate' ? '⚡ AI Generated' : '📸 Real Photo'}
-                  </Text>
-                </View>
-                <View style={s.avatarActions}>
-                  <Pressable style={s.avatarActionBtn} onPress={() => pickPhoto(false)}>
-                    <RefreshCw size={16} color={colors.primary} />
-                    <Text style={s.avatarActionText}>Update with new photo</Text>
-                  </Pressable>
-                </View>
-                {avatarLoading && (
-                  <View style={s.loadingCard}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={s.loadingTitle}>Updating avatar...</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </>
-        )}
-
-        {/* STYLIST TAB */}
-        {avatar && activeTab === 'stylist' && (
-          <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow} style={s.chipsScroll}>
-              {OCCASIONS.map((occ) => (
-                <Pressable key={occ.id} style={[s.chip, selectedOccasion === occ.id && s.chipActive]} onPress={() => setSelectedOccasion(occ.id)}>
-                  <Text style={[s.chipText, selectedOccasion === occ.id && s.chipTextActive]}>{occ.label}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
-            {step === 'photo' && (
-              <View style={s.stylistSection}>
-                <Text style={s.stepTitle}>Upload Your Photo</Text>
-                <Text style={s.stepSub}>Claude will analyze your style for the selected occasion.</Text>
-                <View style={s.photoButtons}>
-                  <Pressable style={s.photoBtn} onPress={takePhoto}><Camera size={24} color={colors.primary} /><Text style={s.photoBtnText}>Camera</Text></Pressable>
-                  <Pressable style={s.photoBtn} onPress={uploadPhoto}><Upload size={24} color={colors.primary} /><Text style={s.photoBtnText}>Upload</Text></Pressable>
-                </View>
-              </View>
-            )}
-
-            {(step === 'occasion' || step === 'result') && userPhoto && (
-              <View style={s.previewSection}>
-                <Image source={{ uri: userPhoto }} style={s.photoPreview} resizeMode="cover" />
-                {step === 'occasion' && (
-                  <>
-                    <Pressable style={s.outfitPickerBtn} onPress={() => setShowOutfitPicker(true)}>
-                      <Text style={s.outfitPickerText}>{selectedOutfitId ? outfits.find(o => o.id === selectedOutfitId)?.name || 'Selected' : 'Choose outfit (optional)'}</Text>
-                      <ChevronRight size={18} color={colors.textSecondary} />
-                    </Pressable>
-                    <Pressable style={s.generateBtn} onPress={generateStyle}>
-                      <Wand2 size={20} color={colors.background} />
-                      <Text style={s.generateBtnText}>Generate My Style</Text>
-                    </Pressable>
-                  </>
-                )}
-              </View>
-            )}
-
-            {loading && (
-              <View style={s.loadingCard}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={s.loadingTitle}>Claude is styling you...</Text>
-              </View>
-            )}
-
-            {styleResult && !loading && (
-              <View style={s.results}>
-                {avatar && avatarMethod === 'backdrop' && (
-                  <View style={s.backdropContainerSmall}>
-                    <Image source={{ uri: WARDROBE_BACKDROP }} style={s.backdropImageSmall} resizeMode="cover" />
-                    <Image source={{ uri: avatar }} style={s.backdropUserSmall} resizeMode="cover" />
-                  </View>
-                )}
-                {avatar && avatarMethod === 'replicate' && (
-                  <Image source={{ uri: avatar }} style={s.resultAvatar} resizeMode="cover" />
-                )}
-                {[
-                  { title: 'Your Style Profile', text: styleResult.bodyAnalysis },
-                  { title: `Your ${styleResult.occasion} Look`, text: styleResult.outfitDescription },
-                  { title: 'Color Recommendations', text: styleResult.colorRecommendations },
-                ].map(({ title, text }) => (
-                  <View key={title} style={s.resultCard}>
-                    <Text style={s.resultCardTitle}>{title}</Text>
-                    <Text style={s.resultCardText}>{text}</Text>
-                  </View>
-                ))}
-                <View style={s.resultCard}>
-                  <Text style={s.resultCardTitle}>Styling Tips</Text>
-                  {styleResult.stylingTips.map((tip, i) => (
-                    <View key={i} style={s.tipRow}>
-                      <View style={s.tipDot} />
-                      <Text style={s.tipText}>{tip}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Pressable style={s.tryAnotherBtn} onPress={() => setStep('photo')}>
-                  <Text style={s.tryAnotherText}>Try Another Look</Text>
-                </Pressable>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-
-      {/* Method picker modal */}
-      <Modal visible={showMethodPicker} transparent animationType="slide" onRequestClose={() => setShowMethodPicker(false)}>
-        <View style={s.modalOverlay}>
-          <View style={s.modalSheet}>
-            <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>Choose Avatar Style</Text>
-            <Pressable style={s.modalClose} onPress={() => setShowMethodPicker(false)}>
-              <X size={20} color={colors.text} />
-            </Pressable>
-
-            <Pressable style={s.methodOption} onPress={() => pendingPhotoUri && generateBackdropAvatar(pendingPhotoUri)}>
-              <View style={[s.methodIcon, { backgroundColor: colors.primaryLight }]}>
-                <Camera size={28} color={colors.primary} />
-              </View>
-              <View style={s.methodText}>
-                <Text style={s.methodTitle}>📸 Instant (Free)</Text>
-                <Text style={s.methodSub}>Your real photo on a wardrobe backdrop. Instant, always looks like you.</Text>
-              </View>
-            </Pressable>
-
-            <Pressable style={s.methodOption} onPress={() => pendingPhotoUri && generateReplicateAvatar(pendingPhotoUri)}>
-              <View style={[s.methodIcon, { backgroundColor: colors.primaryLight }]}>
-                <Zap size={28} color={colors.primary} />
-              </View>
-              <View style={s.methodText}>
-                <Text style={s.methodTitle}>⚡ AI Generated (~$0.05)</Text>
-                <Text style={s.methodSub}>AI recreates you in a fashion shoot style. Takes 30-60 seconds. Costs ~$0.05.</Text>
-              </View>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Outfit picker modal */}
-      <Modal visible={showOutfitPicker} transparent animationType="slide" onRequestClose={() => setShowOutfitPicker(false)}>
-        <View style={s.modalOverlay}>
-          <View style={s.modalSheet}>
-            <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>Choose an Outfit</Text>
-            <Pressable style={s.modalClose} onPress={() => setShowOutfitPicker(false)}><X size={20} color={colors.text} /></Pressable>
-            <ScrollView>
-              <Pressable style={s.outfitOption} onPress={() => { setSelectedOutfitId(null); setShowOutfitPicker(false); }}>
-                <Text style={s.outfitOptionText}>Use my full wardrobe</Text>
+          {/* Tab switcher */}
+          {avatar && (
+            <View style={s.tabRow}>
+              <Pressable style={[s.tabBtn, activeTab === 'avatar' && s.tabBtnActive]} onPress={() => setActiveTab('avatar')}>
+                <Camera size={15} color={activeTab === 'avatar' ? '#000' : colors.textSecondary} />
+                <Text style={[s.tabBtnText, activeTab === 'avatar' && s.tabBtnTextActive]}>My Avatar</Text>
               </Pressable>
-              {outfits.map((outfit) => (
-                <Pressable key={outfit.id} style={[s.outfitOption, selectedOutfitId === outfit.id && s.outfitOptionActive]} onPress={() => { setSelectedOutfitId(outfit.id); setShowOutfitPicker(false); }}>
-                  <Text style={[s.outfitOptionText, selectedOutfitId === outfit.id && s.outfitOptionTextActive]}>{outfit.name}</Text>
-                  <Text style={s.outfitOptionSub}>{outfit.items.length} items</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+              <Pressable style={[s.tabBtn, activeTab === 'stylist' && s.tabBtnActive]} onPress={() => setActiveTab('stylist')}>
+                <Sparkles size={15} color={activeTab === 'stylist' ? '#000' : colors.textSecondary} />
+                <Text style={[s.tabBtnText, activeTab === 'stylist' && s.tabBtnTextActive]}>Try On</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* AVATAR TAB */}
+          {(!avatar || activeTab === 'avatar') && (
+            <View style={s.avatarTab}>
+              {!avatar ? (
+                <>
+                  <Text style={s.onboardingTitle}>Create Your Avatar</Text>
+                  <Text style={s.onboardingSub}>Upload a full-body photo. AI will create your styled avatar for virtual try-on.</Text>
+                  <View style={s.photoButtons}>
+                    <Pressable style={s.photoBtn} onPress={() => pickPhoto(true)}>
+                      <Camera size={28} color={colors.primary} />
+                      <Text style={s.photoBtnText}>Take Photo</Text>
+                    </Pressable>
+                    <Pressable style={s.photoBtn} onPress={() => pickPhoto(false)}>
+                      <Upload size={28} color={colors.primary} />
+                      <Text style={s.photoBtnText}>Upload Photo</Text>
+                    </Pressable>
+                  </View>
+                  {avatarLoading && (
+                    <View style={s.loadingBox}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={s.loadingTitle}>Creating your avatar...</Text>
+                      <Text style={s.loadingSub}>This takes 20-40 seconds</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Avatar centered over backdrop */}
+                  <View style={s.avatarFrame}>
+                    <Image source={{ uri: tryOnResult || avatar }} style={s.avatarImage} resizeMode="contain" />
+                    {tryOnLoading && (
+                      <View style={s.avatarLoadingOverlay}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={s.loadingTitle}>Trying on outfit...</Text>
+                      </View>
+                    )}
+                  </View>
+                  {selectedItem && tryOnResult && (
+                    <View style={s.tryOnLabel}>
+                      <Sparkles size={14} color={colors.primary} />
+                      <Text style={s.tryOnLabelText}>Wearing: {selectedItem.name}</Text>
+                      <Pressable onPress={() => { setTryOnResult(null); setSelectedItem(null); }}>
+                        <X size={14} color={colors.textSecondary} />
+                      </Pressable>
+                    </View>
+                  )}
+                  <View style={s.photoButtons}>
+                    <Pressable style={s.photoBtn} onPress={() => pickPhoto(true)}>
+                      <Camera size={20} color={colors.primary} />
+                      <Text style={s.photoBtnText}>New Photo</Text>
+                    </Pressable>
+                    <Pressable style={s.photoBtn} onPress={() => pickPhoto(false)}>
+                      <Upload size={20} color={colors.primary} />
+                      <Text style={s.photoBtnText}>Upload</Text>
+                    </Pressable>
+                  </View>
+                  {avatarLoading && (
+                    <View style={s.loadingBox}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={s.loadingTitle}>Updating avatar...</Text>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
+          {/* TRY ON TAB */}
+          {avatar && activeTab === 'stylist' && (
+            <>
+              {/* Occasion chips */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow} style={{ marginBottom: tokens.spacing.md }}>
+                {OCCASIONS.map((occ) => (
+                  <Pressable key={occ.id} style={[s.chip, selectedOccasion === occ.id && s.chipActive]} onPress={() => setSelectedOccasion(occ.id)}>
+                    <Text style={[s.chipText, selectedOccasion === occ.id && s.chipTextActive]}>{occ.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {/* Avatar display */}
+              <View style={s.avatarFrame}>
+                <Image source={{ uri: tryOnResult || avatar }} style={s.avatarImage} resizeMode="contain" />
+                {tryOnLoading && (
+                  <View style={s.avatarLoadingOverlay}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={s.loadingTitle}>Trying on outfit...</Text>
+                  </View>
+                )}
+              </View>
+
+              {selectedItem && tryOnResult && (
+                <View style={s.tryOnLabel}>
+                  <Sparkles size={14} color={colors.primary} />
+                  <Text style={s.tryOnLabelText}>Wearing: {selectedItem.name}</Text>
+                  <Pressable onPress={() => { setTryOnResult(null); setSelectedItem(null); }}>
+                    <X size={14} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Wardrobe items to try on */}
+              <View style={s.sectionBox}>
+                <View style={s.sectionHeader}>
+                  <ShoppingBag size={16} color={colors.primary} />
+                  <Text style={s.sectionTitle}>Tap to try on</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.itemsStrip}>
+                  {items.slice(0, 20).map((item: any) => (
+                    <Pressable
+                      key={item.id}
+                      style={[s.itemCard, selectedItem?.id === item.id && s.itemCardActive]}
+                      onPress={() => tryOnItem(item)}
+                    >
+                      {item.imageUrl ? (
+                        <Image source={{ uri: item.imageUrl }} style={s.itemImage} resizeMode="cover" />
+                      ) : (
+                        <View style={s.itemImagePlaceholder}>
+                          <Text style={{ fontSize: 24 }}>👕</Text>
+                        </View>
+                      )}
+                      <Text style={s.itemName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={s.itemBrand} numberOfLines={1}>{item.brand}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </ImageBackground>
   );
 }
 
+const BOX_BG = 'rgba(11,11,13,0.82)';
+const BOX_BORDER = 'rgba(245,200,91,0.25)';
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
-  content: { flex: 1, padding: tokens.spacing.lg, paddingBottom: 0 },
+  content: { padding: tokens.spacing.lg, paddingBottom: 100 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: tokens.spacing.lg },
-  title: { fontSize: 24, fontWeight: '700', color: colors.text, flex: 1 },
+  title: { fontSize: 22, fontWeight: '700', color: colors.text, flex: 1 },
   resetBtn: { padding: 8 },
   tabRow: { flexDirection: 'row', gap: 10, marginBottom: tokens.spacing.lg },
-  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: tokens.radius.lg, backgroundColor: 'rgba(11,11,13,0.82)', borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)' },
+  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: tokens.radius.lg, backgroundColor: BOX_BG, borderWidth: 1, borderColor: BOX_BORDER },
   tabBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
-  tabBtnTextActive: { color: colors.background },
-  onboarding: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  avatarPlaceholder: { width: 140, height: 180, borderRadius: tokens.radius.xl, backgroundColor: 'rgba(11,11,13,0.82)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(245,200,91,0.25)', borderStyle: 'dashed', marginBottom: tokens.spacing.md },
-  onboardingTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.xs, textAlign: 'center' },
-  onboardingSub: { fontSize: 13, color: colors.textSecondary, lineHeight: 20, textAlign: 'center', marginBottom: tokens.spacing.lg, paddingHorizontal: tokens.spacing.md },
-  photoButtons: { flexDirection: 'row', gap: 12, width: '100%' },
-  photoBtn: {
-    flex: 1, backgroundColor: 'rgba(11,11,13,0.82)', borderRadius: tokens.radius.xl,
-    padding: tokens.spacing.lg, alignItems: 'center', gap: 10,
-    borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)',
-  },
+  tabBtnTextActive: { color: '#000' },
+  // Avatar tab
+  avatarTab: { alignItems: 'center' },
+  onboardingTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.sm, textAlign: 'center' },
+  onboardingSub: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, textAlign: 'center', marginBottom: tokens.spacing.xl, paddingHorizontal: tokens.spacing.md },
+  photoButtons: { flexDirection: 'row', gap: 12, width: '100%', marginTop: tokens.spacing.md },
+  photoBtn: { flex: 1, backgroundColor: BOX_BG, borderRadius: tokens.radius.xl, padding: tokens.spacing.lg, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: BOX_BORDER },
   photoBtnText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  loadingCard: { marginTop: tokens.spacing.xl, alignItems: 'center', padding: tokens.spacing.xl, backgroundColor: 'rgba(11,11,13,0.82)', borderRadius: tokens.radius.xl, borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)', gap: 8, width: '100%' },
+  loadingBox: { marginTop: tokens.spacing.xl, alignItems: 'center', padding: tokens.spacing.xl, backgroundColor: BOX_BG, borderRadius: tokens.radius.xl, borderWidth: 1, borderColor: BOX_BORDER, gap: 8, width: '100%' },
   loadingTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   loadingSub: { fontSize: 13, color: colors.textSecondary },
-  avatarSection: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  avatarImage: { width: '100%', height: 320, borderRadius: tokens.radius.xl, backgroundColor: 'rgba(11,11,13,0.82)', marginBottom: tokens.spacing.md },
-  backdropContainer: { width: '100%', height: 320, borderRadius: tokens.radius.xl, overflow: 'hidden', marginBottom: tokens.spacing.md, position: 'relative' },
-  backdropImage: { width: '100%', height: '100%' },
-  backdropOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center' },
-  backdropBrand: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', marginTop: 16, letterSpacing: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
-  backdropUserPhoto: { width: '70%', height: '82%', borderRadius: 12, marginTop: 8 },
-  backdropContainerSmall: { width: '100%', height: 200, borderRadius: tokens.radius.xl, overflow: 'hidden', marginBottom: tokens.spacing.md, position: 'relative' },
-  backdropImageSmall: { width: '100%', height: '100%' },
-  backdropUserSmall: { position: 'absolute', bottom: 0, left: '15%', width: '70%', height: '90%', borderRadius: 8 },
-  methodBadge: { backgroundColor: 'rgba(11,11,13,0.82)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: tokens.spacing.md, borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)' },
-  methodBadgeText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  avatarActions: { width: '100%' },
-  avatarActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primaryLight, borderRadius: tokens.radius.lg, padding: tokens.spacing.md, borderWidth: 1, borderColor: colors.primary + '40' },
-  avatarActionText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  chipsScroll: { marginBottom: tokens.spacing.lg },
-  chipsRow: { gap: 8, paddingRight: tokens.spacing.lg },
-  chip: {
-    paddingHorizontal: 18, paddingVertical: 8,
-    borderRadius: 20, backgroundColor: 'rgba(11,11,13,0.82)',
-    borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)',
-    height: 36, justifyContent: 'center',
+  // Avatar frame — centered over backdrop, no background box
+  avatarFrame: {
+    width: '100%', height: 420, alignItems: 'center', justifyContent: 'center',
+    marginBottom: tokens.spacing.md, position: 'relative',
+    borderRadius: tokens.radius.xl, overflow: 'hidden',
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarLoadingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', gap: 12,
+  },
+  tryOnLabel: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: BOX_BG, borderRadius: tokens.radius.lg,
+    padding: tokens.spacing.sm, marginBottom: tokens.spacing.md,
+    borderWidth: 1, borderColor: BOX_BORDER,
+  },
+  tryOnLabelText: { flex: 1, fontSize: 13, color: colors.text },
+  // Try on tab
+  chipsRow: { gap: 8, paddingRight: tokens.spacing.lg },
+  chip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: BOX_BG, borderWidth: 1, borderColor: BOX_BORDER, height: 36, justifyContent: 'center' },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
   chipTextActive: { color: '#000', fontWeight: '700' },
-  stylistSection: { flex: 1, justifyContent: 'center' },
-  stepTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.sm },
-  stepSub: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: tokens.spacing.lg },
-  previewSection: { flex: 1 },
-  photoPreview: { width: '100%', height: 220, borderRadius: tokens.radius.xl, backgroundColor: 'rgba(11,11,13,0.82)', marginBottom: tokens.spacing.md },
-  outfitPickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(11,11,13,0.82)', borderRadius: tokens.radius.lg, padding: tokens.spacing.md, marginBottom: tokens.spacing.md, borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)' },
-  outfitPickerText: { fontSize: 14, color: colors.text },
-  generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: tokens.radius.lg, padding: tokens.spacing.md, gap: 8 },
-  generateBtnText: { fontSize: 16, fontWeight: '700', color: colors.background },
-  results: { gap: 12 },
-  resultAvatar: { width: '100%', height: 200, borderRadius: tokens.radius.xl, marginBottom: 4 },
-  resultCard: { backgroundColor: 'rgba(11,11,13,0.82)', borderRadius: tokens.radius.xl, padding: tokens.spacing.lg, borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)' },
-  resultCardTitle: { fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: tokens.spacing.sm },
-  resultCardText: { fontSize: 15, color: colors.text, lineHeight: 22 },
-  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 7 },
-  tipText: { flex: 1, fontSize: 14, color: colors.text, lineHeight: 20 },
-  tryAnotherBtn: { borderWidth: 1, borderColor: colors.primary, borderRadius: tokens.radius.lg, padding: tokens.spacing.md, alignItems: 'center' },
-  tryAnotherText: { fontSize: 15, fontWeight: '600', color: colors.primary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: colors.background, borderTopLeftRadius: tokens.radius.xl, borderTopRightRadius: tokens.radius.xl, padding: tokens.spacing.lg, paddingBottom: 48, maxHeight: '80%' },
-  modalHandle: { width: 40, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: tokens.spacing.lg },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: tokens.spacing.lg },
-  modalClose: { position: 'absolute', top: tokens.spacing.lg, right: tokens.spacing.lg },
-  methodOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(11,11,13,0.82)', borderRadius: tokens.radius.xl, padding: tokens.spacing.lg, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)', gap: 14 },
-  methodIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  methodText: { flex: 1 },
-  methodTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  methodSub: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-  outfitOption: { padding: tokens.spacing.md, borderRadius: tokens.radius.lg, marginBottom: 8, backgroundColor: 'rgba(11,11,13,0.82)', borderWidth: 1, borderColor: 'rgba(245,200,91,0.25)' },
-  outfitOptionActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  outfitOptionText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  outfitOptionTextActive: { color: colors.primary },
-  outfitOptionSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  sectionBox: { backgroundColor: BOX_BG, borderRadius: tokens.radius.xl, borderWidth: 1, borderColor: BOX_BORDER, paddingTop: tokens.spacing.md, overflow: 'hidden', marginBottom: tokens.spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: tokens.spacing.md, marginBottom: tokens.spacing.sm },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  itemsStrip: { paddingHorizontal: tokens.spacing.md, paddingBottom: tokens.spacing.md, gap: 10 },
+  itemCard: { width: 90, backgroundColor: 'rgba(28,28,33,0.9)', borderRadius: tokens.radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: BOX_BORDER },
+  itemCardActive: { borderColor: colors.primary, borderWidth: 2 },
+  itemImage: { width: 90, height: 90, backgroundColor: 'rgba(28,28,33,0.5)' },
+  itemImagePlaceholder: { width: 90, height: 90, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(28,28,33,0.5)' },
+  itemName: { fontSize: 11, fontWeight: '600', color: colors.text, padding: 6, paddingBottom: 2 },
+  itemBrand: { fontSize: 10, color: colors.textSecondary, paddingHorizontal: 6, paddingBottom: 6 },
 });
