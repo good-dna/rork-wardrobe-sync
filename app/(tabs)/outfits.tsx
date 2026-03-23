@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: 'transparent'Secondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: tokens.spacing.lg,
