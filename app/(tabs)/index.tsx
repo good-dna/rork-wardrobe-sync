@@ -285,8 +285,8 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1 },
-  content: { paddingBottom: 120 },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  content: { paddingBottom: 120, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.sm, paddingBottom: tokens.spacing.sm,
