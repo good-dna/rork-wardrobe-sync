@@ -317,6 +317,9 @@ export default function CalendarScreen() {
     >
       <View style={styles.container}>
         <View style={styles.header}>
+        <Text style={styles.title}>Calendar</Text>
+      </View>
+      <View style={styles.tabRow}>
           <Text style={styles.title}>Calendar</Text>
           <View style={styles.viewToggle}>
             <Pressable style={[styles.toggleButton, calendarView === 'month' && styles.activeToggleButton]} onPress={() => setCalendarView('month')}>
@@ -332,6 +335,7 @@ export default function CalendarScreen() {
               <Text style={[styles.toggleButtonText, calendarView === 'list' && styles.activeToggleButtonText]}>Log</Text>
             </Pressable>
           </View>
+        </View>
         </View>
 
         <View style={styles.body}>
@@ -441,6 +445,11 @@ const styles = StyleSheet.create({
   activeToggleButtonText: {
     color: colors.primary,
     fontWeight: '500',
+  },
+  tabRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    alignItems: 'center',
   },
   body: {
     flex: 1,
