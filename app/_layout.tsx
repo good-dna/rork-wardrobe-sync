@@ -49,7 +49,7 @@ function RootLayoutNav() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <<AuthProvider>
+        <AuthProvider>
         <DataSyncProvider>
         <AppBackdrop>
         <Stack
