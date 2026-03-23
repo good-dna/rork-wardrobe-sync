@@ -7,6 +7,7 @@ import { colors } from "@/constants/colors";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
+import AppBackdrop from "@/components/AppBackdrop";
 import DataSyncProvider from "@/providers/DataSyncProvider";
 
 export const unstable_settings = {
@@ -48,8 +49,9 @@ function RootLayoutNav() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+        <<AuthProvider>
         <DataSyncProvider>
+        <AppBackdrop>
         <Stack
           screenOptions={{
             headerStyle: {
@@ -180,6 +182,7 @@ function RootLayoutNav() {
             }} 
           />
         </Stack>
+        </AppBackdrop>
         </DataSyncProvider>
         </AuthProvider>
       </QueryClientProvider>
