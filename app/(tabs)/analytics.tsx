@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart2, TrendingUp, TrendingDown, DollarSign, Calendar, Palette, ShoppingBag, Clock, Droplets, AlertTriangle } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
@@ -150,10 +150,17 @@ export default function AnalyticsScreen() {
   // Show loading only if we don't have local data and queries are still loading
   if (isLoading && items.length === 0) {
     return (
+      <ImageBackground
+        source={require('../../assets/images/closet-backdrop.png')}
+        style={{ flex: 1 }}
+        imageStyle={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+      >
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.title, { marginTop: 16 }]}>Loading Analytics...</Text>
       </View>
+      </ImageBackground>
     );
   }
   
@@ -170,6 +177,12 @@ export default function AnalyticsScreen() {
   }, {} as Record<string, number>);
   
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Wardrobe Analytics</Text>
@@ -459,13 +472,14 @@ export default function AnalyticsScreen() {
         </View>
       </View>
     </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 16,

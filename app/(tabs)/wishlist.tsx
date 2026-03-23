@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Sparkles, Camera, Link } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
@@ -44,6 +44,12 @@ export default function WishlistScreen() {
   );
   
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
@@ -68,13 +74,14 @@ export default function WishlistScreen() {
         renderEmptyState()
       )}
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
     padding: 16,
   },
   header: {

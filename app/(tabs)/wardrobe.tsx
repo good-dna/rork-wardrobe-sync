@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   StyleSheet, Text, View, Pressable, FlatList,
-  TextInput, Image, SectionList, SafeAreaView
+  TextInput, Image, SectionList, SafeAreaView, ImageBackground
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Search, Grid2x2, List } from 'lucide-react-native';
@@ -147,6 +147,12 @@ export default function WardrobeScreen() {
 
   if (items.length === 0) {
     return (
+      <ImageBackground
+        source={require('../../assets/images/closet-backdrop.png')}
+        style={{ flex: 1 }}
+        imageStyle={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+      >
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>My Wardrobe</Text>
@@ -161,10 +167,17 @@ export default function WardrobeScreen() {
           onAction={handleAddItem}
         />
       </View>
+      </ImageBackground>
     );
   }
 
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -251,13 +264,14 @@ export default function WardrobeScreen() {
         </View>
       )}
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',

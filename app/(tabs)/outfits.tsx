@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, FlatList, Pressable, SafeAreaView, ScrollView } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, SafeAreaView, ScrollView, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Sparkles } from 'lucide-react-native';
 import { colors, tokens } from '@/constants/colors';
@@ -20,6 +20,12 @@ export default function OutfitsScreen() {
   };
   
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
@@ -66,13 +72,14 @@ export default function OutfitsScreen() {
         )}
       </SafeAreaView>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   safeArea: {
     flex: 1,

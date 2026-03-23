@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, Modal, TextInput, ImageBackground } from 'react-native';
 import { Calendar as CalendarIcon, Clock, Droplets, X, Check, Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { useWardrobeStore } from '@/store/wardrobeStore';
@@ -393,6 +393,12 @@ export default function CalendarScreen() {
   };
   
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Calendar</Text>
@@ -538,13 +544,14 @@ export default function CalendarScreen() {
         editingOutfit={editingOutfit || undefined}
       />
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',

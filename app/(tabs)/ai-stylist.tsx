@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, Pressable, ScrollView,
-  Image, ActivityIndicator, Alert, Modal
+  Image, ActivityIndicator, Alert, Modal, ImageBackground
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -196,10 +196,16 @@ export default function AIStylistScreen() {
   };
 
   if (checkingAvatar) {
-    return <SafeAreaView style={s.container} edges={['top']}><View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View></SafeAreaView>;
+    return <ImageBackground source={require('../../assets/images/closet-backdrop.png')} style={{ flex: 1 }} imageStyle={{ width: '100%', height: '100%' }} resizeMode="cover"><SafeAreaView style={s.container} edges={['top']}><View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View></SafeAreaView></ImageBackground>;
   }
 
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
@@ -429,11 +435,12 @@ export default function AIStylistScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: tokens.spacing.lg, paddingBottom: 90 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: tokens.spacing.lg },

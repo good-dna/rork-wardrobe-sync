@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet, Text, View, ScrollView, Pressable,
-  TextInput, Image, Alert, ActivityIndicator
+  TextInput, Image, Alert, ActivityIndicator, ImageBackground
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, LogOut, Edit, Camera, MapPin, ChevronRight, Settings, BarChart3, Save, Upload } from 'lucide-react-native';
@@ -200,16 +200,29 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
+      <ImageBackground
+        source={require('../../assets/images/closet-backdrop.png')}
+        style={{ flex: 1 }}
+        imageStyle={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+      >
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </View>
+      </ImageBackground>
     );
   }
 
   return (
+    <ImageBackground
+      source={require('../../assets/images/closet-backdrop.png')}
+      style={{ flex: 1 }}
+      imageStyle={{ width: '100%', height: '100%' }}
+      resizeMode="cover"
+    >
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}
       <View style={styles.header}>
@@ -446,13 +459,14 @@ export default function ProfileScreen() {
         <Text style={styles.logoutButtonText}>Logout</Text>
       </Pressable>
     </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: tokens.spacing.lg,
