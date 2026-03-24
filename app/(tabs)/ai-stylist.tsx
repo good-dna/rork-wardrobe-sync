@@ -129,8 +129,29 @@ export default function AIStylistScreen() {
     setTryOnResult(null);
 
     try {
-      // Get avatar URL — either saved Supabase URL or base64
-      const avatarSource = avatarUrl || avatar;
+      // Avatar must be a real URL for fal.ai — if we only have base64, upload it first
+      let avatarSource = avatarUrl;
+      if (!avatarSource && avatar) {
+        if (avatar.startsWith('http')) {
+          avatarSource = avatar;
+        } else {
+          // Upload base64 avatar to Supabase Storage first
+          const { data: { user } } = await supabase.auth.getUser();
+          const base64Data = avatar.split(',')[1];
+          const binaryStr = atob(base64Data);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+          const path = `${user?.id}/avatar_tryon_${Date.now()}.png`;
+          const { error: uploadErr } = await supabase.storage.from('wardrobe').upload(path, bytes, { contentType: 'image/png', upsert: true });
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from('wardrobe').getPublicUrl(path);
+            avatarSource = urlData.publicUrl;
+            setAvatarUrl(avatarSource);
+            await AsyncStorage.setItem(AVATAR_URL_KEY, avatarSource);
+          }
+        }
+      }
+      if (!avatarSource) throw new Error('Could not get avatar URL for try-on');
       const clothType = getClothType(item.category);
 
       let body: any = {
