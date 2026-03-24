@@ -148,9 +148,11 @@ export default function AIStylistScreen() {
         body.garmentMediaType = 'image/jpeg';
       }
 
+      console.log('Calling tryon-fal with body:', JSON.stringify({ avatarUrl: body.avatarUrl?.slice(0, 50), clothType: body.clothType, hasGarmentUrl: !!body.garmentUrl, hasGarmentBase64: !!body.garmentBase64 }));
       const { data, error } = await supabase.functions.invoke('tryon-fal', { body });
+      console.log('tryon-fal response:', JSON.stringify({ data, error }));
       if (error) throw new Error(error.message);
-      if (!data?.resultBase64) throw new Error('No result returned');
+      if (!data?.resultBase64) throw new Error(`No result returned. Data: ${JSON.stringify(data)}`);
 
       setTryOnResult(`data:image/png;base64,${data.resultBase64}`);
     } catch (err: any) {
