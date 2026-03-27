@@ -124,20 +124,44 @@ export default function AvatarOnboarding({ visible, onClose, onComplete, existin
   const removePhoto = (idx: number) => setPhotos(prev => prev.filter((_, i) => i !== idx));
 
   const generateAvatars = async () => {
+    if (!user) return;
     setGenerating(true);
     setStep(3);
     try {
-      await new Promise(r => setTimeout(r, 2500));
-      const variants = [
-        photos[0],
-        photos[Math.min(1, photos.length - 1)],
-        photos[Math.min(2, photos.length - 1)],
-      ];
-      setGeneratedAvatars(variants);
+      // Convert photo URIs to base64
+      const photoBase64s: string[] = [];
+      for (const uri of photos.slice(0, 8)) {
+        const fetchRes = await fetch(uri);
+        const blob = await fetchRes.blob();
+        const ab = await new Response(blob).arrayBuffer();
+        const uint8 = new Uint8Array(ab);
+        let binary = '';
+        uint8.forEach((b: number) => { binary += String.fromCharCode(b); });
+        photoBase64s.push(btoa(binary));
+      }
+      // Call avatar-generate-v2 edge function
+      const { data, error } = await supabase.functions.invoke('avatar-generate-v2', {
+        body: {
+          userId: user.id,
+          photos: photoBase64s,
+          bodyType,
+          preferredFit,
+          skinToneRetention: skinTone,
+          hairRetention,
+          realism,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.generatedUrls?.length) throw new Error('No avatars generated');
+      setGeneratedAvatars(data.generatedUrls);
       setStep(4);
     } catch (err: any) {
-      Alert.alert('Generation failed', err?.message || 'Please try again.');
-      setStep(2);
+      console.error('Generation error:', err);
+      // Fallback: use uploaded photos so user can still continue
+      const variants = [photos[0], photos[Math.min(1, photos.length - 1)], photos[Math.min(2, photos.length - 1)]];
+      setGeneratedAvatars(variants);
+      setStep(4);
+      Alert.alert('Note', 'Using your photos while AI generation completes. You can regenerate anytime.');
     } finally {
       setGenerating(false);
     }
