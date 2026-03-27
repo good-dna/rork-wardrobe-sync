@@ -66,7 +66,7 @@ serve(async (req) => {
         max_tokens: 400,
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: primaryPhoto } },
-          { type: "text", text: "Analyze this person for fashion avatar generation. Respond ONLY with JSON: {"gender": "man/woman/person", "ageRange": "20s/30s etc", "skinTone": "specific skin tone", "hairStyle": "specific hair description", "build": "body build"}" },
+          { type: "text", text: `Analyze this person for fashion avatar generation. Respond ONLY with JSON: {"gender": "man/woman/person", "ageRange": "20s/30s etc", "skinTone": "specific skin tone", "hairStyle": "specific hair description", "build": "body build"}` },
         ]}],
       }),
     });
