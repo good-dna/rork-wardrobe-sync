@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!error && data.session) {
+      try { const AS = (await import('@react-native-async-storage/async-storage')).default; await AS.multiRemove(['wardrobe-storage','user-storage','klotho_avatar_settings_v2','klotho_weather_cache']); } catch(_) {}
       setSession(data.session);
       setUser(data.user);
 
@@ -129,18 +130,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session && !inAuthGroup) {
       router.replace('/auth/sign-in' as any);
     } else if (session && inAuthGroup) {
-      // Check if user has completed avatar setup
-      try {
-        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-        const avatarDone = await AsyncStorage.getItem('klotho_avatar_settings_v2');
-        if (!avatarDone) {
-          router.replace('/avatar-setup' as any);
-        } else {
+      const checkAvatar = async () => {
+        try {
+          const { supabase: sb } = await import('@/lib/supabase');
+          const { data: profile } = await sb.from('profiles').select('avatar_url').eq('id', session.user.id).single();
+          if (!profile?.avatar_url) {
+            router.replace('/avatar-setup' as any);
+          } else {
+            router.replace('/(tabs)' as any);
+          }
+        } catch {
           router.replace('/(tabs)' as any);
         }
-      } catch {
-        router.replace('/(tabs)' as any);
-      }
+      };
+      checkAvatar();
     }
   }, [session, segments, loading, router]);
 
