@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet, View, Text, Pressable, ScrollView,
-  Image, ActivityIndicator, Alert, Modal, ImageBackground
-} from 'react-native';
+import { StyleSheet, View, Text, Pressable, ScrollView, Image, ActivityIndicator, Alert, Modal, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Wand2, Camera, Upload, X, RefreshCw, ChevronRight, Sparkles, User, Zap, Settings } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,7 +15,6 @@ const AVATAR_SETTINGS_KEY = 'klotho_avatar_settings_v2';
 const GOLD = '#C8A45D';
 const BOX_BG = 'rgba(20,16,10,0.88)';
 const BOX_BORDER = 'rgba(200,164,93,0.35)';
-
 const OCCASIONS = [
   { id: 'casual', label: 'Casual', icon: '👕' },
   { id: 'work', label: 'Work', icon: '💼' },
@@ -27,25 +23,12 @@ const OCCASIONS = [
   { id: 'athletic', label: 'Athletic', icon: '🏃' },
   { id: 'weather', label: 'Weather', icon: '🌤️' },
 ];
-
-interface StyleResult {
-  bodyAnalysis: string;
-  outfitDescription: string;
-  stylingTips: string[];
-  colorRecommendations: string;
-  occasion: string;
-}
-
+interface StyleResult { bodyAnalysis: string; outfitDescription: string; stylingTips: string[]; colorRecommendations: string; occasion: string; }
 const getBase64 = async (uri: string): Promise<string> => {
   if (typeof document !== 'undefined') {
     const response = await fetch(uri);
     const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string).split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve((reader.result as string).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(blob); });
   }
   return await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
 };
@@ -64,25 +47,16 @@ export default function AIStylistScreen() {
   const [showOutfitPicker, setShowOutfitPicker] = useState(false);
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'avatar' | 'stylist'>('avatar');
-
   useEffect(() => { loadSavedAvatar(); }, []);
-
   const loadSavedAvatar = async () => {
     try {
       if (user) {
         const { data } = await supabase.from('profiles').select('avatar_url').eq('id', user.id).single();
         if (data?.avatar_url) {
           const saved = await AsyncStorage.getItem(AVATAR_SETTINGS_KEY);
-          const settings: AvatarSettings = saved ? JSON.parse(saved) : {
-            photos: [], bodyType: '', preferredFit: 'regular',
-            skinToneRetention: 75, hairRetention: 75, realism: 75,
-            selectedAvatarUri: data.avatar_url, avatarUrl: data.avatar_url
-          };
+          const settings: AvatarSettings = saved ? JSON.parse(saved) : { photos: [], bodyType: '', preferredFit: 'regular', skinToneRetention: 75, hairRetention: 75, realism: 75, selectedAvatarUri: data.avatar_url, avatarUrl: data.avatar_url };
           settings.avatarUrl = data.avatar_url;
-          setAvatarSettings(settings);
-          setActiveTab('stylist');
-          setCheckingAvatar(false);
-          return;
+          setAvatarSettings(settings); setActiveTab('stylist'); setCheckingAvatar(false); return;
         }
       }
       const saved = await AsyncStorage.getItem(AVATAR_SETTINGS_KEY);
@@ -90,39 +64,28 @@ export default function AIStylistScreen() {
     } catch (err) { console.warn('Failed to load avatar:', err); }
     finally { setCheckingAvatar(false); }
   };
-
   const handleOnboardingComplete = async (settings: AvatarSettings) => {
     await AsyncStorage.setItem(AVATAR_SETTINGS_KEY, JSON.stringify(settings));
-    setAvatarSettings(settings);
-    setShowOnboarding(false);
-    setActiveTab('stylist');
+    setAvatarSettings(settings); setShowOnboarding(false); setActiveTab('stylist');
   };
-
   const resetAvatar = () => {
     Alert.alert('Reset Avatar', 'Start the avatar setup again?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset', style: 'destructive', onPress: async () => {
-        await AsyncStorage.removeItem(AVATAR_SETTINGS_KEY);
-        setAvatarSettings(null);
-        setActiveTab('avatar');
-      }},
+      { text: 'Reset', style: 'destructive', onPress: async () => { await AsyncStorage.removeItem(AVATAR_SETTINGS_KEY); setAvatarSettings(null); setActiveTab('avatar'); } },
     ]);
   };
-
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission needed'); return; }
     const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [3, 4], quality: 0.1 });
     if (!result.canceled) { setUserPhoto(result.assets[0].uri); setStep('occasion'); setStyleResult(null); }
   };
-
   const uploadPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission needed'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [3, 4], quality: 0.1 });
     if (!result.canceled) { setUserPhoto(result.assets[0].uri); setStep('occasion'); setStyleResult(null); }
   };
-
   const generateStyle = async () => {
     if (!userPhoto) { Alert.alert('Photo required'); return; }
     setLoading(true); setStep('result');
@@ -131,40 +94,30 @@ export default function AIStylistScreen() {
       const selectedOutfit = selectedOutfitId ? outfits.find(o => o.id === selectedOutfitId) : null;
       const outfitItems = selectedOutfit ? items.filter(i => selectedOutfit.items.includes(i.id)) : items.slice(0, 5);
       const outfitDescription = outfitItems.length > 0 ? outfitItems.map(i => `${i.name} (${i.brand}, ${i.color})`).join(', ') : 'casual everyday clothes';
-      const { data: aiData, error: aiError } = await supabase.functions.invoke('claude-stylist', {
-        body: { imageBase64: base64, occasion: selectedOccasion, outfitDescription },
-      });
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('claude-stylist', { body: { imageBase64: base64, occasion: selectedOccasion, outfitDescription } });
       if (aiError) throw new Error(aiError.message);
       setStyleResult(aiData);
-    } catch {
-      Alert.alert('Error', 'Failed to generate style advice.');
-      setStep('occasion');
-    } finally { setLoading(false); }
+    } catch { Alert.alert('Error', 'Failed to generate style advice.'); setStep('occasion'); }
+    finally { setLoading(false); }
   };
 
   if (checkingAvatar) {
     return (
       <ImageBackground source={require('../../assets/images/closet-backdrop.png')} style={{ flex: 1 }} resizeMode="cover">
-        <SafeAreaView style={s.container} edges={['top']}>
-          <View style={s.center}><ActivityIndicator size="large" color={GOLD} /></View>
-        </SafeAreaView>
+        <SafeAreaView style={s.container} edges={['top']}><View style={s.center}><ActivityIndicator size="large" color={GOLD} /></View></SafeAreaView>
       </ImageBackground>
     );
   }
-
   const avatarUrl = avatarSettings?.avatarUrl || avatarSettings?.selectedAvatarUri;
-
   return (
     <ImageBackground source={require('../../assets/images/closet-backdrop.png')} style={{ flex: 1 }} imageStyle={{ width: '100%', height: '100%' }} resizeMode="cover">
       <SafeAreaView style={s.container} edges={['top']}>
         <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-
           <View style={s.header}>
             <Wand2 size={22} color={GOLD} />
             <Text style={s.title}>AI Stylist</Text>
             {avatarSettings && <Pressable onPress={resetAvatar} style={s.headerBtn}><RefreshCw size={16} color={colors.textSecondary} /></Pressable>}
           </View>
-
           {avatarSettings && (
             <View style={s.tabRow}>
               <Pressable style={[s.tabBtn, activeTab === 'avatar' && s.tabBtnActive]} onPress={() => setActiveTab('avatar')}>
@@ -177,50 +130,43 @@ export default function AIStylistScreen() {
               </Pressable>
             </View>
           )}
-
           {(!avatarSettings || activeTab === 'avatar') && (
             !avatarSettings ? (
               <View style={s.onboardingCta}>
                 <View style={s.onboardingIcon}><User size={48} color={GOLD} /></View>
                 <Text style={s.onboardingTitle}>Build Your Avatar</Text>
-                <Text style={s.onboardingSub}>Upload 1–8 photos, choose your body type and style preferences. Our AI will generate a personalized avatar that looks like you.</Text>
+                <Text style={s.onboardingSub}>Upload 1-8 photos, choose your body type and style preferences. Our AI generates a personalized avatar that looks like you.</Text>
                 <View style={s.featureList}>
-                  {['Personalized to your body type', 'Preserves your skin tone & hair', 'Try outfits before you wear them', 'Regenerate anytime'].map(f => (
+                  {['Personalized to your body type','Preserves your skin tone and hair','Try outfits before you wear them','Regenerate anytime'].map(f => (
                     <View key={f} style={s.featureRow}><View style={s.featureDot} /><Text style={s.featureText}>{f}</Text></View>
                   ))}
                 </View>
                 <Pressable style={s.startBtn} onPress={() => setShowOnboarding(true)}>
-                  <Zap size={18} color="#000" />
-                  <Text style={s.startBtnText}>Create My Avatar</Text>
+                  <Zap size={18} color="#000" /><Text style={s.startBtnText}>Create My Avatar</Text>
                 </Pressable>
               </View>
             ) : (
               <View style={s.avatarDisplay}>
                 <View style={s.avatarFrame}>
                   <Text style={s.avatarBrand}>KLOTHO</Text>
-                  {avatarUrl
-                    ? <Image source={{ uri: avatarUrl }} style={s.avatarImg} resizeMode="cover" />
-                    : <View style={s.avatarPlaceholder}><User size={60} color={colors.textSecondary} /></View>
-                  }
+                  {avatarUrl ? <Image source={{ uri: avatarUrl }} style={s.avatarImg} resizeMode="cover" /> : <View style={s.avatarPlaceholder}><User size={60} color={colors.textSecondary} /></View>}
                 </View>
                 {avatarSettings.bodyType ? (
                   <View style={s.settingsSummary}>
                     <Text style={s.settingsSummaryTitle}>Avatar Settings</Text>
                     <View style={s.settingsChips}>
-                      {[avatarSettings.bodyType, avatarSettings.preferredFit, `${avatarSettings.skinToneRetention}% skin`, `${avatarSettings.realism}% realism`].map(chip => (
+                      {[avatarSettings.bodyType, avatarSettings.preferredFit, avatarSettings.skinToneRetention + '% skin', avatarSettings.realism + '% realism'].map(chip => (
                         <View key={chip} style={s.settingsChip}><Text style={s.settingsChipText}>{chip}</Text></View>
                       ))}
                     </View>
                   </View>
                 ) : null}
                 <Pressable style={s.editAvatarBtn} onPress={() => setShowOnboarding(true)}>
-                  <Settings size={16} color={GOLD} />
-                  <Text style={s.editAvatarText}>Edit Avatar Settings</Text>
+                  <Settings size={16} color={GOLD} /><Text style={s.editAvatarText}>Edit Avatar Settings</Text>
                 </Pressable>
               </View>
             )
           )}
-
           {avatarSettings && activeTab === 'stylist' && (
             <View>
               <Text style={s.occasionLabel}>SELECT OCCASION</Text>
@@ -232,7 +178,6 @@ export default function AIStylistScreen() {
                   </Pressable>
                 ))}
               </ScrollView>
-
               {step === 'photo' && (
                 <View style={s.uploadSection}>
                   <Text style={s.uploadTitle}>Upload Your Photo</Text>
@@ -243,7 +188,6 @@ export default function AIStylistScreen() {
                   </View>
                 </View>
               )}
-
               {(step === 'occasion' || step === 'result') && userPhoto && (
                 <View>
                   <Image source={{ uri: userPhoto }} style={s.photoPreview} resizeMode="cover" />
@@ -254,21 +198,13 @@ export default function AIStylistScreen() {
                         <ChevronRight size={18} color={colors.textSecondary} />
                       </Pressable>
                       <Pressable style={s.generateBtn} onPress={generateStyle}>
-                        <Wand2 size={20} color="#000" />
-                        <Text style={s.generateBtnText}>Generate My Style</Text>
+                        <Wand2 size={20} color="#000" /><Text style={s.generateBtnText}>Generate My Style</Text>
                       </Pressable>
                     </>
                   )}
                 </View>
               )}
-
-              {loading && (
-                <View style={s.loadingCard}>
-                  <ActivityIndicator size="large" color={GOLD} />
-                  <Text style={s.loadingTitle}>Claude is styling you...</Text>
-                </View>
-              )}
-
+              {loading && <View style={s.loadingCard}><ActivityIndicator size="large" color={GOLD} /><Text style={s.loadingTitle}>Claude is styling you...</Text></View>}
               {styleResult && !loading && (
                 <View style={s.results}>
                   {avatarUrl && (
@@ -277,15 +213,8 @@ export default function AIStylistScreen() {
                       <Image source={{ uri: avatarUrl }} style={s.resultAvatarImg} resizeMode="cover" />
                     </View>
                   )}
-                  {[
-                    { title: 'Your Style Profile', text: styleResult.bodyAnalysis },
-                    { title: `Your ${styleResult.occasion} Look`, text: styleResult.outfitDescription },
-                    { title: 'Color Recommendations', text: styleResult.colorRecommendations },
-                  ].map(({ title, text }) => (
-                    <View key={title} style={s.resultCard}>
-                      <Text style={s.resultCardTitle}>{title}</Text>
-                      <Text style={s.resultCardText}>{text}</Text>
-                    </View>
+                  {[{ title: 'Your Style Profile', text: styleResult.bodyAnalysis }, { title: 'Your ' + styleResult.occasion + ' Look', text: styleResult.outfitDescription }, { title: 'Color Recommendations', text: styleResult.colorRecommendations }].map(({ title, text }) => (
+                    <View key={title} style={s.resultCard}><Text style={s.resultCardTitle}>{title}</Text><Text style={s.resultCardText}>{text}</Text></View>
                   ))}
                   <View style={s.resultCard}>
                     <Text style={s.resultCardTitle}>Styling Tips</Text>
@@ -293,18 +222,14 @@ export default function AIStylistScreen() {
                       <View key={i} style={s.tipRow}><View style={s.tipDot} /><Text style={s.tipText}>{tip}</Text></View>
                     ))}
                   </View>
-                  <Pressable style={s.tryAnotherBtn} onPress={() => setStep('photo')}>
-                    <Text style={s.tryAnotherText}>Try Another Look</Text>
-                  </Pressable>
+                  <Pressable style={s.tryAnotherBtn} onPress={() => setStep('photo')}><Text style={s.tryAnotherText}>Try Another Look</Text></Pressable>
                 </View>
               )}
             </View>
           )}
         </ScrollView>
       </SafeAreaView>
-
       <AvatarOnboarding visible={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} existingSettings={avatarSettings} />
-
       <Modal visible={showOutfitPicker} transparent animationType="slide" onRequestClose={() => setShowOutfitPicker(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
@@ -312,9 +237,7 @@ export default function AIStylistScreen() {
             <Text style={s.modalTitle}>Choose an Outfit</Text>
             <Pressable style={s.modalClose} onPress={() => setShowOutfitPicker(false)}><X size={20} color={colors.text} /></Pressable>
             <ScrollView>
-              <Pressable style={s.outfitOption} onPress={() => { setSelectedOutfitId(null); setShowOutfitPicker(false); }}>
-                <Text style={s.outfitOptionText}>Use my full wardrobe</Text>
-              </Pressable>
+              <Pressable style={s.outfitOption} onPress={() => { setSelectedOutfitId(null); setShowOutfitPicker(false); }}><Text style={s.outfitOptionText}>Use my full wardrobe</Text></Pressable>
               {outfits.map(outfit => (
                 <Pressable key={outfit.id} style={[s.outfitOption, selectedOutfitId === outfit.id && s.outfitOptionActive]} onPress={() => { setSelectedOutfitId(outfit.id); setShowOutfitPicker(false); }}>
                   <Text style={[s.outfitOptionText, selectedOutfitId === outfit.id && s.outfitOptionTextActive]}>{outfit.name}</Text>
