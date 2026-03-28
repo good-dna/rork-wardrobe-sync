@@ -143,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.replace('/(tabs)' as any);
         }
       };
+      console.log('AUTH CHECK: session exists, checking avatar for', session.user.id);
       checkAvatar();
     }
   }, [session, segments, loading, router]);
