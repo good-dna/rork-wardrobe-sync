@@ -27,6 +27,7 @@ interface Props {
   onClose: () => void;
   onComplete: (settings: AvatarSettings) => void;
   existingSettings?: AvatarSettings | null;
+  mandatory?: boolean;
 }
 
 const BODY_TYPES = [
@@ -87,7 +88,7 @@ const sl = StyleSheet.create({
   sideLabel: { fontSize: 11, color: colors.textSecondary },
 });
 
-export default function AvatarOnboarding({ visible, onClose, onComplete, existingSettings }: Props) {
+export default function AvatarOnboarding({ visible, onClose, onComplete, existingSettings, mandatory }: Props) {
   const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [photos, setPhotos] = useState<string[]>(existingSettings?.photos || []);
@@ -345,7 +346,7 @@ export default function AvatarOnboarding({ visible, onClose, onComplete, existin
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} style={styles.closeBtn}><X size={20} color={colors.textSecondary} /></Pressable>
+          {!mandatory && <Pressable onPress={onClose} style={styles.closeBtn}><X size={20} color={colors.textSecondary} /></Pressable>}
           <Text style={styles.headerTitle}>Avatar Setup</Text>
           <View style={{ width: 36 }} />
         </View>

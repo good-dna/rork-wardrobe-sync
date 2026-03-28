@@ -129,7 +129,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session && !inAuthGroup) {
       router.replace('/auth/sign-in' as any);
     } else if (session && inAuthGroup) {
-      router.replace('/(tabs)' as any);
+      // Check if user has completed avatar setup
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const avatarDone = await AsyncStorage.getItem('klotho_avatar_settings_v2');
+        if (!avatarDone) {
+          router.replace('/avatar-setup' as any);
+        } else {
+          router.replace('/(tabs)' as any);
+        }
+      } catch {
+        router.replace('/(tabs)' as any);
+      }
     }
   }, [session, segments, loading, router]);
 

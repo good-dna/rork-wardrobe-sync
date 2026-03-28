@@ -87,7 +87,7 @@ export default function OnboardingScreen() {
       });
       animateTransition();
     } else {
-      router.replace('/(tabs)');
+      router.replace('/avatar-setup' as any);
     }
   };
 
