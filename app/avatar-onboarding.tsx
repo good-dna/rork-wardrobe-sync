@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Image, ActivityIndicator, Alert, ImageBackground, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -33,6 +33,13 @@ export default function AvatarOnboardingScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [tipExpanded, setTipExpanded] = useState(false);
+
+  // Request permissions upfront on screen load
+  useEffect(() => {
+    (async () => {
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    })();
+  }, []);
 
   const canGenerate = photos.length >= 3;
   const photoCount = photos.length;
