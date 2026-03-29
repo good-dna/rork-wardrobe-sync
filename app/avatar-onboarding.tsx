@@ -18,7 +18,7 @@ const DARK = 'rgba(14,11,7,0.92)';
 const THUMB_SIZE = (W - 48 - 16) / 3;
 
 const PHOTO_TIPS = [
-  { icon: '☀️', title: 'Good lighting', desc: 'Natural light or bright indoor — avoid harsh shadows' },
+  { icon: '☀️', title: 'Good lighting', desc: 'Natural light or bright indoor, avoid harsh shadows' },
   { icon: '🧍', title: 'Full body', desc: 'At least one photo showing head to toe' },
   { icon: '📐', title: 'Face the camera', desc: 'Front-facing, relaxed neutral expression' },
   { icon: '🚫', title: 'No heavy filters', desc: 'Unedited or lightly edited only' },
@@ -34,16 +34,13 @@ export default function AvatarOnboardingScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [tipExpanded, setTipExpanded] = useState(false);
 
-  // Request permissions upfront on screen load
-  useEffect(() => {
-    (async () => {
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    })();
-  }, []);
-
   const canGenerate = photos.length >= 3;
   const photoCount = photos.length;
   const maxPhotos = 8;
+
+  useEffect(() => {
+    ImagePicker.requestMediaLibraryPermissionsAsync();
+  }, []);
 
   const pickPhotos = useCallback(async (useCamera) => {
     if (photos.length >= maxPhotos) { Alert.alert('Max reached', 'Remove a photo to add more.'); return; }
@@ -121,7 +118,7 @@ export default function AvatarOnboardingScreen() {
           <View style={s.header}>
             <Text style={s.logoText}>KLOTHO</Text>
             <Text style={s.title}>Create Your Avatar</Text>
-            <Text style={s.subtitle}>Upload 3-8 clear photos so Klotho can create a{'\n'}realistic avatar that looks just like you.</Text>
+            <Text style={s.subtitle}>Upload 3-8 clear photos so Klotho can create a realistic avatar that looks just like you.</Text>
           </View>
           <View style={s.progressSection}>
             <View style={s.progressRow}>
@@ -130,7 +127,6 @@ export default function AvatarOnboardingScreen() {
             </View>
             <View style={s.progressBar}>
               <View style={[s.progressFill, { width: `${(photoCount / maxPhotos) * 100}%` }]} />
-              <View style={[s.progressMin, { left: `${(3 / maxPhotos) * 100}%` }]} />
             </View>
           </View>
           <View style={s.gridSection}>
@@ -211,9 +207,8 @@ const s = StyleSheet.create({
   progressSection: { marginBottom: 20 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   progressLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  progressBar: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, position: 'relative' },
+  progressBar: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2 },
   progressFill: { height: '100%', backgroundColor: GOLD, borderRadius: 2 },
-  progressMin: { position: 'absolute', top: -2, width: 2, height: 8, backgroundColor: 'rgba(200,164,93,0.5)', borderRadius: 1 },
   gridSection: { marginBottom: 20 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   thumb: { width: THUMB_SIZE, height: THUMB_SIZE * 4 / 3, borderRadius: 12, overflow: 'hidden', position: 'relative', borderWidth: 1.5, borderColor: GOLD_DIM },
