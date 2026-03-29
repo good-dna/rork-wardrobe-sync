@@ -10,6 +10,8 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import AppBackdrop from "@/components/AppBackdrop";
 import DataSyncProvider from "@/providers/DataSyncProvider";
 
+import { ensureProfileExists } from '@/lib/createProfile';
+
 export const unstable_settings = {
   initialRouteName: "auth/sign-in",
 };
@@ -46,6 +48,10 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+  useEffect(() => {
+    ensureProfileExists().catch(console.error);
+  }, []);
+
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
