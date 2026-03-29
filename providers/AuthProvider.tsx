@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!session && !inAuthGroup) {
       router.replace('/auth/sign-in' as any);
-    } else if (session && inAuthGroup) {
+    } else if (session && (inAuthGroup || segments[0] === undefined || segments[0] === 'onboarding')) {
       const checkAvatar = async () => {
         try {
           const { supabase: sb } = await import('@/lib/supabase');
