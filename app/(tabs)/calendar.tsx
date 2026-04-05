@@ -347,7 +347,7 @@ export default function CalendarScreen() {
               <Text style={[styles.toggleButtonText, calendarView === 'month' && styles.activeToggleButtonText]}>Month</Text>
             </Pressable>
             <Pressable style={[styles.toggleButton, calendarView === 'week' && styles.activeToggleButton]} onPress={() => setCalendarView('week')}>
-              <CalendarIcon size={16} color={calendarView === 'week' ? colors.primary : colors.subtext} />
+              <CalendarIcon size={16} color={calendarView === 'week' ? // week-view-v2 colors.primary : colors.subtext} />
               <Text style={[styles.toggleButtonText, calendarView === 'week' && styles.activeToggleButtonText]}>Week</Text>
             </Pressable>
             <Pressable style={[styles.toggleButton, calendarView === 'list' && styles.activeToggleButton]} onPress={() => setCalendarView('list')}>
@@ -367,7 +367,7 @@ export default function CalendarScreen() {
               </View>
               {renderSelectedDateEvents()}
             </>
-          ) : calendarView === 'week' ? (
+          ) : calendarView === 'week' ? // week-view-v2 (
             <>
               <View style={styles.calendarCard}>
                 {renderCalendarHeader()}
