@@ -55,6 +55,27 @@ export default function CalendarScreen() {
     return days;
   }, [selectedDate]);
 
+  // Generate 7 days for week view starting from selected date's week
+  const weekDays = useMemo(() => {
+    const days = [];
+    const startOfWeek = new Date(selectedDate);
+    startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      const dateString = d.toLocaleDateString('en-CA');
+      days.push({
+        date: dateString,
+        day: d.getDate().toString(),
+        dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        isCurrentMonth: d.getMonth() === selectedDate.getMonth(),
+        isToday: dateString === new Date().toLocaleDateString('en-CA'),
+        isSelected: dateString === selectedDate.toLocaleDateString('en-CA'),
+      });
+    }
+    return days;
+  }, [selectedDate]);
+
   const eventsForSelectedDate = useMemo(() => {
     const selectedDateString = selectedDate.toLocaleDateString('en-CA');
     const wearEvents: { item: Item; entry: WearLogEntry }[] = [];
@@ -337,12 +358,35 @@ export default function CalendarScreen() {
         </View>
 
         <View style={styles.body}>
-          {calendarView === 'month' || calendarView === 'week' ? (
+          {calendarView === 'month' ? (
             <>
               <View style={styles.calendarCard}>
                 {renderCalendarHeader()}
                 {renderCalendarDays()}
                 {renderCalendarGrid()}
+              </View>
+              {renderSelectedDateEvents()}
+            </>
+          ) : calendarView === 'week' ? (
+            <>
+              <View style={styles.calendarCard}>
+                {renderCalendarHeader()}
+                <View style={styles.weekStrip}>
+                  {weekDays.map((day, index) => (
+                    <Pressable
+                      key={index}
+                      style={[styles.weekDay, day.isSelected && styles.weekDaySelected, day.isToday && styles.weekDayToday]}
+                      onPress={() => handleDateSelect(day.date)}
+                    >
+                      <Text style={[styles.weekDayName, day.isSelected && styles.weekDayTextSelected]}>{day.dayName}</Text>
+                      <Text style={[styles.weekDayNum, day.isSelected && styles.weekDayTextSelected, day.isToday && styles.weekDayTodayText]}>{day.day}</Text>
+                      <View style={styles.calendarDayIndicators}>
+                        {plansForRange.some(p => p.date_ymd === day.date) && <View style={[styles.calendarDayIndicator, { backgroundColor: '#C8A45D' }]} />}
+                        {items.some(item => item.wearHistory?.some(e => e.date === day.date)) && <View style={[styles.calendarDayIndicator, { backgroundColor: colors.primary }]} />}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
               {renderSelectedDateEvents()}
             </>
@@ -715,6 +759,47 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  weekStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 8,
+  },
+  weekDay: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginHorizontal: 2,
+  },
+  weekDaySelected: {
+    backgroundColor: '#C8A45D20',
+    borderWidth: 1.5,
+    borderColor: '#C8A45D',
+  },
+  weekDayToday: {
+    borderWidth: 1.5,
+    borderColor: '#C8A45D',
+    borderRadius: 12,
+  },
+  weekDayName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.subtext,
+    marginBottom: 4,
+  },
+  weekDayNum: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  weekDayTextSelected: {
+    color: '#C8A45D',
+  },
+  weekDayTodayText: {
+    color: '#C8A45D',
+    fontWeight: '700',
   },
   scheduledPlanCard: {
     backgroundColor: colors.background,
