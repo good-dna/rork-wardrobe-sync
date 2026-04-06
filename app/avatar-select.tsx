@@ -24,7 +24,11 @@ export default function AvatarSelectScreen() {
     if (!selected || !user) return;
     setSaving(true);
     try {
-      await supabase.from('profiles').update({ avatar_url: selected, updated_at: new Date().toISOString() }).eq('id', user.id);
+      await supabase.from('profiles').update({ 
+  avatar_url: selected, 
+  onboarding_complete: true,
+  updated_at: new Date().toISOString() 
+}).eq('id', user.id);
       await supabase.from('avatar_profiles').update({ selected_avatar_url: selected, generation_status: 'ready', updated_at: new Date().toISOString() }).eq('user_id', user.id);
       const saved = await AsyncStorage.getItem(AVATAR_SETTINGS_KEY);
       const settings = saved ? JSON.parse(saved) : {};

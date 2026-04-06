@@ -129,23 +129,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!session && !inAuthGroup) {
       router.replace('/auth/sign-in' as any);
-    } else if (session && (inAuthGroup || segments[0] === undefined || segments[0] === 'onboarding')) {
-      const checkAvatar = async () => {
-        try {
-          const { supabase: sb } = await import('@/lib/supabase');
-          const { data: profile } = await sb.from('profiles').select('avatar_url').eq('id', session.user.id).single();
-          if (!profile?.avatar_url) {
-            router.replace('/avatar-setup' as any);
-          } else {
-            router.replace('/(tabs)' as any);
-          }
-        } catch {
-          router.replace('/(tabs)' as any);
-        }
-      };
-      console.log('AUTH CHECK: session exists, checking avatar for', session.user.id);
-      checkAvatar();
+    } else if (session && (inAuthGroup || segments[0] === undefined)) {
+  const checkOnboarding = async () => {
+    try {
+      const { supabase: sb } = await import('@/lib/supabase');
+      const { data: profile } = await sb
+        .from('profiles')
+        .select('onboarding_complete, avatar_url')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profile?.onboarding_complete) {
+        router.replace('/onboarding' as any);
+      } else {
+        router.replace('/(tabs)' as any);
+      }
+    } catch {
+      router.replace('/onboarding' as any);
     }
+  };
+  checkOnboarding();
+}
   }, [session, segments, loading, router]);
 
   return (

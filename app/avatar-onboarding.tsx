@@ -100,7 +100,10 @@ export default function AvatarOnboardingScreen() {
       const settings = { photos, bodyType: '', preferredFit: 'regular', skinToneRetention: 75, hairRetention: 75, realism: 75, selectedAvatarUri: data.generatedUrls[0], avatarUrl: data.generatedUrls[0] };
       await AsyncStorage.setItem(AVATAR_SETTINGS_KEY, JSON.stringify(settings));
       setUploadProgress(100);
-      router.replace({ pathname: '/avatar-select', params: { avatarUrls: JSON.stringify(data.generatedUrls) } });
+      if (data?.generatedUrls?.length) {
+  await supabase.from('profiles').update({ onboarding_complete: true }).eq('id', user.id);
+}
+router.replace({ pathname: '/avatar-select', params: { avatarUrls: JSON.stringify(data.generatedUrls) } });
     } catch (err) {
       console.error('Avatar generation error:', err);
       Alert.alert('Generation failed', err?.message || 'Please try again.');

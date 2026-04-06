@@ -46,7 +46,7 @@ export default function SignUpScreen() {
     if (error) {
       Alert.alert('Sign Up Failed', error.message);
     } else {
-      router.replace('/avatar-setup' as any);
+      router.replace('/onboarding' as any);
     }
   };
 
