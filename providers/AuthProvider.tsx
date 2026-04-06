@@ -85,12 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const lastName = metadata?.last_name || '';
       
       const profileData = {
-        id: data.user.id,
-        email: email,
-        display_name: `${firstName} ${lastName}`.trim() || email.split('@')[0],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-  };
+  id: data.user.id,
+  email: email,
+  display_name: `${firstName} ${lastName}`.trim() || email.split('@')[0],
+  onboarding_complete: false,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -123,34 +124,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (loading) return;
+  if (loading) return;
 
-    const inAuthGroup = segments[0] === 'auth';
+  const inAuthGroup = segments[0] === 'auth';
+  const protectedScreens = ['onboarding', 'avatar-onboarding', 'avatar-select', 'avatar-setup'];
+  const inProtectedScreen = protectedScreens.includes(segments[0] as string);
 
-    if (!session && !inAuthGroup) {
-      router.replace('/auth/sign-in' as any);
-    } else if (session && (inAuthGroup || segments[0] === undefined)) {
-  const checkOnboarding = async () => {
-    try {
-      const { supabase: sb } = await import('@/lib/supabase');
-      const { data: profile } = await sb
-        .from('profiles')
-        .select('onboarding_complete, avatar_url')
-        .eq('id', session.user.id)
-        .single();
+  if (!session && !inAuthGroup) {
+    router.replace('/auth/sign-in' as any);
+  } else if (session && (inAuthGroup || segments[0] === undefined) && !inProtectedScreen) {
+    const checkOnboarding = async () => {
+      try {
+        const { supabase: sb } = await import('@/lib/supabase');
+        const { data: profile } = await sb
+          .from('profiles')
+          .select('onboarding_complete, avatar_url')
+          .eq('id', session.user.id)
+          .single();
 
-      if (!profile?.onboarding_complete) {
+        if (!profile?.onboarding_complete) {
+          router.replace('/onboarding' as any);
+        } else {
+          router.replace('/(tabs)' as any);
+        }
+      } catch {
         router.replace('/onboarding' as any);
-      } else {
-        router.replace('/(tabs)' as any);
       }
-    } catch {
-      router.replace('/onboarding' as any);
-    }
-  };
-  checkOnboarding();
-}
-  }, [session, segments, loading, router]);
+    };
+    checkOnboarding();
+  }
+}, [session, segments, loading, router]);
 
   return (
     <AuthContext.Provider
